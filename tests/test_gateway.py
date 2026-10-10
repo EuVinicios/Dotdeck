@@ -121,6 +121,14 @@ class VadNoiseTest(unittest.TestCase):
         self.assertEqual([e[0] for e in detector.feed(audio)],
                          [vad.START, vad.END, vad.START, vad.END])
 
+    def test_the_connected_chime_is_not_the_caller(self):
+        # Dotdeck chimes (140 ms) when the call goes live; on open speakers the microphone
+        # hears it about 200 ms in. The 800 ms warm-up the gateway uses keeps it quiet.
+        detector = vad.Vad(warmup_ms=800)
+        audio = hum(0.2) + mix(hum(0.14, seed=11), tone(0.14, level=0.1)) + hum(1.5, seed=12)
+        self.assertEqual(detector.feed(audio), [])
+        self.assertFalse(detector.speaking)
+
     def test_speech_from_the_first_frame_still_ends(self):
         # The caller talks before the hum is known; the utterance still ends (15 s cap at
         # worst), and the next one is heard normally.
@@ -695,6 +703,9 @@ class CallLogicTest(unittest.TestCase):
         asked = self.streamed()[0]["messages"]
         self.assertEqual(asked[-1], {"role": "user", "content": call.greeting_prompt})
         self.assertEqual(call.count(SPOKEN), 1)
+
+    def test_the_call_warms_up_long_enough_for_the_chime(self):
+        self.assertEqual(self.make_call().vad.warmup_frames, 40)    # 800 ms
 
     def test_no_greeting_when_the_caller_speaks_first_or_it_is_off(self):
         call = self.make_call(greeting=True)
