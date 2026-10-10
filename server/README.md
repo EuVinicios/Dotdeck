@@ -116,6 +116,7 @@ então não precisa instalar pacotes com `sudo`. Variáveis em `voice-gateway.en
 | `VOICE_GATEWAY_VOICE` | `marin` (também `alloy`, `coral`, `nova`, `shimmer`…) |
 | `VOICE_GATEWAY_TRANSCRIBE_MODEL` | `google/gemini-2.5-flash-lite` (vazio desliga) |
 | `VOICE_GATEWAY_SILENCE_MS` | `700` (silêncio que encerra a sua fala) |
+| `VOICE_GATEWAY_GREETING` | `1` (o Dot atende a ligação com uma frase; `0` desliga) |
 | `VOICE_GATEWAY_FORCE_VOICE` | vazio (uma voz aqui ignora a que o OpenDots pedir) |
 | `VOICE_GATEWAY_MAX_CALLS` | `2` (chamadas ao mesmo tempo) |
 | `VOICE_GATEWAY_DEBUG` | vazio (`1` mostra cada turno e o nível do microfone nos logs) |

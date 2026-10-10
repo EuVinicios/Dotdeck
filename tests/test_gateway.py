@@ -17,6 +17,7 @@ import io
 import json
 import logging
 import math
+import random
 import os
 import shutil
 import socket
@@ -77,6 +78,57 @@ class VadTest(unittest.TestCase):
         quiet = vad.Vad()
         quiet.bias_db = 40
         self.assertEqual(quiet.feed(silence(0.3) + tone(1.0, level=0.05)), [])
+
+
+def hum(seconds: float, level_db: float = -40.0, seed: int = 1, rate: int = 16000) -> bytes:
+    """Steady background noise, like a wired headset with automatic gain (RMS level_db)."""
+    amplitude = 32767 * (10 ** (level_db / 20)) * math.sqrt(3)
+    noise = random.Random(seed)
+    return array.array("h", (int(noise.uniform(-amplitude, amplitude))
+                             for _ in range(int(seconds * rate)))).tobytes()
+
+
+def mix(*parts: bytes) -> bytes:
+    """Sum equal-length 16-bit buffers (speech over the hum)."""
+    tracks = [array.array("h", p) for p in parts]
+    return array.array("h", (max(-32768, min(32767, sum(t[i] for t in tracks)))
+                             for i in range(len(tracks[0])))).tobytes()
+
+
+class VadNoiseTest(unittest.TestCase):
+    """10/10/2026: a JBL wired headset hummed at about -40 dB; with a background level
+    learnt only between utterances (starting at -70 dB) the gateway took the hum for
+    speech from the first frame and never heard the caller stop."""
+
+    def test_hears_the_end_of_speech_over_a_headset_hum(self):
+        detector = vad.Vad(stop_ms=700)
+        audio = hum(1.0) + mix(hum(1.2, seed=2), tone(1.2)) + hum(1.5, seed=3)
+        events = detector.feed(audio)
+        self.assertEqual([e[0] for e in events], [vad.START, vad.END])
+        seconds = len(events[1][1]) / 2 / 16000
+        self.assertTrue(1.0 <= seconds <= 2.2, seconds)
+        self.assertGreater(detector.floor_db, -46)    # it learnt the hum
+
+    def test_hum_alone_is_never_speech(self):
+        detector = vad.Vad()
+        self.assertEqual(detector.feed(hum(6.0, level_db=-35)), [])
+        self.assertFalse(detector.speaking)
+
+    def test_two_utterances_over_the_hum(self):
+        detector = vad.Vad(stop_ms=600)
+        audio = (hum(0.8) + mix(hum(1.0, seed=4), tone(1.0)) + hum(1.2, seed=5)
+                 + mix(hum(0.8, seed=6), tone(0.8)) + hum(1.2, seed=7))
+        self.assertEqual([e[0] for e in detector.feed(audio)],
+                         [vad.START, vad.END, vad.START, vad.END])
+
+    def test_speech_from_the_first_frame_still_ends(self):
+        # The caller talks before the hum is known; the utterance still ends (15 s cap at
+        # worst), and the next one is heard normally.
+        detector = vad.Vad(stop_ms=600)
+        events = detector.feed(mix(hum(1.0), tone(1.0)) + hum(2.0, seed=8)
+                               + mix(hum(1.0, seed=9), tone(1.0)) + hum(1.5, seed=10))
+        self.assertIn(vad.END, [e[0] for e in events])
+        self.assertFalse(detector.speaking)
 
 
 class FormAndToolsTest(unittest.TestCase):
@@ -208,7 +260,7 @@ class GatewayCallTest(unittest.TestCase):
         self.addCleanup(self.fake.stop)
         self.logs = collect_logs(self)
         config = Config(token=TOKEN, api_key=SECRET_KEY, base_url=self.fake.url, port=0,
-                        vad_stop_ms=500)
+                        vad_stop_ms=500, greeting=False)
         self.gateway = Gateway(config)
         threading.Thread(target=self.gateway.serve_forever, daemon=True).start()
         self.addCleanup(self.gateway.shutdown)
@@ -520,6 +572,7 @@ class CallLogicTest(unittest.TestCase):
         self.fake = FakeOpenRouter(tool_first, transcribe_delay=transcribe_delay,
                                    by_length=True)
         self.addCleanup(self.fake.stop)
+        config.setdefault("greeting", False)
         settings = Config(token=TOKEN, api_key=SECRET_KEY, base_url=self.fake.url, port=0,
                           **config)
         session = {"type": "realtime", "model": "gpt-4o-realtime-preview",
@@ -633,6 +686,27 @@ class CallLogicTest(unittest.TestCase):
         self.assertEqual(second[-1]["role"], "user")
 
     # -- voice changes ---------------------------------------------------------------------
+
+    def test_the_dot_answers_the_call(self):
+        call = self.make_call(greeting=True)
+        call.greeting_delay = 0.05
+        call._session_created()
+        self.wait(call, "response.done")
+        asked = self.streamed()[0]["messages"]
+        self.assertEqual(asked[-1], {"role": "user", "content": call.greeting_prompt})
+        self.assertEqual(call.count(SPOKEN), 1)
+
+    def test_no_greeting_when_the_caller_speaks_first_or_it_is_off(self):
+        call = self.make_call(greeting=True)
+        call.greeting_delay = 0.2
+        call.vad.speaking = True                 # the caller is already talking
+        call._session_created()
+        run_until(lambda: False, 0.5)
+        self.assertEqual(self.streamed(), [])
+        quiet = self.make_call()                 # VOICE_GATEWAY_GREETING=0
+        quiet._session_created()
+        run_until(lambda: False, 0.5)
+        self.assertEqual(quiet.count("response.created"), 0)
 
     def test_session_update_changes_the_voice_of_later_replies(self):
         call = self.make_call()
