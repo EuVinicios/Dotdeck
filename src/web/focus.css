@@ -61,6 +61,12 @@ html[data-dotdeck-focus] .template-app .chat-workspace.split > .result-pane {
   top: 0 !important;
 }
 
+/* While Dotdeck's banner says the server is out of reach (data-dotdeck-offline), the page's
+ * own error bar ("Load failed") would only repeat it in English. */
+html[data-dotdeck-focus][data-dotdeck-offline] .template-app .error-banner {
+  display: none !important;
+}
+
 /* The call sheet left room for the 290 px sidebar. */
 @media (min-width: 761px) {
   html[data-dotdeck-focus] .template-app .call-view:not(.minimized) {

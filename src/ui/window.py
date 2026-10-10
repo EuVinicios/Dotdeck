@@ -1144,6 +1144,10 @@ class MainWindow(Adw.ApplicationWindow):
                                "local-only": "warning"}.get(status, "dim-label"))
         self.set_title(f"{profile.name} – {config.APP_NAME}")
         self._refresh_header()
+        if self.view is not None and hasattr(self.view, "set_offline"):
+            # The banner below says it in the owner's language: the page's own error bar
+            # ("Load failed") would repeat it in English.
+            self.view.set_offline(status == "offline")
 
         active = mon.active_tasks if mon else 0
         self.tasks_button.set_visible(active > 0 and not self._native())

@@ -11,6 +11,8 @@
 // - Pets: every mascot gets data-dotdeck-pet, which the pets style sheet uses to draw
 //   the Dot's pet instead of the stock mascot.
 // - Theme: the page follows Dotdeck's colour scheme.
+// - Offline: while Dotdeck's banner says the server is out of reach, <html> gets
+//   data-dotdeck-offline and focus.css hides the page's own error bar.
 //
 // The OpenDots client has no ids in its DOM and no routes for Dots or conversations,
 // so this relies on its structure and accessible labels (src/client/App.tsx upstream).
@@ -104,6 +106,21 @@
     if (meta) meta.setAttribute('content', dark ? '#1b1b1b' : '#f8f7f4');
   };
   applyTheme(false);
+
+  // -- offline ---------------------------------------------------------------------------
+
+  // While Dotdeck's own banner says the server is out of reach, the page's error bar
+  // ("Load failed") would say it again, in English: focus.css hides it under this mark.
+  const OFFLINE = 'data-dotdeck-offline';
+  let offline = Boolean(config.offline);
+  const applyOffline = () => {
+    const root = html();
+    if (root && offline !== root.hasAttribute(OFFLINE)) {
+      if (offline) root.setAttribute(OFFLINE, '');
+      else root.removeAttribute(OFFLINE);
+    }
+  };
+  applyOffline();
 
   // -- focus mode ----------------------------------------------------------------------
 
@@ -619,6 +636,11 @@
       setTheme(value) {
         scheme = value;
         applyTheme(true);
+        return true;
+      },
+      setOffline(value) {
+        offline = Boolean(value);
+        applyOffline();
         return true;
       },
       setPets(map, enabled) {
