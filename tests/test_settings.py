@@ -730,6 +730,21 @@ class SettingsWindowTests(unittest.TestCase):
         page.permission.set_selected(2)
         self.assertEqual(self.app.profiles.get(self.profile.id).microphone, store.MIC_DENY)
 
+    def test_call_sounds_switch(self):
+        self.assertTrue(store.Settings.DEFAULTS["call-sounds"])
+        win = self.open("voice")
+        row = win.rows_by_key["call-sounds"]
+        self.assertEqual(row.get_title(), "Call Sounds")
+        self.assertTrue(row.get_active())
+        row.set_active(False)
+        self.assertFalse(self.app.settings.get("call-sounds"))
+        self.app.settings.set("call-sounds", True)
+        self.assertTrue(row.get_active())
+        win.search_entry.set_text("ringtone")
+        self.assertTrue(run_until(lambda: win.search_results(), 3))
+        first = win.search_results()[0]
+        self.assertEqual((first.page, first.title), ("voice", "Call Sounds"))
+
     # -- server pages ----------------------------------------------------------------------
 
     def test_privacy_switch_asks_then_patches(self):

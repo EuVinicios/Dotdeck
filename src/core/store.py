@@ -191,6 +191,7 @@ class Settings(GObject.Object):
         "gain-control": True,
         "mic-mode": "open",              # open | push-to-talk
         "join-muted": False,
+        "call-sounds": True,             # ringing, connected and hang-up tones
         # Settings window and diagnostics
         "settings-page": "general",
         "verbose-logging": False,

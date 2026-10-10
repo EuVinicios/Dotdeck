@@ -18,6 +18,14 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 
 - **O Dot atende a ligação**: ao conectar, ele diz uma frase curta (o nome e como pode
   ajudar), a prova de que a chamada está no ar. `VOICE_GATEWAY_GREETING=0` desliga.
+- **Sons da chamada**, como num app de ligação: enquanto a chamada conecta, o Dotdeck toca
+  (dois toques suaves e uma pausa, por no máximo 45 s); quando ela fica no ar, um aviso curto
+  de duas notas que sobem; e ao desligar (por você, pelo Dot ou pelo servidor), duas notas
+  que descem, mais graves se a chamada caiu com erro. Os sons são gerados no próprio código,
+  sem arquivos de áudio, tocam no alto-falante escolhido para as chamadas e nunca entram na
+  ligação; o aviso de conexão dura menos de 0,2 s para o detector de fala não confundi-lo com
+  voz. Liga e desliga em Configurações › Chamadas de voz › Sons da chamada (ligado por
+  padrão).
 
 ## [0.3.5] - 2026-10-10
 

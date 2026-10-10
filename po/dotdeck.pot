@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Dotdeck 0.3.5\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 13:35+0000\n"
+"POT-Creation-Date: 2026-10-10 20:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -395,11 +395,11 @@ msgstr ""
 #: src/main.py:303 src/main.py:635 src/ui/settings/app_pages.py:51
 #: src/ui/settings/window.py:82 src/ui/settings/window.py:209
 #: src/ui/settings/window.py:216 src/ui/settings/window.py:219
-#: src/ui/sidebar.py:214 src/ui/window.py:180 src/ui/window.py:1343
+#: src/ui/sidebar.py:214 src/ui/window.py:186 src/ui/window.py:1350
 msgid "Settings"
 msgstr ""
 
-#: src/main.py:304 src/ui/settings/app_pages.py:52 src/ui/window.py:181
+#: src/main.py:304 src/ui/settings/app_pages.py:52 src/ui/window.py:187
 msgid "Keyboard Shortcuts"
 msgstr ""
 
@@ -407,7 +407,7 @@ msgstr ""
 msgid "Close Window"
 msgstr ""
 
-#: src/main.py:305 src/main.py:637 src/ui/window.py:185
+#: src/main.py:305 src/main.py:637 src/ui/window.py:191
 msgid "Quit"
 msgstr ""
 
@@ -433,7 +433,7 @@ msgid "Next Dot"
 msgstr ""
 
 #: src/main.py:309 src/ui/settings/app_pages.py:48 src/ui/sidebar.py:473
-#: src/ui/window.py:127 src/ui/window.py:790
+#: src/ui/window.py:133 src/ui/window.py:797
 msgid "New Chat"
 msgstr ""
 
@@ -446,12 +446,12 @@ msgstr ""
 msgid "Talk to the Chief"
 msgstr ""
 
-#: src/main.py:311 src/main.py:620 src/ui/sidebar.py:212 src/ui/window.py:1077
+#: src/main.py:311 src/main.py:620 src/ui/sidebar.py:212 src/ui/window.py:1084
 msgid "Activity"
 msgstr ""
 
 #: src/main.py:312 src/ui/new_dot.py:450 src/ui/settings/dots.py:438
-#: src/ui/settings/privacy.py:36 src/ui/sidebar.py:213 src/ui/window.py:1077
+#: src/ui/settings/privacy.py:36 src/ui/sidebar.py:213 src/ui/window.py:1084
 msgid "Memories"
 msgstr ""
 
@@ -463,23 +463,23 @@ msgstr ""
 msgid "Show or Hide the Sidebar"
 msgstr ""
 
-#: src/main.py:314 src/ui/window.py:169
+#: src/main.py:314 src/ui/window.py:175
 msgid "Reload"
 msgstr ""
 
-#: src/main.py:314 src/ui/window.py:177
+#: src/main.py:314 src/ui/window.py:183
 msgid "Fullscreen"
 msgstr ""
 
-#: src/main.py:315 src/ui/window.py:174
+#: src/main.py:315 src/ui/window.py:180
 msgid "Zoom In"
 msgstr ""
 
-#: src/main.py:315 src/ui/window.py:175
+#: src/main.py:315 src/ui/window.py:181
 msgid "Zoom Out"
 msgstr ""
 
-#: src/main.py:316 src/ui/window.py:176
+#: src/main.py:316 src/ui/window.py:182
 msgid "Actual Size"
 msgstr ""
 
@@ -538,7 +538,7 @@ msgid ""
 msgstr ""
 
 #: src/main.py:471 src/ui/settings/dots.py:96 src/ui/settings/servers.py:35
-#: src/ui/sidebar.py:175 src/ui/window.py:519 src/ui/window.py:1069
+#: src/ui/sidebar.py:175 src/ui/window.py:526 src/ui/window.py:1076
 msgid "Connecting…"
 msgstr ""
 
@@ -838,7 +838,7 @@ msgstr ""
 
 #: src/ui/new_dot.py:277 src/ui/pet_gallery.py:344 src/ui/pet_gallery.py:557
 #: src/ui/settings/common.py:37 src/ui/settings/window.py:775
-#: src/ui/updates.py:200 src/ui/window.py:967 src/ui/window.py:1196
+#: src/ui/updates.py:200 src/ui/window.py:974 src/ui/window.py:1203
 msgid "Cancel"
 msgstr ""
 
@@ -1077,7 +1077,7 @@ msgstr ""
 msgid "Working"
 msgstr ""
 
-#: src/ui/pet_gallery.py:32 src/ui/window.py:1070
+#: src/ui/pet_gallery.py:32 src/ui/window.py:1077
 msgid "Speaking"
 msgstr ""
 
@@ -1232,7 +1232,7 @@ msgstr ""
 msgid "{dot} and {other} swapped pets"
 msgstr ""
 
-#: src/ui/pet_gallery.py:594 src/ui/window.py:756
+#: src/ui/pet_gallery.py:594 src/ui/window.py:763
 msgid "Undo"
 msgstr ""
 
@@ -1656,7 +1656,7 @@ msgstr ""
 msgid "Access Token Needed"
 msgstr ""
 
-#: src/ui/settings/dots.py:104 src/ui/window.py:1149
+#: src/ui/settings/dots.py:104 src/ui/window.py:1156
 #, python-brace-format
 msgid "{name} needs a valid owner access token."
 msgstr ""
@@ -1678,7 +1678,7 @@ msgid "Check the server's address in Servers."
 msgstr ""
 
 #: src/ui/settings/dots.py:144 src/ui/settings/servers.py:72
-#: src/ui/window.py:323
+#: src/ui/window.py:329
 msgid "Add Server…"
 msgstr ""
 
@@ -1691,7 +1691,7 @@ msgid "Create a Dot on this server"
 msgstr ""
 
 #: src/ui/settings/dots.py:183 src/ui/settings/dots.py:221
-#: src/ui/sidebar.py:166 src/ui/window.py:128
+#: src/ui/sidebar.py:166 src/ui/window.py:134
 msgid "New Dot…"
 msgstr ""
 
@@ -1759,7 +1759,7 @@ msgstr ""
 msgid "Permissions"
 msgstr ""
 
-#: src/ui/settings/dots.py:444 src/ui/sidebar.py:194 src/ui/window.py:1078
+#: src/ui/settings/dots.py:444 src/ui/sidebar.py:194 src/ui/window.py:1085
 msgid "Spaces"
 msgstr ""
 
@@ -1970,16 +1970,16 @@ msgid ""
 "chat model does the research."
 msgstr ""
 
-#: src/ui/settings/model.py:167 src/ui/settings/voice_page.py:415
-#: src/ui/settings/voice_page.py:423
+#: src/ui/settings/model.py:167 src/ui/settings/voice_page.py:418
+#: src/ui/settings/voice_page.py:426
 msgid "Speech"
 msgstr ""
 
-#: src/ui/settings/model.py:169 src/ui/settings/voice_page.py:433
+#: src/ui/settings/model.py:169 src/ui/settings/voice_page.py:436
 msgid "Transcription"
 msgstr ""
 
-#: src/ui/settings/model.py:171 src/ui/settings/voice_page.py:438
+#: src/ui/settings/model.py:171 src/ui/settings/voice_page.py:441
 msgid "Research During Calls"
 msgstr ""
 
@@ -2022,7 +2022,7 @@ msgstr ""
 msgid "How to Change It"
 msgstr ""
 
-#: src/ui/settings/model.py:217 src/ui/settings/voice_page.py:469
+#: src/ui/settings/model.py:217 src/ui/settings/voice_page.py:472
 #: src/web/webview.py:336
 msgid "Try Again"
 msgstr ""
@@ -2120,7 +2120,7 @@ msgstr ""
 msgid "API key saved on the server"
 msgstr ""
 
-#: src/ui/settings/model.py:542 src/ui/settings/voice_page.py:530
+#: src/ui/settings/model.py:542 src/ui/settings/voice_page.py:533
 #, python-brace-format
 msgid "Could not save the key: {error}"
 msgstr ""
@@ -2156,25 +2156,25 @@ msgstr ""
 msgid "Not set up on the server"
 msgstr ""
 
-#: src/ui/settings/model.py:582 src/ui/settings/voice_page.py:413
+#: src/ui/settings/model.py:582 src/ui/settings/voice_page.py:416
 #, python-brace-format
 msgid "{model} · Dotdeck voice gateway"
 msgstr ""
 
-#: src/ui/settings/model.py:584 src/ui/settings/voice_page.py:424
+#: src/ui/settings/model.py:584 src/ui/settings/voice_page.py:427
 #, python-brace-format
 msgid "{model} · OpenAI Realtime"
 msgstr ""
 
-#: src/ui/settings/model.py:589 src/ui/settings/voice_page.py:430
+#: src/ui/settings/model.py:589 src/ui/settings/voice_page.py:433
 msgid "Off, or the voice gateway did not answer"
 msgstr ""
 
-#: src/ui/settings/model.py:591 src/ui/settings/voice_page.py:432
+#: src/ui/settings/model.py:591 src/ui/settings/voice_page.py:435
 msgid "This server does not report it"
 msgstr ""
 
-#: src/ui/settings/model.py:595 src/ui/settings/voice_page.py:439
+#: src/ui/settings/model.py:595 src/ui/settings/voice_page.py:442
 #, python-brace-format
 msgid "{model} · the chat model"
 msgstr ""
@@ -2195,7 +2195,7 @@ msgstr ""
 msgid "Dots can save what they learn about you and use it later"
 msgstr ""
 
-#: src/ui/settings/privacy.py:39 src/ui/window.py:171
+#: src/ui/settings/privacy.py:39 src/ui/window.py:177
 msgid "Pause All Dots"
 msgstr ""
 
@@ -2332,7 +2332,7 @@ msgid ""
 "now."
 msgstr ""
 
-#: src/ui/settings/privacy.py:169 src/ui/window.py:1194
+#: src/ui/settings/privacy.py:169 src/ui/window.py:1201
 msgid "Pause All Dots?"
 msgstr ""
 
@@ -2343,11 +2343,11 @@ msgid ""
 "call in progress ends."
 msgstr ""
 
-#: src/ui/settings/privacy.py:171 src/ui/window.py:1197
+#: src/ui/settings/privacy.py:171 src/ui/window.py:1204
 msgid "Pause"
 msgstr ""
 
-#: src/ui/settings/privacy.py:208 src/ui/window.py:1210
+#: src/ui/settings/privacy.py:208 src/ui/window.py:1217
 #, python-brace-format
 msgid "Could not change it: {error}"
 msgstr ""
@@ -2450,7 +2450,7 @@ msgstr ""
 msgid "Who answers “Talk to the Chief” in the tray"
 msgstr ""
 
-#: src/ui/settings/servers.py:188 src/ui/settings/voice_page.py:123
+#: src/ui/settings/servers.py:188 src/ui/settings/voice_page.py:126
 msgid "Microphone Access"
 msgstr ""
 
@@ -2458,17 +2458,17 @@ msgstr ""
 msgid "For voice calls with the Dots on this server"
 msgstr ""
 
-#: src/ui/settings/servers.py:190 src/ui/settings/voice_page.py:124
+#: src/ui/settings/servers.py:190 src/ui/settings/voice_page.py:127
 msgid "Ask"
 msgstr ""
 
-#: src/ui/settings/servers.py:190 src/ui/settings/voice_page.py:124
-#: src/ui/window.py:1355
+#: src/ui/settings/servers.py:190 src/ui/settings/voice_page.py:127
+#: src/ui/window.py:1362
 msgid "Allow"
 msgstr ""
 
-#: src/ui/settings/servers.py:190 src/ui/settings/voice_page.py:124
-#: src/ui/window.py:1354
+#: src/ui/settings/servers.py:190 src/ui/settings/voice_page.py:127
+#: src/ui/window.py:1361
 msgid "Don't Allow"
 msgstr ""
 
@@ -2579,7 +2579,7 @@ msgid ""
 "calls, global shortcuts and a pet for every Dot."
 msgstr ""
 
-#: src/ui/settings/system.py:185 src/ui/window.py:182
+#: src/ui/settings/system.py:185 src/ui/window.py:188
 msgid "About Dotdeck"
 msgstr ""
 
@@ -2617,7 +2617,7 @@ msgstr ""
 msgid "Version {version}"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:55 src/ui/settings/voice_page.py:317
+#: src/ui/settings/voice_page.py:55 src/ui/settings/voice_page.py:320
 msgid "Status"
 msgstr ""
 
@@ -2646,7 +2646,7 @@ msgstr ""
 msgid "Changes apply to the next call."
 msgstr ""
 
-#: src/ui/settings/voice_page.py:83 src/ui/settings/voice_page.py:113
+#: src/ui/settings/voice_page.py:83 src/ui/settings/voice_page.py:116
 msgid "Microphone"
 msgstr ""
 
@@ -2662,7 +2662,7 @@ msgstr ""
 msgid "Test Microphone"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:91 src/ui/settings/voice_page.py:244
+#: src/ui/settings/voice_page.py:91 src/ui/settings/voice_page.py:247
 msgid "Speak: the bar should move"
 msgstr ""
 
@@ -2678,174 +2678,183 @@ msgstr ""
 msgid "Play"
 msgstr ""
 
+#: src/ui/settings/voice_page.py:103
+msgid "Call Sounds"
+msgstr ""
+
 #: src/ui/settings/voice_page.py:104
+msgid ""
+"A ring while calling, and a tone when the call connects and when it ends"
+msgstr ""
+
+#: src/ui/settings/voice_page.py:107
 msgid "Sound Processing"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:105
+#: src/ui/settings/voice_page.py:108
 msgid "Echo Cancellation"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:106
+#: src/ui/settings/voice_page.py:109
 msgid "Recommended with speakers instead of headphones"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:108
+#: src/ui/settings/voice_page.py:111
 msgid "Noise Suppression"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:109
+#: src/ui/settings/voice_page.py:112
 msgid "Softens fans, keyboards and street noise"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:110
+#: src/ui/settings/voice_page.py:113
 msgid "Automatic Gain"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:111
+#: src/ui/settings/voice_page.py:114
 msgid "Keeps your voice at a steady volume"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:114
+#: src/ui/settings/voice_page.py:117
 msgid "Microphone Mode"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:115
+#: src/ui/settings/voice_page.py:118
 msgid "Always On"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:115
+#: src/ui/settings/voice_page.py:118
 msgid "Push to Talk"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:116
+#: src/ui/settings/voice_page.py:119
 msgid ""
 "Push to Talk: hold the microphone button or its global shortcut to speak"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:119
+#: src/ui/settings/voice_page.py:122
 msgid "Join Calls Muted"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:120
+#: src/ui/settings/voice_page.py:123
 msgid "Unmute with Ctrl+Shift+M when you are ready to speak"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:138 src/ui/settings/voice_page.py:202
+#: src/ui/settings/voice_page.py:141 src/ui/settings/voice_page.py:205
 msgid "System Default"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:206
+#: src/ui/settings/voice_page.py:209
 #, python-brace-format
 msgid "{name} (not connected)"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:219
+#: src/ui/settings/voice_page.py:222
 #, python-brace-format
 msgid "Now: {name}"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:253 src/ui/settings/voice_page.py:256
+#: src/ui/settings/voice_page.py:256 src/ui/settings/voice_page.py:259
 msgid "The microphone could not be opened"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:298
+#: src/ui/settings/voice_page.py:301
 msgid "The test sound could not be played"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:316
+#: src/ui/settings/voice_page.py:319
 #, python-brace-format
 msgid "Voice Calls on {name}"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:319
+#: src/ui/settings/voice_page.py:322
 msgid "Add a server to call its Dots."
 msgstr ""
 
-#: src/ui/settings/voice_page.py:321 src/ui/settings/voice_page.py:385
+#: src/ui/settings/voice_page.py:324 src/ui/settings/voice_page.py:388
 msgid "Checking the server…"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:323
+#: src/ui/settings/voice_page.py:326
 msgid "Unknown while the server cannot be reached"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:326
+#: src/ui/settings/voice_page.py:329
 msgid "Ready. One call at a time, up to 15 minutes."
 msgstr ""
 
-#: src/ui/settings/voice_page.py:329
+#: src/ui/settings/voice_page.py:332
 msgid ""
 "Not configured. With an OpenRouter key, install the Dotdeck voice gateway on "
 "the server (server/README.md)."
 msgstr ""
 
-#: src/ui/settings/voice_page.py:341
+#: src/ui/settings/voice_page.py:344
 #, python-brace-format
 msgid "For voice calls with the Dots on {name}"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:385 src/ui/settings/voice_page.py:391
-#: src/ui/settings/voice_page.py:397 src/ui/settings/voice_page.py:450
+#: src/ui/settings/voice_page.py:388 src/ui/settings/voice_page.py:394
+#: src/ui/settings/voice_page.py:400 src/ui/settings/voice_page.py:453
 msgid "Voice"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:391
+#: src/ui/settings/voice_page.py:394
 msgid ""
 "Set on the server (VOICE_NAME in its .env file). This server does not let "
 "Dotdeck change it."
 msgstr ""
 
-#: src/ui/settings/voice_page.py:398
+#: src/ui/settings/voice_page.py:401
 #, python-brace-format
 msgid "Could not read the server's voice settings: {error}"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:441
+#: src/ui/settings/voice_page.py:444
 msgid "Change…"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:442
+#: src/ui/settings/voice_page.py:445
 msgid "Change the chat model in AI Models"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:451
+#: src/ui/settings/voice_page.py:454
 msgid "How every Dot sounds in calls on this server"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:460
+#: src/ui/settings/voice_page.py:463
 msgid "New OpenAI API Key"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:464
+#: src/ui/settings/voice_page.py:467
 msgid "A key is configured on the server. Type a new one to replace it."
 msgstr ""
 
-#: src/ui/settings/voice_page.py:465
+#: src/ui/settings/voice_page.py:468
 msgid "No key is configured on the server yet."
-msgstr ""
-
-#: src/ui/settings/voice_page.py:487
-#, python-brace-format
-msgid "The Dots now speak with the {name} voice"
 msgstr ""
 
 #: src/ui/settings/voice_page.py:490
 #, python-brace-format
+msgid "The Dots now speak with the {name} voice"
+msgstr ""
+
+#: src/ui/settings/voice_page.py:493
+#, python-brace-format
 msgid "Could not change the voice: {error}"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:509
+#: src/ui/settings/voice_page.py:512
 #, python-brace-format
 msgid "The next calls use {model}"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:511
+#: src/ui/settings/voice_page.py:514
 #, python-brace-format
 msgid "Could not change the voice model: {error}"
 msgstr ""
 
-#: src/ui/settings/voice_page.py:528
+#: src/ui/settings/voice_page.py:531
 msgid "Voice key saved on the server"
 msgstr ""
 
@@ -2934,7 +2943,7 @@ msgstr ""
 msgid "No Dots match your search"
 msgstr ""
 
-#: src/ui/sidebar.py:474 src/ui/window.py:190 src/ui/window.py:1108
+#: src/ui/sidebar.py:474 src/ui/window.py:196 src/ui/window.py:1115
 msgid "Call"
 msgstr ""
 
@@ -3041,7 +3050,7 @@ msgstr ""
 msgid "Update Server…"
 msgstr ""
 
-#: src/ui/updates.py:103 src/ui/window.py:1170
+#: src/ui/updates.py:103 src/ui/window.py:1177
 #, python-brace-format
 msgid "{n} change in the official OpenDots"
 msgid_plural "{n} changes in the official OpenDots"
@@ -3137,342 +3146,342 @@ msgstr ""
 msgid "The update did not finish"
 msgstr ""
 
-#: src/ui/window.py:41
+#: src/ui/window.py:42
 msgid "Just now"
 msgstr ""
 
-#: src/ui/window.py:44
+#: src/ui/window.py:45
 #, python-brace-format
 msgid "{n} minute ago"
 msgid_plural "{n} minutes ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/window.py:47
+#: src/ui/window.py:48
 #, python-brace-format
 msgid "{n} hour ago"
 msgid_plural "{n} hours ago"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/window.py:49
+#: src/ui/window.py:50
 msgid "Yesterday"
 msgstr ""
 
-#: src/ui/window.py:118
+#: src/ui/window.py:124
 msgid "Switch Server"
 msgstr ""
 
-#: src/ui/window.py:130
+#: src/ui/window.py:136
 msgid "New"
 msgstr ""
 
-#: src/ui/window.py:133
+#: src/ui/window.py:139
 msgid "Search (Ctrl+K)"
 msgstr ""
 
-#: src/ui/window.py:148
+#: src/ui/window.py:154
 msgid "Show Sidebar (F9)"
 msgstr ""
 
-#: src/ui/window.py:157
+#: src/ui/window.py:163
 msgid "Reload (F5)"
 msgstr ""
 
-#: src/ui/window.py:170
+#: src/ui/window.py:176
 msgid "Show Computer"
 msgstr ""
 
-#: src/ui/window.py:188
+#: src/ui/window.py:194
 msgid "Main Menu"
 msgstr ""
 
-#: src/ui/window.py:198 src/ui/window.py:1007
+#: src/ui/window.py:204 src/ui/window.py:1014
 msgid "Mute Microphone (Ctrl+Shift+M)"
 msgstr ""
 
-#: src/ui/window.py:219
+#: src/ui/window.py:225
 msgid "Conversations"
 msgstr ""
 
-#: src/ui/window.py:223
+#: src/ui/window.py:229
 msgid "New Chat (Ctrl+N)"
 msgstr ""
 
-#: src/ui/window.py:231
+#: src/ui/window.py:237
 msgid "Show Activity"
 msgstr ""
 
-#: src/ui/window.py:324
+#: src/ui/window.py:330
 msgid "Manage Servers…"
 msgstr ""
 
-#: src/ui/window.py:393
+#: src/ui/window.py:400
 msgid "The call was ended."
 msgstr ""
 
-#: src/ui/window.py:475
+#: src/ui/window.py:482
 msgid ""
 "This server's page has a different layout, so it shows its own navigation."
 msgstr ""
 
-#: src/ui/window.py:519
+#: src/ui/window.py:526
 msgid "No connection to the server"
 msgstr ""
 
-#: src/ui/window.py:520
+#: src/ui/window.py:527
 msgid "An access token is needed to see the Dots"
 msgstr ""
 
-#: src/ui/window.py:521
+#: src/ui/window.py:528
 msgid "This server only accepts connections from its own computer"
 msgstr ""
 
-#: src/ui/window.py:522
+#: src/ui/window.py:529
 msgid "This address is not an OpenDots server"
 msgstr ""
 
-#: src/ui/window.py:523
+#: src/ui/window.py:530
 msgid "No Dots yet"
 msgstr ""
 
-#: src/ui/window.py:557
+#: src/ui/window.py:564
 msgid "End the Call?"
 msgstr ""
 
-#: src/ui/window.py:558
+#: src/ui/window.py:565
 #, python-brace-format
 msgid "This ends the call with {name}."
 msgstr ""
 
-#: src/ui/window.py:559
+#: src/ui/window.py:566
 msgid "this Dot"
 msgstr ""
 
-#: src/ui/window.py:560
+#: src/ui/window.py:567
 msgid "Stay"
 msgstr ""
 
-#: src/ui/window.py:561
+#: src/ui/window.py:568
 msgid "End Call and Continue"
 msgstr ""
 
-#: src/ui/window.py:602
+#: src/ui/window.py:609
 #, python-brace-format
 msgid "Could not open {name} on the page."
 msgstr ""
 
-#: src/ui/window.py:716
+#: src/ui/window.py:723
 msgid "Could not start a new chat."
 msgstr ""
 
-#: src/ui/window.py:756
+#: src/ui/window.py:763
 #, python-brace-format
 msgid "{name} is hidden from the sidebar."
 msgstr ""
 
-#: src/ui/window.py:765
+#: src/ui/window.py:772
 #, python-brace-format
 msgid "{name} is now the Chief."
 msgstr ""
 
-#: src/ui/window.py:794
+#: src/ui/window.py:801
 msgid "Save Conversation as Page…"
 msgstr ""
 
-#: src/ui/window.py:796
+#: src/ui/window.py:803
 msgid "Schedule a Task…"
 msgstr ""
 
-#: src/ui/window.py:814
+#: src/ui/window.py:821
 msgid "Conversation"
 msgstr ""
 
-#: src/ui/window.py:826
+#: src/ui/window.py:833
 msgid "No conversations yet"
 msgstr ""
 
-#: src/ui/window.py:858
+#: src/ui/window.py:865
 msgid "Open a conversation first, and wait until the Dot is not working."
 msgstr ""
 
-#: src/ui/window.py:872
+#: src/ui/window.py:879
 msgid "Open a Dot first."
 msgstr ""
 
-#: src/ui/window.py:874
+#: src/ui/window.py:881
 #, python-brace-format
 msgid "Voice calls are not set up on {name}."
 msgstr ""
 
-#: src/ui/window.py:876 src/ui/window.py:1158
+#: src/ui/window.py:883 src/ui/window.py:1165
 msgid "Your Dots are paused."
 msgstr ""
 
-#: src/ui/window.py:878
+#: src/ui/window.py:885
 #, python-brace-format
 msgid "The voice engine is missing on this computer: {parts}."
 msgstr ""
 
-#: src/ui/window.py:882
+#: src/ui/window.py:889
 msgid "Another call is in progress on this server."
 msgstr ""
 
-#: src/ui/window.py:900
+#: src/ui/window.py:907
 msgid "Allow the microphone first: snap connect dotdeck:audio-record"
 msgstr ""
 
-#: src/ui/window.py:928
+#: src/ui/window.py:935
 #, python-brace-format
 msgid "The call with {name} could not start."
 msgstr ""
 
-#: src/ui/window.py:939
+#: src/ui/window.py:946
 #, python-brace-format
 msgid "Could not start a conversation with {name}: {error}"
 msgstr ""
 
-#: src/ui/window.py:947
+#: src/ui/window.py:954
 msgid "Voice call"
 msgstr ""
 
-#: src/ui/window.py:964
+#: src/ui/window.py:971
 msgid "No Microphone Found"
 msgstr ""
 
-#: src/ui/window.py:965
+#: src/ui/window.py:972
 msgid ""
 "This computer has no default microphone, so the Dot would not hear you. Plug "
 "in a headset, or choose a microphone in Settings."
 msgstr ""
 
-#: src/ui/window.py:968
+#: src/ui/window.py:975
 msgid "Call Anyway"
 msgstr ""
 
-#: src/ui/window.py:969
+#: src/ui/window.py:976
 msgid "Choose Microphone…"
 msgstr ""
 
-#: src/ui/window.py:1004
+#: src/ui/window.py:1011
 msgid "Hold to Talk"
 msgstr ""
 
-#: src/ui/window.py:1006
+#: src/ui/window.py:1013
 msgid "Unmute Microphone (Ctrl+Shift+M)"
 msgstr ""
 
-#: src/ui/window.py:1067
+#: src/ui/window.py:1074
 msgid "Saving the call…"
 msgstr ""
 
-#: src/ui/window.py:1069
+#: src/ui/window.py:1076
 msgid "Listening"
 msgstr ""
 
-#: src/ui/window.py:1070
+#: src/ui/window.py:1077
 msgid "Thinking…"
 msgstr ""
 
-#: src/ui/window.py:1071
+#: src/ui/window.py:1078
 #, python-brace-format
 msgid "In a call · {time}"
 msgstr ""
 
-#: src/ui/window.py:1091
+#: src/ui/window.py:1098
 msgid "Saving…"
 msgstr ""
 
-#: src/ui/window.py:1095
+#: src/ui/window.py:1102
 msgid "Saving the call's summary"
 msgstr ""
 
-#: src/ui/window.py:1099
+#: src/ui/window.py:1106
 #, python-brace-format
 msgid "End {time}"
 msgstr ""
 
-#: src/ui/window.py:1102
+#: src/ui/window.py:1109
 msgid "End the Call (Ctrl+Shift+L)"
 msgstr ""
 
-#: src/ui/window.py:1112
+#: src/ui/window.py:1119
 #, python-brace-format
 msgid "Call {name} (Ctrl+Shift+L)"
 msgstr ""
 
-#: src/ui/window.py:1144
+#: src/ui/window.py:1151
 #, python-brace-format
 msgid "{n} task"
 msgid_plural "{n} tasks"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/window.py:1150
+#: src/ui/window.py:1157
 msgid "Update Token"
 msgstr ""
 
-#: src/ui/window.py:1152 src/ui/window.py:1175
+#: src/ui/window.py:1159 src/ui/window.py:1182
 msgid "Edit Server"
 msgstr ""
 
-#: src/ui/window.py:1155
+#: src/ui/window.py:1162
 #, python-brace-format
 msgid "No connection to {name}. Trying again…"
 msgstr ""
 
-#: src/ui/window.py:1156
+#: src/ui/window.py:1163
 msgid "Retry Now"
 msgstr ""
 
-#: src/ui/window.py:1158
+#: src/ui/window.py:1165
 msgid "Resume"
 msgstr ""
 
-#: src/ui/window.py:1172
+#: src/ui/window.py:1179
 msgid "See Updates"
 msgstr ""
 
-#: src/ui/window.py:1174
+#: src/ui/window.py:1181
 #, python-brace-format
 msgid "The connection to {name} is not encrypted."
 msgstr ""
 
-#: src/ui/window.py:1195
+#: src/ui/window.py:1202
 msgid "Work in progress stops and scheduled tasks wait until you resume."
 msgstr ""
 
-#: src/ui/window.py:1248
+#: src/ui/window.py:1255
 #, python-brace-format
 msgid "Could not find {name} on the page."
 msgstr ""
 
-#: src/ui/window.py:1279
+#: src/ui/window.py:1286
 #, python-brace-format
 msgid "Zoom {percent}%"
 msgstr ""
 
-#: src/ui/window.py:1287
+#: src/ui/window.py:1294
 msgid "Press F11 to leave fullscreen"
 msgstr ""
 
-#: src/ui/window.py:1342
+#: src/ui/window.py:1349
 #, python-brace-format
 msgid "The microphone is blocked for {name}."
 msgstr ""
 
-#: src/ui/window.py:1348
+#: src/ui/window.py:1355
 msgid "Use the Microphone?"
 msgstr ""
 
-#: src/ui/window.py:1349
+#: src/ui/window.py:1356
 #, python-brace-format
 msgid ""
 "{name} wants to start a voice call with a Dot. Dotdeck only listens while "
 "the call is open."
 msgstr ""
 
-#: src/ui/window.py:1351
+#: src/ui/window.py:1358
 msgid "Remember for this server"
 msgstr ""
 
