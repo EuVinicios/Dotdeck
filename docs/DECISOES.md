@@ -298,3 +298,69 @@ público.
 **Pedido do dono:** "Ao final, publica as novas versões e suba para versão estável na loja",
 depois reforçado com "finalizar o aplicativo, publicar e deixar ele na versão stable na
 snapcraft".
+
+## ADR-017 — Modelos de IA: provedor, uma chave por provedor, preço e os modelos da chamada (10/10/2026)
+
+**Contexto.** O dono fez duas perguntas sobre o Dotdeck depois de passar a usar só o
+OpenDots. A primeira foi se quem baixa o app da loja recebe os Dots e as chaves dele. A
+investigação conferiu o snap estável (0.3.2, revisão 20) e o histórico do repositório público,
+com os resultados abaixo.
+- **Dados do dono.** O pacote não traz Dots, endereços de servidor, tokens nem chaves de API.
+  Na primeira execução, quem instala vê a configuração guiada.
+- **Onde ficam os dados.** Perfis de servidor ficam na pasta de cada usuário
+  (`profiles.json`, modo 600) e os tokens no chaveiro dele. Os Dots vêm do servidor de quem usa.
+- **Exceção.** O único resto pessoal no código era um exemplo de docstring com o nome do dono.
+
+A segunda pergunta foi sobre provedores e modelos. A página **Modelo de IA** mostrava o id
+cru (`deepseek/deepseek-v4-flash-0731`), uma chave só, nenhum preço e nenhum jeito de trocar
+de provedor. A página de voz mostrava só um dos três modelos de uma chamada: o que fala. O que
+transcreve e o que pesquisa durante a chamada (o modelo das conversas) não apareciam. A chave
+vazia aparecia como "Não definido", no masculino.
+
+**Decisão.**
+- **Loja sem dados de ninguém.** Isso continua valendo e agora é conferido na CI:
+  `make privacy` (`tools/privacy_scan.py`) procura chaves (`sk-or-`, `sk-ant-`, `sk-proj-`),
+  tokens de bot do Telegram, pastas `/home/<nome>` e endereços privados ou do Tailscale. A busca
+  roda no código a cada push e, no fluxo do snap, em todos os arquivos do pacote gerado. Os
+  padrões são genéricos, nunca os valores reais do dono. Os exemplos dos textos de ajuda
+  (192.168.0.10, localhost, `tail1234`) são permitidos. O exemplo com o nome do dono virou um
+  exemplo fictício.
+- **Página Modelos de IA**, em quatro grupos:
+  - **Modelo das conversas.** Nome amigável, com id e provedor embaixo, custo aproximado
+    ("US$ 0,10 entrada · US$ 0,50 saída por milhão de tokens"), chave do provedor
+    (Configurada ou Nenhuma chave ainda) e **Testar agora** ("Respondeu em 1,2 s" ou o erro).
+  - **Trocar.** Provedor, depois o modelo daquele provedor (cada item com preço e
+    velocidade), **Personalizado…** e, só para "Compatível com OpenAI", o endereço da API em
+    **Avançado**.
+  - **Chaves de API.** Uma linha por provedor, com o estado e **Definir nova chave**.
+  - **Modelo das chamadas de voz.** Fala, Transcrição e Pesquisas durante a chamada, com o
+    botão **Configurar chamadas…**.
+- **Provedores.** OpenRouter, Anthropic com chave de API e "Compatível com OpenAI". O Haiku 5.5
+  chega pelo OpenRouter (`anthropic/claude-haiku-5.5`, com a chave que já existe) ou pela chave
+  da Anthropic (`claude-haiku-5-5`). Entrar com a conta Claude (o login OAuth de uma
+  assinatura, usado pelo Claude Code) **não** é oferecido: os termos de consumidor da Anthropic
+  não cobrem esse uso fora do Claude Code e do Claude.ai desde 02/2026. A chave de API tem
+  limite de gasto próprio no Console da Anthropic.
+- **Chave de outro provedor.** O servidor guarda a chave no provedor que está sendo
+  escolhido. Por isso a chave de um provedor que não está em uso entra junto com a troca para
+  ele: **Definir nova chave…** leva para **Trocar**, com o provedor já escolhido. Nada troca
+  sem confirmação.
+- **Preços.** Vêm do servidor, que consulta a lista pública do OpenRouter no máximo uma vez a
+  cada 24 h e usa uma tabela própria quando está sem rede. O Dotdeck mostra "aproximado" e não
+  inventa: sem preço, a linha some.
+- **Voz.** A página Chamadas de voz traz o grupo do modelo logo abaixo do status, com as três
+  linhas e a troca do modelo que fala (GPT Audio Mini ou GPT Audio). A ponte de voz passa a
+  informar o modelo de voz e o de transcrição em `GET /health`. O log de cada chamada diz qual
+  modelo atendeu.
+- **Modelo à vista.** O rodapé da barra lateral mostra "Claude Haiku 5.5 · OpenRouter" e abre
+  Modelos de IA.
+- **Servidores antigos.** Um servidor configurado com o Dotdeck 0.3.2 não informa provedores,
+  preços nem a transcrição. A página mostra só o que ele informa, sem o menu de provedor e sem
+  o teste.
+- **Tradução.** "Nenhuma chave ainda" ganhou uma mensagem própria. pt_BR e es seguem 100%
+  traduzidos, e um teste confere isso.
+
+**Pedidos do dono:** "Quando alguém baixar [o Dotdeck da loja], ele vai zerado sem os meus
+dots e chaves de api, certo?" e "Quero poder adicionar provedores como Claude além da chave de
+API ... usar o novo modelo Haiku ... Também preciso deixar mais claro qual modelo ele está
+usando para chamadas e como configurar".
