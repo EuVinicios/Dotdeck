@@ -936,6 +936,11 @@ class ServerView(Adw.Bin):
     def _on_load_changed(self, view, event) -> None:
         if event == WebKit.LoadEvent.COMMITTED:
             self.page_recognized = None
+            # A new document (F5, a new token, a link): the page that ran the calls is gone
+            # and nothing would end them, so the native call would keep the microphone and
+            # the speakers going with no page. They end here.
+            if self.voice.has_calls:
+                self.voice.close_all()
         if event == WebKit.LoadEvent.FINISHED:
             if not self.failed:
                 self.loaded_once = True
