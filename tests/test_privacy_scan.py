@@ -31,6 +31,7 @@ class PrivacyScanTest(unittest.TestCase):
             "home folder": "cd " + "/home/" + "alice" + "/projects",
             "private address": "http://" + "192.168." + "7.42:4310",
             "Tailscale name": "https://box." + "tail" + "9f8e7d.ts.net",
+            "Tailscale address": "http://[" + "fd7a:" + "115c:a1e0:ab12::1]:4310",
         }
         for kind, text in samples.items():
             with self.subTest(kind=kind):
@@ -40,10 +41,18 @@ class PrivacyScanTest(unittest.TestCase):
         for address in ("10." + "1.2.3", "172." + "20.0.5", "100." + "70.1.2"):
             self.assertEqual(kinds(f"host {address} here"), ["private address"], address)
 
+    def test_the_end_of_a_sentence_hides_nothing(self):
+        """An address that ends a sentence in a guide: the full stop is not part of it."""
+        self.assertEqual(kinds("Acesse " + "100." + "70.1.2."), ["private address"])
+        self.assertEqual(kinds("veja " + "/home/" + "joao."), ["home folder"])
+        self.assertEqual(kinds("release 1.2.3.4.5."), [])         # a longer version number
+        self.assertEqual(kinds("em /home/user."), [])
+
     def test_documented_examples_and_fakes_pass(self):
         for text in ("http://localhost:4310", "http://127.0.0.1:4310",
                      "http://192.168.0.10:4310 or https://homelab.tail1234.ts.net",
                      "network 100.64.0.0/10", "release 1.2.3.4", "GTK 4.0",
+                     "network " + "fd7a:" + "115c:a1e0::/48",
                      "sk-or-test-key", "sk-or-v1-not-a-real-key-0123456789abcdef",
                      "sk-ant-test-key", "/home/user/.config", "/home/runner/work",
                      "public 8.8.8.8", "http://" + "192.168.9.9" + "  # privacy: example"):

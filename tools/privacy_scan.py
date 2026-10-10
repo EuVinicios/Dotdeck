@@ -7,12 +7,12 @@
 Dotdeck is public: a stranger who installs it must get an empty app, with nobody's
 servers, keys or folders in it. This scan looks for generic shapes only (never anyone's
 real values): API keys (``sk-or-``, ``sk-ant-``, ``sk-proj-``), Telegram bot tokens, home
-folders (``/home/<name>``), private and Tailscale addresses and ``*.ts.net`` names. The
-examples the help texts use are allowed: 192.168.0.10, localhost and 127.0.0.1, and the
-Tailscale name ``tail1234``; a line that is an example on purpose (a test of address
-parsing) says so with ``privacy: example``. Networks (``100.64.0.0/10``) are not
-addresses. Each finding prints as ``file:line: kind`` with the value masked, and the
-scan exits with 1.
+folders (``/home/<name>``), private and Tailscale addresses (IPv4, and Tailscale's IPv6
+prefix ``fd7a:115c:a1e0``) and ``*.ts.net`` names. The examples the help texts use are
+allowed: 192.168.0.10, localhost and 127.0.0.1, and the Tailscale name ``tail1234``; a
+line that is an example on purpose (a test of address parsing) says so with
+``privacy: example``. Networks (``100.64.0.0/10``) are not addresses. Each finding prints
+as ``file:line: kind`` with the value masked, and the scan exits with 1.
 """
 
 from __future__ import annotations
@@ -40,14 +40,19 @@ PATTERNS = [
     ("OpenAI key", re.compile(r"sk-proj-[A-Za-z0-9_-]{24,}|\bsk-[A-Za-z0-9]{40,}")),
     ("Telegram bot token", re.compile(r"\b\d{6,}:AA[\w-]{30,}")),
     ("home folder", re.compile(r"/home/([a-z_][a-z0-9_.-]{0,31})")),
-    ("private address", re.compile(r"(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})(?![\d.]|/\d)")),
+    # Four numbers, not part of a longer dotted version (1.2.3.4.5) nor a network
+    # (10.0.0.0/8); the full stop that ends a sentence is not part of the address.
+    ("private address", re.compile(r"(?<!\d)(?<!\d\.)(\d{1,3}(?:\.\d{1,3}){3})"
+                                   r"(?!\d|\.\d|/\d)")),
+    ("Tailscale address", re.compile(r"(?<![0-9a-f:])fd7a:115c:a1e0(?::[0-9a-f]{0,4}){1,5}"
+                                     r"(?![0-9a-f:]|/\d)", re.IGNORECASE)),
     ("Tailscale name", re.compile(r"\b[\w-]+\.(tail[0-9a-z]+)\.ts\.net\b")),
 ]
 
 
 def _allowed(kind: str, match: re.Match) -> bool:
     if kind == "home folder":
-        return match.group(1) in HOME_EXAMPLES
+        return match.group(1).rstrip(".-") in HOME_EXAMPLES    # "/home/user." ends a sentence
     if kind == "private address":
         text = match.group(1)
         try:
