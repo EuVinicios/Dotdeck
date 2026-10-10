@@ -1,0 +1,22 @@
+/* Dotdeck: small additions to the Adwaita stylesheet. */
+
+.status-dot {
+  font-size: 0.8em;
+}
+
+.status-dot.success {
+  color: var(--success-color);
+}
+
+.status-dot.warning {
+  color: var(--warning-color);
+}
+
+.status-dot.error {
+  color: var(--error-color);
+}
+
+statuspage.compact > scrolledwindow > viewport > box {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}

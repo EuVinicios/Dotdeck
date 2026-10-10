@@ -1,0 +1,43 @@
+{
+  "id": "io.github.euvinicios.Dotdeck",
+  "runtime": "org.gnome.Platform",
+  "runtime-version": "51",
+  "sdk": "org.gnome.Sdk",
+  "command": "dotdeck",
+  "finish-args": [
+    "--share=network",
+    "--share=ipc",
+    "--socket=wayland",
+    "--socket=fallback-x11",
+    "--device=dri",
+    "--socket=pulseaudio",
+    "--talk-name=org.kde.StatusNotifierWatcher"
+  ],
+  "cleanup": [
+    "/include",
+    "/lib/pkgconfig",
+    "*.la"
+  ],
+  "modules": [
+    {
+      "name": "dotdeck",
+      "buildsystem": "simple",
+      "build-commands": [
+        "make install PREFIX=/app PYTHON=/usr/bin/python3"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "../..",
+          "skip": [
+            "build",
+            "dist",
+            ".flatpak-builder",
+            "repo",
+            "src/locale"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Testes e .deb (Ubuntu 26.04)
+    runs-on: ubuntu-latest
+    container: ubuntu:26.04
+    env:
+      # WebKit cannot build its bubblewrap sandbox inside an unprivileged container.
+      WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: "1"
+      LC_ALL: C.UTF-8
+    steps:
+      - name: Instalar dependências
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git make gettext python3 python3-gi python3-gi-cairo python3-cairo \
+            gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-webkit-6.0 gir1.2-soup-3.0 gir1.2-secret-1 \
+            gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 gir1.2-gst-plugins-bad-1.0 \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+            gstreamer1.0-nice adwaita-icon-theme fonts-cantarell librsvg2-common \
+            xvfb xauth dbus dbus-x11 desktop-file-utils appstream
+
+      - uses: actions/checkout@v7
+
+      - name: Testes (núcleo, WebKit, chamada de voz em loopback e bandeja)
+        run: make test
+
+      - name: Interface (teste de fumaça)
+        run: make smoke
+
+      - name: Validar .desktop, AppStream e traduções
+        run: make validate
+
+      - name: Autoteste
+        run: |
+          make locale
+          python3 -m src --self-test
+
+      - name: Gerar .deb
+        run: make deb
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dotdeck-deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+  flatpak:
+    name: Flatpak (GNOME 51)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v7
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: Dotdeck.flatpak
+          manifest-path: build-aux/flatpak/io.github.euvinicios.Dotdeck.json
+          cache-key: flatpak-builder-${{ github.sha }}
+      - name: Linter da Flathub (manifesto)
+        run: flatpak-builder-lint manifest build-aux/flatpak/io.github.euvinicios.Dotdeck.json
+      # The AppStream check fetches the screenshots from the main branch, so it only
+      # means something after a merge.
+      - name: Linter da Flathub (AppStream)
+        if: github.event_name != 'pull_request'
+        run: flatpak-builder-lint appstream data/io.github.euvinicios.Dotdeck.metainfo.xml

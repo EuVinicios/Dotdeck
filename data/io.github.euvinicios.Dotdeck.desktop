@@ -1,0 +1,25 @@
+[Desktop Entry]
+Type=Application
+Name=Dotdeck
+GenericName=AI Coworkers
+GenericName[pt_BR]=Colegas de IA
+GenericName[es]=Compañeros de IA
+Comment=Chat, call and get notified by the AI Dots of your OpenDots server
+Comment[pt_BR]=Converse, ligue e receba avisos dos Dots de IA do seu servidor OpenDots
+Comment[es]=Chatea, llama y recibe avisos de los Dots de IA de tu servidor OpenDots
+Exec=dotdeck
+Icon=io.github.euvinicios.Dotdeck
+Terminal=false
+Categories=GTK;GNOME;Network;Chat;
+Keywords=ai;assistant;agents;opendots;dots;chat;voice;coworkers;
+Keywords[pt_BR]=ia;assistente;agentes;opendots;dots;conversa;voz;colegas;
+Keywords[es]=ia;asistente;agentes;opendots;dots;chat;voz;compañeros;
+StartupNotify=true
+X-GNOME-UsesNotifications=true
+Actions=toggle-mute;
+
+[Desktop Action toggle-mute]
+Name=Mute or Unmute the Microphone
+Name[pt_BR]=Silenciar ou reativar o microfone
+Name[es]=Silenciar o activar el micrófono
+Exec=dotdeck --toggle-mute
