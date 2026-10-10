@@ -21,9 +21,16 @@ from typing import Callable
 import gi
 
 gi.require_version("Gst", "1.0")
-gi.require_version("GstWebRTC", "1.0")
-gi.require_version("GstSdp", "1.0")
-from gi.repository import GLib, GObject, Gst, GstSdp, GstWebRTC  # noqa: E402
+try:
+    gi.require_version("GstWebRTC", "1.0")
+    gi.require_version("GstSdp", "1.0")
+    from gi.repository import GLib, GObject, Gst, GstSdp, GstWebRTC  # noqa: E402
+    _HAVE_WEBRTC = True
+except (ValueError, ImportError):
+    from gi.repository import GLib, GObject, Gst  # noqa: E402
+    GstSdp = None
+    GstWebRTC = None
+    _HAVE_WEBRTC = False
 
 log = logging.getLogger(__name__)
 
@@ -35,17 +42,22 @@ OPUS_CAPS = "application/x-rtp,media=audio,encoding-name=OPUS,payload=111,clock-
 # fake sink, so tests and CI run without audio hardware.
 _TEST_AUDIO = os.environ.get("DOTDECK_TEST_AUDIO") == "1"
 
-_STATES = {
-    GstWebRTC.WebRTCPeerConnectionState.NEW: "new",
-    GstWebRTC.WebRTCPeerConnectionState.CONNECTING: "connecting",
-    GstWebRTC.WebRTCPeerConnectionState.CONNECTED: "connected",
-    GstWebRTC.WebRTCPeerConnectionState.DISCONNECTED: "disconnected",
-    GstWebRTC.WebRTCPeerConnectionState.FAILED: "failed",
-    GstWebRTC.WebRTCPeerConnectionState.CLOSED: "closed",
-}
+if _HAVE_WEBRTC:
+    _STATES = {
+        GstWebRTC.WebRTCPeerConnectionState.NEW: "new",
+        GstWebRTC.WebRTCPeerConnectionState.CONNECTING: "connecting",
+        GstWebRTC.WebRTCPeerConnectionState.CONNECTED: "connected",
+        GstWebRTC.WebRTCPeerConnectionState.DISCONNECTED: "disconnected",
+        GstWebRTC.WebRTCPeerConnectionState.FAILED: "failed",
+        GstWebRTC.WebRTCPeerConnectionState.CLOSED: "closed",
+    }
+else:
+    _STATES = {}
 
 
 def missing_elements() -> list[str]:
+    if not _HAVE_WEBRTC:
+        return ["gir1.2-gst-plugins-bad-1.0"]
     if not Gst.is_initialized():
         Gst.init(None)
     return [name for name in REQUIRED_ELEMENTS if Gst.ElementFactory.find(name) is None]

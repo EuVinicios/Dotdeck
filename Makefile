@@ -106,7 +106,7 @@ deb:
 	build-aux/deb/build-deb.sh
 
 flatpak:
-	$(FLATPAK_BUILDER) --user --install --install-deps-from=flathub --force-clean \
+	$(FLATPAK_BUILDER) --disable-rofiles-fuse --user --install --install-deps-from=flathub --force-clean \
 		build/flatpak build-aux/flatpak/$(APP_ID).json
 
 flatpak-lint:

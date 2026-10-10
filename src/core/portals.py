@@ -16,6 +16,18 @@ import gi
 gi.require_version("Gtk", "4.0")
 from gi.repository import Gio, GLib, GObject, Gtk  # noqa: E402
 
+try:
+    gi.require_version("GdkWayland", "4.0")
+    from gi.repository import GdkWayland  # noqa: E402
+except (ImportError, ValueError):
+    GdkWayland = None
+
+try:
+    gi.require_version("GdkX11", "4.0")
+    from gi.repository import GdkX11  # noqa: E402
+except (ImportError, ValueError):
+    GdkX11 = None
+
 from .. import config  # noqa: E402
 
 log = logging.getLogger(__name__)
@@ -41,22 +53,20 @@ def window_identifier(window: Gtk.Window | None, callback: Callable[[str], None]
         callback("")
         return
     try:
-        gi.require_version("GdkWayland", "4.0")
-        from gi.repository import GdkWayland
-        if isinstance(surface, GdkWayland.WaylandToplevel):
-            if not surface.export_handle(lambda _s, handle, *_: callback(f"wayland:{handle}")):
-                callback("")
-            return
-    except (ImportError, ValueError):
-        pass
+        if GdkWayland is not None and isinstance(surface, GdkWayland.WaylandToplevel):
+            if hasattr(surface, "export_handle"):
+                if not surface.export_handle(lambda _s, handle, *_: callback(f"wayland:{handle}")):
+                    callback("")
+                return
+    except Exception as exc:
+        log.debug("Could not export Wayland window handle: %s", exc)
     try:
-        gi.require_version("GdkX11", "4.0")
-        from gi.repository import GdkX11
-        if isinstance(surface, GdkX11.X11Surface):
-            callback(f"x11:{surface.get_xid():x}")
-            return
-    except (ImportError, ValueError):
-        pass
+        if GdkX11 is not None and isinstance(surface, GdkX11.X11Surface):
+            if hasattr(surface, "get_xid"):
+                callback(f"x11:{surface.get_xid():x}")
+                return
+    except Exception as exc:
+        log.debug("Could not get X11 window handle: %s", exc)
     callback("")
 
 

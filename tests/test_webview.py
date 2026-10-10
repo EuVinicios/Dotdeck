@@ -12,9 +12,11 @@ from tests.helpers import run_until
 import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gtk, GstWebRTC  # noqa: E402
+from gi.repository import GLib, Gtk  # noqa: E402
 
 from src.core import voice  # noqa: E402
+if voice.available():
+    from gi.repository import GstWebRTC  # noqa: E402
 from src.core.store import Profile  # noqa: E402
 from tests.fake_server import FakeOpenDots  # noqa: E402
 
