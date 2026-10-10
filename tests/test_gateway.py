@@ -240,6 +240,17 @@ class GatewayCallTest(unittest.TestCase):
         self.assertNotIn("error", box)
         return box
 
+    def test_health_names_the_models_and_no_secret(self):
+        with urllib.request.urlopen(f"{self.gateway.url}/health", timeout=5) as response:
+            raw = response.read().decode()
+        self.assertEqual(json.loads(raw), {"ok": True, "calls": 0,
+                                           "model": "openai/gpt-audio-mini",
+                                           "transcribeModel": "google/gemini-2.5-flash-lite"})
+        self.assertNotIn(SECRET_KEY, raw)
+        self.assertNotIn(TOKEN, raw)
+        self.gateway.config.transcribe_model = ""          # transcription turned off
+        self.assertIsNone(self.gateway.health()["transcribeModel"])
+
     def test_rejects_bad_token(self):
         request = urllib.request.Request(f"{self.gateway.url}/v1/realtime/calls", data=b"x",
                                          method="POST",
@@ -357,10 +368,11 @@ class GatewayCallTest(unittest.TestCase):
         started = [line for line in self.logs if f"Call {call_id} started:" in line]
         ended = [line for line in self.logs if f"Call {call_id} ended" in line]
         self.assertEqual(len(started), 1, self.logs)
-        self.assertIn("model openai/gpt-audio-mini, voice marin, answered in", started[0])
+        self.assertIn("model openai/gpt-audio-mini, transcription google/gemini-2.5-flash-lite, "
+                      "voice marin, answered in", started[0])
         self.assertEqual(len(ended), 1, self.logs)
-        self.assertRegex(ended[0], r"ended \(hangup\): \d+ s, \d+ repl(y|ies), "
-                                   r"1 compute request, US\$ 0\.000\d\d$")
+        self.assertRegex(ended[0], r"ended \(hangup\): openai/gpt-audio-mini, \d+ s, "
+                                   r"\d+ repl(y|ies), 1 compute request, US\$ 0\.000\d\d$")
         for line in self.logs:
             self.assertNotIn(TOKEN, line)
             self.assertNotIn(SECRET_KEY, line)
@@ -750,9 +762,18 @@ class CallLogicTest(unittest.TestCase):
         ended = [line for line in logs if "ended" in line]
         self.assertEqual(len(ended), 1, logs)
         self.assertRegex(ended[0], r"^INFO voice_gateway\.call: Call rtc_test ended \(hangup\): "
-                                   r"\d+ s, 1 reply, 0 compute requests, US\$ 0\.00021$")
+                                   r"openai/gpt-audio-mini, \d+ s, 1 reply, 0 compute requests, "
+                                   r"US\$ 0\.00021$")
         self.assertFalse(any(SECRET_KEY in line or TOKEN in line for line in logs))
         self.assertEqual(call.receipt(), ["You: fala de 0.5 s", "Dot: Olá, tudo bem?"])
+
+    def test_the_model_that_answers_is_logged_when_another_was_asked(self):
+        logs = collect_logs(self)
+        call = self.make_call()                 # OpenDots asks for gpt-4o-realtime-preview
+        self.assertEqual(call.model, "openai/gpt-audio-mini")
+        self.assertIn("INFO voice_gateway.call: Call rtc_test: 'gpt-4o-realtime-preview' is not "
+                      "an OpenRouter model id; using openai/gpt-audio-mini (VOICE_GATEWAY_MODEL)",
+                      logs)
 
 
 class InstallScriptTest(unittest.TestCase):

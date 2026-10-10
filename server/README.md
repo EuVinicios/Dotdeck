@@ -123,6 +123,13 @@ então não precisa instalar pacotes com `sudo`. Variáveis em `voice-gateway.en
 Vozes: `alloy`, `ash`, `ballad`, `cedar`, `coral`, `echo`, `fable`, `marin`, `nova`, `onyx`,
 `sage`, `shimmer`, `verse`.
 
+`GET http://127.0.0.1:4320/health` mostra as chamadas em andamento e os modelos que elas
+usam, sem chave nenhuma: `{"ok": true, "calls": 0, "model": "openai/gpt-audio-mini",
+"transcribeModel": "google/gemini-2.5-flash-lite"}` (`null` com a transcrição desligada). O
+OpenDots lê essa resposta para o Dotdeck mostrar, em **Modelos de IA**, qual modelo fala e
+qual transcreve as chamadas. Se o OpenDots pedir um modelo sem `/` (um id da Realtime da
+OpenAI), a ponte usa o `VOICE_GATEWAY_MODEL` e registra no log qual modelo atendeu.
+
 ### Logs
 
 ```bash
@@ -135,8 +142,8 @@ as linhas da ponte. Cada chamada gera uma linha ao começar e outra ao terminar,
 e custo; chaves e tokens nunca aparecem:
 
 ```text
-INFO voice_gateway.http_api: Call rtc_3f… started: model openai/gpt-audio-mini, voice marin, answered in 0.31 s (1 in progress)
-INFO voice_gateway.call: Call rtc_3f… ended (hangup): 2 min 05 s, 6 replies, 1 compute request, US$ 0.00410
+INFO voice_gateway.http_api: Call rtc_3f… started: model openai/gpt-audio-mini, transcription google/gemini-2.5-flash-lite, voice marin, answered in 0.31 s (1 in progress)
+INFO voice_gateway.call: Call rtc_3f… ended (hangup): openai/gpt-audio-mini, 2 min 05 s, 6 replies, 1 compute request, US$ 0.00410
 ```
 
 Avisos (`WARNING`) aparecem quando o OpenRouter recusa um turno (sem crédito, limite), quando
