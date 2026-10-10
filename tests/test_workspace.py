@@ -18,8 +18,9 @@ WORKSPACE = {
          "instructions": "Be thoughtful, practical, and concise. Help the user think clearly.",
          "researchAllowed": True, "memoryAllowed": True, "createdAt": 1,
          "learningContainerId": None, "skillDeliveryEnabled": False},
-        {"id": "d2", "spaceId": "s1", "spaceIds": ["s1"], "name": "Zelador",
-         "instructions": "# Zelador — SRE da casa\n\nCuida do homelab.",
+        {"id": "d2", "spaceId": "s1", "spaceIds": ["s1"], "name": "Manutenção",
+         "instructions": "# Manutenção — backups e o servidor de casa\n\n"
+                         "Cuida dos backups.",
          "researchAllowed": False, "memoryAllowed": True, "createdAt": 2},
     ],
     "conversations": [
@@ -35,16 +36,17 @@ WORKSPACE = {
 
 class JobTests(unittest.TestCase):
     def test_header_and_prose(self):
-        self.assertEqual(job_of("Zelador", "# Zelador — SRE da casa\nmore"), "SRE da casa")
+        self.assertEqual(job_of("Manutenção", "# Manutenção — backups e o servidor de casa\nmore"),
+                         "backups e o servidor de casa")
         self.assertEqual(job_of("Dot", "Be thoughtful. Then more."), "Be thoughtful.")
         self.assertEqual(job_of("X", ""), "")
         self.assertTrue(job_of("X", "word " * 40).endswith("…"))
 
     def test_with_job_rewrites_only_the_header(self):
-        text = "# Zelador — SRE da casa\n\nCuida do homelab."
-        self.assertEqual(with_job("Zelador", text, "Guardião"),
-                         "# Zelador — Guardião\n\nCuida do homelab.")
-        self.assertEqual(with_job("Zelador", text, ""), "Cuida do homelab.")
+        text = "# Manutenção — backups e o servidor de casa\n\nCuida dos backups."
+        self.assertEqual(with_job("Manutenção", text, "Guardião"),
+                         "# Manutenção — Guardião\n\nCuida dos backups.")
+        self.assertEqual(with_job("Manutenção", text, ""), "Cuida dos backups.")
         self.assertEqual(with_job("Dot", "Plain prose.", "Helper"),
                          "# Dot — Helper\n\nPlain prose.")
 
@@ -54,10 +56,10 @@ class WorkspaceTests(unittest.TestCase):
         self.ws = Workspace.from_json(WORKSPACE)
 
     def test_lookups(self):
-        self.assertEqual([d.name for d in self.ws.dots], ["Dot", "Zelador"])
-        self.assertEqual(self.ws.dot("d2").job, "SRE da casa")
+        self.assertEqual([d.name for d in self.ws.dots], ["Dot", "Manutenção"])
+        self.assertEqual(self.ws.dot("d2").job, "backups e o servidor de casa")
         self.assertEqual(self.ws.dot_index("d2"), 1)
-        self.assertEqual(self.ws.dot_named("zelador").id, "d2")
+        self.assertEqual(self.ws.dot_named("manutenção").id, "d2")
         self.assertEqual(self.ws.latest_conversation("d2").id, "c2")
         self.assertEqual(self.ws.dot_in_call().id, "d2")
         self.assertTrue(self.ws.voice_ready)
@@ -92,7 +94,7 @@ class DotPrefsTests(unittest.TestCase):
     def test_pets_persist_and_swap(self):
         path = Path(tmp_path(f"dots-{self.id()}.json"))
         prefs = dotprefs.DotPrefs("p", path)
-        dots = [Dot("a", "Chefe"), Dot("b", "Zelador")]
+        dots = [Dot("a", "Assistente"), Dot("b", "Manutenção")]
         first = prefs.pets_for(dots)
         self.assertEqual(first, {"a": "sky", "b": "bolt"})
         again = dotprefs.DotPrefs("p", path).pets_for(dots)

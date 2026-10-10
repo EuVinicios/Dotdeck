@@ -17,18 +17,21 @@ class PetTests(unittest.TestCase):
             path = config.pets_dir() / f"{pet_id}.png"
             self.assertTrue(path.is_file(), f"missing picture for {pet_id}: {path}")
 
-    def test_owner_dots_get_fitting_pets(self):
+    def test_dots_get_fitting_pets(self):
+        # The fictional Dots of the screenshots (tools/demo_server.py).
         dots = [("1", "Dot", "Be thoughtful, practical, and concise."),
-                ("2", "Chefe", "Coordena os outros Dots"),
-                ("3", "Zelador", "Cuida do homelab e dos backups"),
-                ("4", "Dinheiro", "Finanças e investimentos"),
-                ("5", "Negócios", "Projetos e clientes"),
-                ("6", "Oficina", "Sandbox de código"),
-                ("7", "Consultor", "Consultoria regional"),
-                ("8", "Acadêmico", "Pesquisa e dissertação")]
+                ("2", "Assistente", "organiza o dia e os outros Dots"),
+                ("3", "Pesquisa", "pesquisa de mercado e de produtos"),
+                ("4", "Redação", "posts, e-mails e documentos"),
+                ("5", "Finanças", "orçamento, contas e investimentos"),
+                ("6", "Manutenção", "backups e o servidor de casa"),
+                ("7", "Laboratório", "código, scripts e automações"),
+                ("8", "Estratégia", "estratégia e segundas opiniões"),
+                ("9", "Estudos", "cursos, idiomas e planos de estudo")]
         result = pets.assign(dots, {})
-        self.assertEqual(result, {"1": "sprout", "2": "sky", "3": "bolt", "4": "sunny",
-                                  "5": "ember", "6": "plum", "7": "graphite", "8": "sage"})
+        self.assertEqual(result, {"1": "sprout", "2": "sky", "3": "sage", "4": "rosy",
+                                  "5": "sunny", "6": "bolt", "7": "plum", "8": "graphite",
+                                  "9": "lilac"})
         self.assertEqual(len(set(result.values())), len(dots))
 
     def test_owner_choice_wins_and_others_move_aside(self):

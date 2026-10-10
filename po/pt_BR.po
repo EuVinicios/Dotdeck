@@ -721,7 +721,7 @@ msgstr "Cuida da casa, do homelab, dos backups e dos reparos."
 
 #: src/ui/new_dot.py:92
 msgid "Caretaker"
-msgstr "Zelador"
+msgstr "Manutenção"
 
 #: src/ui/new_dot.py:92
 msgid "looks after the house and the homelab"

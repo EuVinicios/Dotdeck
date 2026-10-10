@@ -47,7 +47,7 @@ def _field_text(entry: Entry, name: str) -> str:
 
 def _find(text: str, word: str) -> int:
     """Where ``word`` is in ``text``; words of three letters or less only match a word start
-    (so "mic" finds "Microphone" but not "Acadêmico")."""
+    (so "mic" finds "Microphone" but not "Química")."""
     index = text.find(word)
     if len(word) > 3:
         return index

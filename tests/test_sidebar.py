@@ -18,8 +18,10 @@ from src.ui.sidebar import DotRow, Sidebar, dot_menu  # noqa: E402
 
 WORKSPACE = Workspace.from_json({
     "spaces": [{"id": "s1", "name": "Everyday"}],
-    "dots": [{"id": "a", "name": "Chefe", "instructions": "# Chefe — chefe de gabinete"},
-             {"id": "b", "name": "Zelador", "instructions": "# Zelador — SRE da casa"}],
+    "dots": [{"id": "a", "name": "Assistente",
+              "instructions": "# Assistente — organiza o dia e os outros Dots"},
+             {"id": "b", "name": "Manutenção",
+              "instructions": "# Manutenção — backups e o servidor de casa"}],
 })
 
 
@@ -49,8 +51,8 @@ class SidebarTests(unittest.TestCase):
 
     def test_rows_show_name_job_and_pet(self):
         rows = self.rows()
-        self.assertEqual([r.dot.name for r in rows], ["Chefe", "Zelador"])
-        self.assertEqual(rows[1].subtitle.get_label(), "SRE da casa")
+        self.assertEqual([r.dot.name for r in rows], ["Assistente", "Manutenção"])
+        self.assertEqual(rows[1].subtitle.get_label(), "backups e o servidor de casa")
         self.assertEqual(rows[1].avatar.pet, "bolt")
 
     def test_selecting_opens_but_programmatic_selection_does_not(self):
@@ -85,7 +87,7 @@ class SidebarTests(unittest.TestCase):
         self.fill(hidden={"b"})
         self.assertTrue(self.sidebar.hidden_button.get_visible())
         self.fill()
-        self.sidebar.search.set_text("sre")
+        self.sidebar.search.set_text("backups")
         run_until(lambda: False, 0.3)
         visible = [r.dot.id for r in self.rows() if r.get_child_visible()]
         self.assertEqual(visible, ["b"])

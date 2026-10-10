@@ -36,8 +36,8 @@ SETTINGS_KEYS = {"name", "paused", "researchAllowed", "memoryAllowed"}
 GATEWAY_CONFIG = MODEL_CONFIG_032
 
 
-def owner_dots() -> list[dict]:
-    """Dots like the owner's: a "# Name — job" first line, several Spaces."""
+def sample_dots() -> list[dict]:
+    """Fictional Dots like a real server's: a "# Name — job" first line, several Spaces."""
     def dot(index, name, job, body, spaces=("s1",), research=True, memory=True):
         instructions = f"# {name} — {job}\n\n{body}" if job else body
         return {"id": f"d{index}", "spaceId": spaces[0], "spaceIds": list(spaces), "name": name,
@@ -46,26 +46,28 @@ def owner_dots() -> list[dict]:
                 "learningContainerId": None, "skillDeliveryEnabled": True}
     return [
         dot(0, "Dot", "", "Be thoughtful, practical, and concise. Help with everyday tasks."),
-        dot(1, "Chefe", "chefe de gabinete da Ana",
+        dot(1, "Assistente", "organiza o dia e os outros Dots",
             "Coordinate the other Dots and keep the week on track.", ("s1", "s2")),
-        dot(2, "Zelador", "SRE da casa", "Keep the homelab healthy: backups, updates, disks.",
-            ("s3",)),
-        dot(3, "Dinheiro", "controlador do dinheiro", "Budgets, invoices and investments.",
-            ("s4",), research=False),
-        dot(4, "Negócios", "projetos e clientes", "Clients, proposals and follow-ups.", ("s5",)),
-        dot(5, "Oficina", "sandbox de código", "Prototype small tools and scripts.", ("s6",)),
-        dot(6, "Consultor", "consultoria regional", "Regional consulting work.", ("s7",)),
-        dot(7, "Acadêmico", "pesquisa e dissertação", "Research and the thesis.", ("s8",),
-            memory=False),
+        dot(2, "Manutenção", "backups e o servidor de casa",
+            "Keep the home server healthy: backups, updates, disks.", ("s3",)),
+        dot(3, "Finanças", "orçamento, contas e investimentos",
+            "Budgets, invoices and investments.", ("s4",), research=False),
+        dot(4, "Estratégia", "estratégia e segundas opiniões",
+            "Plans, trade-offs and second opinions.", ("s5",)),
+        dot(5, "Laboratório", "código, scripts e automações",
+            "Prototype small tools and scripts.", ("s6",)),
+        dot(6, "Redação", "posts, e-mails e documentos", "Drafts posts and emails.", ("s7",)),
+        dot(7, "Estudos", "cursos, idiomas e planos de estudo", "Courses and study plans.",
+            ("s8",), memory=False),
     ]
 
 
-def owner_spaces() -> list[dict]:
-    names = [("s1", "Geral", "Everyday notes and plans"), ("s2", "Gabinete", "The chief's desk"),
-             ("s3", "Homelab", "Servers, backups and the house"),
-             ("s4", "Finanças", "Money and investments"), ("s5", "Negócios", "Clients"),
-             ("s6", "Oficina", "Code experiments"), ("s7", "Consultoria", "Regional work"),
-             ("s8", "Academia", "Research")]
+def sample_spaces() -> list[dict]:
+    names = [("s1", "Dia a dia", "Everyday notes and plans"), ("s2", "Agenda", "The week ahead"),
+             ("s3", "Casa", "The house and the home server"),
+             ("s4", "Contas", "Money and investments"), ("s5", "Lançamento", "Launch plan"),
+             ("s6", "Scripts", "Code experiments"), ("s7", "Textos", "Posts and emails"),
+             ("s8", "Cursos", "Courses and notes")]
     return [{"id": i, "name": n, "description": d, "createdAt": 1} for i, n, d in names]
 
 
@@ -76,9 +78,9 @@ class RecordingOpenDots:
                  voice: bool = True):
         self.token = token
         self.model = FakeModelConfig(model_config)
-        self.dots = owner_dots()
-        self.spaces = owner_spaces()
-        self.settings = {"name": "OpenDots Homelab", "paused": False, "researchAllowed": True,
+        self.dots = sample_dots()
+        self.spaces = sample_spaces()
+        self.settings = {"name": "Aurora", "paused": False, "researchAllowed": True,
                          "memoryAllowed": True}
         self.memories = [{"id": f"m{i}", "text": f"Memory {i}", "createdAt": i}
                          for i in range(21)]
@@ -335,13 +337,14 @@ class SearchTests(unittest.TestCase):
 class JobLineTests(unittest.TestCase):
     def test_split_and_join(self):
         from src.ui.settings.dots import join_job, split_job
-        text = "# Zelador — SRE da casa\n\nKeep the homelab healthy."
-        self.assertEqual(split_job("Zelador", text), ("SRE da casa", "Keep the homelab healthy."))
+        text = "# Manutenção — backups e o servidor de casa\n\nKeep the home server healthy."
+        self.assertEqual(split_job("Manutenção", text),
+                         ("backups e o servidor de casa", "Keep the home server healthy."))
         self.assertEqual(split_job("Other", text), ("", text))
-        self.assertEqual(join_job("Zelo", "Keep it.", "SRE"), "# Zelo — SRE\n\nKeep it.")
-        self.assertEqual(join_job("Zelo", "Keep it.", "  "), "Keep it.")
-        self.assertEqual(join_job("Zelo", "# Notes — misc\nKeep it.", "SRE"),
-                         "# Zelo — SRE\n\n# Notes — misc\nKeep it.")
+        self.assertEqual(join_job("Upkeep", "Keep it.", "SRE"), "# Upkeep — SRE\n\nKeep it.")
+        self.assertEqual(join_job("Upkeep", "Keep it.", "  "), "Keep it.")
+        self.assertEqual(join_job("Upkeep", "# Notes — misc\nKeep it.", "SRE"),
+                         "# Upkeep — SRE\n\n# Notes — misc\nKeep it.")
 
 
 class PlainTextTests(unittest.TestCase):
@@ -443,8 +446,8 @@ class SettingsWindowTests(unittest.TestCase):
         win.search_entry.set_text("dark mode")
         self.assertTrue(run_until(lambda: win.search_results(), 3))
         self.assertEqual(win.search_results()[0].page, "appearance")
-        win.search_entry.set_text("zelador")
-        self.assertTrue(run_until(lambda: any(e.title == "Zelador"
+        win.search_entry.set_text("manutencao")
+        self.assertTrue(run_until(lambda: any(e.title == "Manutenção"
                                               for e in win.search_results()), 3))
 
     # -- bound settings --------------------------------------------------------------------
@@ -510,18 +513,18 @@ class SettingsWindowTests(unittest.TestCase):
         page = win.pages["dots"]
         self.assertTrue(run_until(lambda: len(page._rows) == 8, 5))
         titles = [row.get_title() for row in page._rows]
-        self.assertIn("Zelador", titles)
-        zelador = page._rows[titles.index("Zelador")]
-        self.assertEqual(zelador.get_subtitle(), "SRE da casa")
+        self.assertIn("Manutenção", titles)
+        upkeep = page._rows[titles.index("Manutenção")]
+        self.assertEqual(upkeep.get_subtitle(), "backups e o servidor de casa")
 
     def test_dot_editor_sends_the_full_body(self):
         win = self.open("dots", dot="d2")
         editor = self.editor(win, "d2")
-        self.assertEqual(editor.name_row.get_text(), "Zelador")
-        self.assertEqual(editor.job_row.get_text(), "SRE da casa")
+        self.assertEqual(editor.name_row.get_text(), "Manutenção")
+        self.assertEqual(editor.job_row.get_text(), "backups e o servidor de casa")
         self.assertFalse(editor.dirty)
-        editor.name_row.set_text("Zelo")
-        editor.job_row.set_text("SRE of the house")
+        editor.name_row.set_text("Upkeep")
+        editor.job_row.set_text("keeps the home server healthy")
         editor.buffer.set_text("Keep the servers healthy.")
         editor.research_row.set_active(False)
         self.assertTrue(editor.dirty)
@@ -533,21 +536,22 @@ class SettingsWindowTests(unittest.TestCase):
         method, path, body = self.fake.writes("PUT")[-1]
         self.assertEqual((method, path), ("PUT", "/api/dots/d2"))
         self.assertEqual(body, {
-            "name": "Zelo", "instructions": "# Zelo — SRE of the house\n\nKeep the servers "
+            "name": "Upkeep", "instructions": "# Upkeep — keeps the home server healthy\n\n"
+            "Keep the servers "
             "healthy.", "researchAllowed": False, "memoryAllowed": True, "spaceId": "s3",
             "spaceIds": ["s3"], "learningContainerId": None, "skillDeliveryEnabled": True})
         self.assertFalse(editor.dirty)
         self.assertFalse(editor.bar.get_revealed())
 
     def test_untouched_instructions_are_sent_exactly(self):
-        original = "#  Oficina - sandbox de código\nPrototype small tools."
+        original = "#  Laboratório - código, scripts e automações\nPrototype small tools."
         self.fake.dots[5]["instructions"] = original
         self.mon.poll_now()
         self.assertTrue(run_until(lambda: self.mon.workspace.dot("d5").instructions
                                   == original, 5))
         win = self.open("dots", dot="d5")
         editor = self.editor(win, "d5")
-        self.assertEqual(editor.job_row.get_text(), "sandbox de código")
+        self.assertEqual(editor.job_row.get_text(), "código, scripts e automações")
         editor.memory_row.set_active(False)
         done = []
         editor.save(done.append)
@@ -590,7 +594,7 @@ class SettingsWindowTests(unittest.TestCase):
         win = self.open("dots", dot="d1")
         editor = self.editor(win, "d1")
         editor.name_row.set_text("Chief of Staff")
-        self.fake.dots[1]["instructions"] = "# Chefe — novo cargo\n\nChanged in the browser."
+        self.fake.dots[1]["instructions"] = "# Assistente — novo cargo\n\nChanged in the browser."
         self.mon.poll_now()
         self.assertTrue(run_until(lambda: editor.banner.get_revealed(), 8))
         self.assertEqual(editor.name_row.get_text(), "Chief of Staff")
@@ -604,11 +608,11 @@ class SettingsWindowTests(unittest.TestCase):
         win = self.open("dots", dot="d2")
         editor = self.editor(win, "d2")
         editor.chief_row.set_active(True)
-        self.assertEqual(self.app.profiles.get(self.profile.id).chief, "Zelador")
+        self.assertEqual(self.app.profiles.get(self.profile.id).chief, "Manutenção")
         editor.pin_row.set_active(True)
         self.assertTrue(dotprefs.for_profile(self.profile.id).is_pinned("d2"))
         editor.tools_row.emit("activated")
-        self.assertIn(("edit", "Zelador"), self.app.window.view.calls)
+        self.assertIn(("edit", "Manutenção"), self.app.window.view.calls)
 
     # -- model and voice -------------------------------------------------------------------
 
@@ -769,7 +773,7 @@ class SettingsWindowTests(unittest.TestCase):
     def test_unsaved_dot_asks_before_closing(self):
         win = self.open("dots", dot="d2")
         editor = self.editor(win, "d2")
-        editor.name_row.set_text("Zelo")
+        editor.name_row.set_text("Upkeep")
         win.close()
         self.assertTrue(run_until(lambda: isinstance(win.get_visible_dialog(),
                                                      Adw.AlertDialog), 3))
@@ -785,7 +789,7 @@ class SettingsWindowTests(unittest.TestCase):
         from src.ui.settings import get_window
         win = self.open("dots", dot="d2")
         editor = self.editor(win, "d2")
-        editor.job_row.set_text("guardian of the homelab")
+        editor.job_row.set_text("guardian of the home server")
         win.close()
         self.assertTrue(run_until(lambda: isinstance(win.get_visible_dialog(),
                                                      Adw.AlertDialog), 3))
@@ -794,7 +798,8 @@ class SettingsWindowTests(unittest.TestCase):
         dialog.force_close()
         self.assertTrue(run_until(lambda: get_window() is None, 5))
         body = self.fake.writes("PUT")[-1][2]
-        self.assertTrue(body["instructions"].startswith("# Zelador — guardian of the homelab"))
+        self.assertTrue(body["instructions"].startswith(
+            "# Manutenção — guardian of the home server"))
 
     def test_escape_steps_back_then_closes(self):
         from src.ui.settings import get_window
@@ -825,9 +830,9 @@ class SettingsWindowTests(unittest.TestCase):
         profile = self.app.profiles.get(self.profile.id)
         profile.name = "R&D <Lab>"
         self.app.profiles.update(profile)
-        self.fake.dots[2]["instructions"] = "# Zelador — Ana's SRE\n\nKeep it healthy."
+        self.fake.dots[2]["instructions"] = "# Manutenção — Aurora's keeper\n\nKeep it healthy."
         self.mon.poll_now()
-        self.assertTrue(run_until(lambda: "Ana's" in self.mon.workspace.dot("d2").job, 5))
+        self.assertTrue(run_until(lambda: "Aurora's" in self.mon.workspace.dot("d2").job, 5))
         errors = self.collect_errors()
         win = self.open("voice")
         self.assertTrue(run_until(lambda: "R&amp;D" in win.pages["voice"].status.get_title(), 3))
@@ -835,11 +840,11 @@ class SettingsWindowTests(unittest.TestCase):
         win.search_entry.set_text("noise")
         self.assertTrue(run_until(lambda: win.search_results(), 3))
         self.assertEqual(win.search_results()[0].title, "Noise Suppression")
-        win.search_entry.set_text("ana's sre")
-        self.assertTrue(run_until(lambda: any(e.title == "Zelador"
+        win.search_entry.set_text("aurora's keeper")
+        self.assertTrue(run_until(lambda: any(e.title == "Manutenção"
                                               for e in win.search_results()), 3))
-        found = next(e for e in win.search_results() if e.title == "Zelador")
-        self.assertEqual(found.subtitle, "Ana's SRE")
+        found = next(e for e in win.search_results() if e.title == "Manutenção")
+        self.assertEqual(found.subtitle, "Aurora's keeper")
         self.assertEqual(errors, [])
 
     def collect_errors(self) -> list[str]:
