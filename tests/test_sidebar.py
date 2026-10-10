@@ -10,7 +10,8 @@ import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gtk  # noqa: E402
+gi.require_version("Graphene", "1.0")
+from gi.repository import Adw, Graphene, Gtk  # noqa: E402
 
 from src.core.workspace import Workspace  # noqa: E402
 from src.ui import pet as pet_ui  # noqa: E402
@@ -69,19 +70,119 @@ class SidebarTests(unittest.TestCase):
         self.assertEqual(rows[1].status.get_visible_child_name(), "call")
         self.assertEqual(rows[0].status.get_visible_child_name(), "pinned")
 
+    def menus(self):
+        """The Dot menus open now."""
+        return [c for c in _descendants(self.sidebar) if isinstance(c, Gtk.PopoverMenu)]
+
     def test_context_menu_opens_and_survives_a_rebuild(self):
         self.sidebar.menu_for_dot = lambda dot_id: dot_menu(WORKSPACE.dot(dot_id), pinned=False,
                                                             chief=False, can_call=True)
         row = self.rows()[0]
         _ok, bounds = row.compute_bounds(self.sidebar.dots)
         self.sidebar._on_dot_context(Gtk.GestureClick(), 1, 20, bounds.get_y() + 10)
-        popovers = [c for c in _children(self.sidebar.dots) if isinstance(c, Gtk.PopoverMenu)]
+        popovers = self.menus()
         self.assertEqual(len(popovers), 1)
         # Pin to Top rebuilds every row while the menu is open
         self.fill(pinned={"b"})
         popovers[0].popdown()
-        run_until(lambda: not any(isinstance(c, Gtk.PopoverMenu)
-                                  for c in _children(self.sidebar.dots)), 2)
+        self.assertTrue(run_until(lambda: not self.menus(), 2))
+
+    def test_context_menu_shows_every_item_without_scrolling(self):
+        """The whole menu fits: no item hidden behind a scroll, on any Dot.
+
+        Parented to the Gtk.ListBox, GTK sized the menu once, before its section separator
+        appeared, and never again: it came out 13 px short and the last item needed a scroll.
+        """
+        self.sidebar.menu_for_dot = lambda dot_id: dot_menu(
+            WORKSPACE.dot(dot_id), pinned=False, chief=dot_id == "a", can_call=True)
+        for row in self.rows():                 # the Chief (7 items) and another Dot (8)
+            with self.subTest(dot=row.dot.name):
+                _ok, bounds = row.compute_bounds(self.sidebar.dots)
+                y = bounds.get_y() + 10
+                self.sidebar._on_dot_context(Gtk.GestureClick(), 1, 40, y)
+                popover, = self.menus()
+                try:
+                    self.check_menu_fits(popover, row, y)
+                finally:
+                    popover.popdown()
+                    self.assertTrue(run_until(lambda: not self.menus(), 2))
+                self.assertFalse(row.has_css_class("menu-open"))
+
+    def check_menu_fits(self, popover, row, y):
+        scroller = next(w for w in _descendants(popover) if isinstance(w, Gtk.ScrolledWindow))
+        adjustment = scroller.get_vadjustment()
+
+        def fits():
+            return popover.get_mapped() and adjustment.get_page_size() > 0 and \
+                adjustment.get_upper() <= adjustment.get_page_size() + 0.5
+        run_until(fits, 3)
+        run_until(lambda: False, 0.3)     # and it stays that way
+        self.assertTrue(popover.get_mapped())
+        self.assertGreater(adjustment.get_page_size(), 0)
+        self.assertLessEqual(adjustment.get_upper(), adjustment.get_page_size() + 0.5)
+        # It points at the click (now in the sidebar's coordinates) and opens to the right
+        # of it; the Dot stays highlighted while its menu is open.
+        _ok, point = self.sidebar.dots.compute_point(self.sidebar, Graphene.Point().init(40, y))
+        _ok, area = popover.get_pointing_to()
+        self.assertEqual((area.x, area.y), (int(point.x), int(point.y)))
+        self.assertEqual(popover.get_halign(), Gtk.Align.START)
+        self.assertTrue(row.has_css_class("menu-open"))
+
+    def test_shift_f10_and_the_menu_key_open_the_focused_dots_menu(self):
+        opened = []
+        self.sidebar.menu_for_dot = lambda dot_id: (opened.append(dot_id), dot_menu(
+            WORKSPACE.dot(dot_id), pinned=False, chief=False, can_call=True))[1]
+        shortcut = next((item for c in self.sidebar.dots.observe_controllers()
+                         if isinstance(c, Gtk.ShortcutController) for item in c
+                         if item.get_trigger().to_string() == "<Shift>F10|Menu"), None)
+        self.assertIsNotNone(shortcut)
+        self.sidebar.dots.unselect_all()
+        self.window.set_focus(None)
+        self.assertFalse(shortcut.get_action().activate(0, self.sidebar.dots, None))
+        row = self.rows()[1]
+        row.grab_focus()
+        self.assertTrue(shortcut.get_action().activate(0, self.sidebar.dots, None))
+        self.assertEqual(opened, ["b"])
+        popover, = self.menus()
+        # Under the focused row, from its left edge.
+        _ok, bounds = row.compute_bounds(self.sidebar)
+        _ok, area = popover.get_pointing_to()
+        self.assertEqual((area.x, area.y, area.height),
+                         (int(bounds.get_x()), int(bounds.get_y()), int(bounds.get_height())))
+        popover.popdown()
+        self.assertTrue(run_until(lambda: not self.menus(), 2))
+
+    def test_the_focus_goes_back_to_the_dot_when_its_menu_closes(self):
+        """Escape, or an item that rebuilds the rows: the arrows go on from the same Dot.
+
+        The menu belongs to the sidebar, which cannot take the focus GTK hands back to it.
+        """
+        self.sidebar.menu_for_dot = lambda dot_id: dot_menu(
+            WORKSPACE.dot(dot_id), pinned=False, chief=False, can_call=True)
+        row = self.rows()[1]
+        row.grab_focus()
+        self.assertTrue(self.sidebar._on_dot_menu_key())
+        popover, = self.menus()
+        self.assertTrue(run_until(popover.get_mapped, 3))
+        self.assertFalse(row.has_focus())          # the menu has it while open
+        popover.popdown()
+        self.assertTrue(run_until(lambda: not self.menus(), 2))
+        self.assertIs(self.window.get_focus(), row)
+        # Pin to Top from the keyboard rebuilds the rows: the new row of that Dot keeps it.
+        self.fill(pinned={"b"})
+        new_row = self.rows()[0]
+        self.assertIsNot(new_row, row)
+        self.assertEqual(new_row.dot.id, "b")
+        self.assertIs(self.window.get_focus(), new_row)
+        # Hide From Sidebar: the Dot is gone, the list keeps the focus.
+        self.fill(pinned={"b"}, hidden={"b"})
+        self.assertIs(self.window.get_focus(), self.sidebar.dots)
+        self.assertEqual(self.opened, [])          # the focus alone opens no Dot
+
+    def test_a_long_press_is_for_touch_screens(self):
+        press = next(c for c in self.sidebar.dots.observe_controllers()
+                     if isinstance(c, Gtk.GestureLongPress))
+        self.assertTrue(press.get_touch_only())
 
     def test_hidden_count_and_search(self):
         self.fill(hidden={"b"})
@@ -122,6 +223,12 @@ def _children(widget):
     while child is not None:
         yield child
         child = child.get_next_sibling()
+
+
+def _descendants(widget):
+    for child in _children(widget):
+        yield child
+        yield from _descendants(child)
 
 
 if __name__ == "__main__":

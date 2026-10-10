@@ -4,6 +4,58 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.7] - 2026-10-10
+
+### Corrigido
+
+- **Menu do Dot (botão direito)**: abria 13 px mais baixo que o próprio conteúdo, e o último
+  item ("Tornar Chefe", ou "Ocultar da barra lateral" no Chefe) ficava cortado atrás de uma
+  rolagem, em qualquer Dot e em qualquer tamanho de janela, no X11 e no Wayland. O GTK media o
+  menu antes de a linha entre as duas seções aparecer e, preso à lista de Dots, nunca o media
+  de novo. Agora o menu pertence à barra lateral, que o reajusta (ADR-020).
+- O primeiro item do menu do Dot dizia "Aberto"; agora diz **"Abrir"**. O selo do servidor
+  aberto em Configurações › Servidores passa a dizer "Atual".
+- **F5 ou um token novo durante uma chamada** encerram a chamada (e o toque, se ainda estava
+  chamando). Antes, a página nova não sabia da chamada antiga, e o microfone e o alto-falante
+  continuavam ligados sem página.
+- **Configurações** abre com 760 px de altura (menos numa tela baixa): a lista de seções cabe
+  inteira, sem "Avançado" cortado nem "Sobre" escondido, e Privacidade não rola mais. Numa
+  janela estreita, "Editar o Dot…", "Microfone…" e os outros atalhos abrem a página pedida, e
+  não a lista, e cada página ocupa só a largura de que precisa: antes todas ficavam tão largas
+  quanto Aparência e passavam da borda direita.
+- **Galeria de pets**: os 12 pets cabem sem uma rolagem de 7 px.
+- **Sem conexão com o servidor**: o botão Ligar fica apagado, com o motivo na dica, e a barra
+  de erro da página em inglês ("Load failed") some enquanto o aviso do Dotdeck está na tela.
+- "Salvar conversa como página…" e "Agendar uma tarefa…" ficam apagados enquanto o Dot não
+  tem conversa (antes só davam um aviso de erro).
+- Servidor sem Dots: o cabeçalho diz "Nenhum Dot ainda", e não "0 Dot", e usa o nome que você
+  deu ao servidor, o mesmo do seletor.
+
+### Adicionado
+
+- **Menu do Dot pelo teclado**: Shift+F10 ou a tecla Menu abrem o menu do Dot em foco, como nos
+  campos de texto do GNOME. O Dot fica destacado enquanto o menu dele está aberto, e o foco
+  volta para ele quando o menu fecha (também depois de Fixar no topo).
+
+### Alterado
+
+- **Cabeçalho da chamada**: "Chamando…" até a ligação conectar e depois "Em chamada · 01:23",
+  com algarismos de largura igual. Se o Dot ouve, pensa ou fala, quem mostra é o pet (e a dica),
+  e o título não pula mais de lugar a cada fase. O botão vermelho diz só "Encerrar".
+- **Ao clicar em Ligar**, o botão mostra "Chamando…" com um indicador girando e não aceita um
+  segundo clique até a chamada conectar (ou por até 25 s).
+- **Janela estreita** (até 480 px): "Conversas" vai para o menu principal e o nome do Dot cabe
+  no cabeçalho; durante a chamada o subtítulo mostra só o tempo.
+- O menu do Dot abre à direita do ponteiro, sem cobrir o nome e a função do Dot.
+- Segurar o botão do mouse sobre um Dot não abre mais o menu; o toque longo vale só para telas
+  de toque.
+- "Atividade" ganhou um ícone próprio; era o mesmo relógio de "Conversas".
+- Modelos de IA: os provedores que você não usa aparecem sem o triângulo de aviso.
+- Barra lateral: "Dots ocultos" e "Espaços" alinhados com o título "Dots".
+- Textos mais claros: "Barra lateral do Dotdeck" (era "Barra lateral nativa"), "Pronto neste
+  computador" no motor de voz, um exemplo de endereço só, sem quebra no meio, na tela de
+  conexão, "Começar de um exemplo" no Novo Dot e "Ligar ou encerrar a chamada" nos atalhos.
+
 ## [0.3.6] - 2026-10-10
 
 ### Corrigido

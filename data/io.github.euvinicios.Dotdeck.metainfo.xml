@@ -159,6 +159,17 @@
   </screenshots>
 
   <releases>
+    <release version="0.3.7" date="2026-10-10">
+      <description>
+        <p>Layout and usability polish.</p>
+        <ul>
+          <li>The Dot menu shows every option without scrolling, opens beside the pointer and also opens with Shift+F10 or the Menu key</li>
+          <li>Clearer call status in the header, a Call button that shows when a call is starting, and no Call while offline</li>
+          <li>Settings open tall enough to show every section, and narrow windows fit better</li>
+          <li>Reloading the page ends a call cleanly, and many labels read better in Portuguese</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.6" date="2026-10-10">
       <description>
         <p>Calls that sound like calls.</p>

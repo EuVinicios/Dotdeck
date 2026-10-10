@@ -305,7 +305,7 @@ class PetGallery(Adw.Dialog):
 
     def __init__(self, app, profile, dot: Dot,
                  done: Callable[[str | None], None] | None = None):
-        super().__init__(title=dot.name, content_width=560, content_height=700,
+        super().__init__(title=dot.name, content_width=560, content_height=712,
                          width_request=360, height_request=420)
         ensure_css()
         self._app = app

@@ -288,6 +288,34 @@ class ServerViewTest(unittest.TestCase):
         self.js("window.__channel.close(); window.__pc.close(); return true;")
         self.assertTrue(run_until(lambda: not self.view.voice.in_call, 5))
 
+    @unittest.skipUnless(voice.available(), "GStreamer WebRTC plugins are not installed")
+    def test_a_new_page_ends_the_calls_of_the_old_one(self):
+        """F5 or a new token loads the page again: nothing in it could end the old call."""
+        loads = []
+        handler = self.view.webview.connect("load-changed", lambda _v, e: loads.append(e))
+        self.addCleanup(self.view.webview.disconnect, handler)
+        changes, phases = [], []
+        self.view.voice.connect("calls-changed", lambda *_: changes.append(True))
+        # "ended" is what stops the ringing and plays the hang-up tone (call_sounds).
+        self.view.voice.connect("call-phase", lambda _v, phase: phases.append(phase))
+        for reload in (self.view.reload,
+                       lambda: self.view.set_token("owner-token-for-tests-1234")):
+            loads.clear()
+            self.js("await window.__start(); return true;")
+            self.assertTrue(self.view.voice.in_call)
+            changes.clear()
+            phases.clear()
+            reload()
+            self.assertTrue(run_until(lambda: WebKit.LoadEvent.FINISHED in loads, 20))
+            self.assertFalse(self.view.voice.in_call)
+            self.assertFalse(self.view.voice.has_calls)
+            self.assertTrue(changes, "the window was not told that the call ended")
+            self.assertEqual(phases[-1:], ["ended"])
+            # The new page starts without a call, and can make one.
+            self.assertIn("rtc:function", self.log())
+        self.js("await window.__start(); return true;")
+        self.assertTrue(self.view.voice.in_call)
+
 
 if __name__ == "__main__":
     os.environ.setdefault("GDK_BACKEND", "wayland,x11")

@@ -477,7 +477,8 @@ class DotdeckApplication(Adw.Application):
             return _("Only reachable from its own computer")
         if mon.status != "online":
             return _("Not an OpenDots server")
-        parts = [ngettext("{n} Dot", "{n} Dots", len(mon.dots)).format(n=len(mon.dots))]
+        parts = [ngettext("{n} Dot", "{n} Dots", len(mon.dots)).format(n=len(mon.dots))
+                 if mon.dots else _("No Dots yet")]
         if mon.active_tasks:
             parts.append(ngettext("{n} task running", "{n} tasks running",
                                   mon.active_tasks).format(n=mon.active_tasks))

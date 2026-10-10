@@ -160,7 +160,7 @@ class AppearancePage(SettingsPage):
                    ("zoom", "text size", "font", "scale", "bigger", "smaller"))
 
         sidebar = self.group(_("Sidebar"))
-        self.switch(sidebar, "native-sidebar", _("Native Sidebar"),
+        self.switch(sidebar, "native-sidebar", _("Dotdeck's Own Sidebar"),
                     _("Dotdeck lists your Dots in its own sidebar and hides the one in the "
                       "page. If a server's page is not recognized, its own sidebar comes "
                       "back by itself."), ("focus mode", "web sidebar", "layout", "list"))

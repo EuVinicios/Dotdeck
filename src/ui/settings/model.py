@@ -498,9 +498,14 @@ class ModelPage(SettingsPage):
             configured = models.has_key(data, provider)
             row = Adw.ActionRow(title=escape(item["name"]),
                                 subtitle=_("Configured") if configured else _("No key yet"))
-            row.add_prefix(status_icon("object-select-symbolic" if configured
-                                       else "dialog-warning-symbolic",
-                                       "success" if configured else "warning"))
+            # A warning only where something is missing: the provider in use without a key.
+            # Providers the owner does not use are simply not set up.
+            if configured:
+                row.add_prefix(status_icon("object-select-symbolic", "success"))
+            elif provider == current:
+                row.add_prefix(status_icon("dialog-warning-symbolic", "warning"))
+            else:
+                row.add_prefix(status_icon("dialog-password-symbolic", "dim-label"))
             if provider == current:
                 row.add_suffix(suffix_label(_("In use")))
             else:

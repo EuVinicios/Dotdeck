@@ -1375,6 +1375,11 @@ class VoiceBridge(GObject.Object):
         return any(p._has_mic for p in self._peers.values())
 
     @property
+    def has_calls(self) -> bool:
+        """A call is open or still being set up or wound down (with or without a microphone)."""
+        return bool(self._peers or self._trackers)
+
+    @property
     def mic_enabled(self) -> bool:
         return all(p.mic_enabled for p in self._peers.values() if p._has_mic)
 

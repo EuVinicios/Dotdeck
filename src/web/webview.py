@@ -276,6 +276,7 @@ class ServerView(Adw.Bin):
         self.page_selection: tuple[str, str] = ("", "")
         self.page_dot_state: tuple[str, str] = ("", "")
         self._scheme = "system"
+        self._offline = False
         self._pets: dict[str, str] = {}
         self._pets_enabled = False
         self._pets_css = ""
@@ -578,6 +579,15 @@ class ServerView(Adw.Bin):
         self._reinstall_scripts()
         self._page_set("setTheme", [scheme])
 
+    def set_offline(self, offline: bool) -> None:
+        """Dotdeck says the server is out of reach: the page's own error bar steps aside."""
+        offline = bool(offline)
+        if offline == self._offline:
+            return
+        self._offline = offline
+        self._reinstall_scripts()
+        self._page_set("setOffline", [offline])
+
     def _command(self, command: str, args: list, done: Callable[[bool], None] | None) -> None:
         """Run a focus.js command once the page has loaded; ``done(ok)`` exactly once."""
         def finish(ok: bool) -> None:
@@ -815,8 +825,9 @@ class ServerView(Adw.Bin):
             self.content.add_script(WebKit.UserScript.new(polyfill, frames, start, allow, None))
         focus = _script("focus.js").replace("__DOTDECK_FOCUS_CONFIG__", json.dumps({
             "origin": self.profile.url, "focus": self._focus_wanted, "theme": self._scheme,
-            "pets": self._pets, "petsEnabled": self._pets_enabled, "brandPet": self.BRAND_PET,
-            "probeTimeout": self.PROBE_TIMEOUT_MS, "storageKey": config.TOKEN_STORAGE_KEY}))
+            "offline": self._offline, "pets": self._pets, "petsEnabled": self._pets_enabled,
+            "brandPet": self.BRAND_PET, "probeTimeout": self.PROBE_TIMEOUT_MS,
+            "storageKey": config.TOKEN_STORAGE_KEY}))
         self.content.add_script(WebKit.UserScript.new(focus, frames, start, allow, None))
         if not getattr(self, "_handlers_ready", False):
             self.content.register_script_message_handler("dotdeck", None)
@@ -936,6 +947,11 @@ class ServerView(Adw.Bin):
     def _on_load_changed(self, view, event) -> None:
         if event == WebKit.LoadEvent.COMMITTED:
             self.page_recognized = None
+            # A new document (F5, a new token, a link): the page that ran the calls is gone
+            # and nothing would end them, so the native call would keep the microphone and
+            # the speakers going with no page. They end here.
+            if self.voice.has_calls:
+                self.voice.close_all()
         if event == WebKit.LoadEvent.FINISHED:
             if not self.failed:
                 self.loaded_once = True
