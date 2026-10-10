@@ -1,19 +1,24 @@
 #!/usr/bin/env python3
-"""Build the Snap Store listing media from the app screenshots.
+"""Build the Snap Store listing media and the site's social card from the screenshots.
 
 The store page (https://snapcraft.io/dotdeck/listing) takes up to five
 screenshots and a 3:1 banner, separately from the AppStream metainfo. This
-frames data/screenshots/*.png on the brand gradient with short headlines:
+frames the Brazilian Portuguese screenshots (data/screenshots/pt_BR, from
+``make screenshots``) on the brand gradient with short headlines:
 
     python3 tools/store_assets.py             # writes data/store/*.png
 
-Needs Pillow and librsvg (gir1.2-rsvg-2.0); text uses the Inter font.
+It also draws data/store/social-card.png (1200×630), the picture that link
+previews show for the website. Needs Pillow and librsvg (gir1.2-rsvg-2.0);
+text uses the Inter font.
 """
 
 from __future__ import annotations
 
 import argparse
+import functools
 import math
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from xml.sax.saxutils import escape
@@ -22,14 +27,15 @@ import gi
 
 gi.require_version("Rsvg", "2.0")
 from gi.repository import Rsvg  # noqa: E402
-from PIL import Image, ImageDraw, ImageFilter  # noqa: E402
+from PIL import Image, ImageDraw, ImageFilter, ImageFont  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
-SHOTS = ROOT / "data" / "screenshots"
+SHOTS = ROOT / "data" / "screenshots" / "pt_BR"
 ICON_PNG = ROOT / "data" / "icons" / "hicolor" / "512x512" / "apps" / "io.github.euvinicios.Dotdeck.png"
 
 SLIDE_SIZE = (1760, 1100)  # 16:10
 BANNER_SIZE = (1800, 600)  # 3:1, as the store asks for the featured banner
+CARD_SIZE = (1200, 630)    # Open Graph / Twitter large card
 MAX_BYTES = 2 * 1024 * 1024  # store limit per image (2 MB)
 RADIUS = 14  # GNOME window corners at 1×
 
@@ -40,7 +46,6 @@ class Window:
     x: int
     y: int
     scale: float = 1.0
-    width: int | None = None
 
 
 @dataclass(frozen=True)
@@ -48,25 +53,27 @@ class Slide:
     name: str
     title: str
     subtitle: str
-    windows: tuple[Window, ...]
+    windows: tuple[Window, ...]  # back to front
 
 
+# The main window is 1342×842 and the Settings window 982×682 (tools/screenshots.py).
 SLIDES = (
-    Slide("1-workspace", "Every Dot, one click away",
-          "A native sidebar with all your Dots: their pets, names and jobs, like a real team.",
-          (Window("workspace.png", 260, 230),)),
-    Slide("2-pets", "A pet for every Dot",
-          "Twelve plush pets. Pick one in the gallery, or let Dotdeck choose by the job.",
-          (Window("pets.png", 260, 230),)),
-    Slide("3-settings", "Settings that go deep",
-          "Search every option: Dots, voice and microphone, AI model, notifications, privacy.",
-          (Window("settings-voice.png", 380, 250),)),
-    Slide("4-dark-mode", "Made for GNOME, light and dark",
-          "A clean Libadwaita interface that follows your desktop, with calls one click away.",
-          (Window("workspace-dark.png", 260, 230),)),
-    Slide("5-setup", "Set up in seconds",
-          "Guided connection to this computer, your home network, Tailscale or the cloud.",
-          (Window("welcome.png", 260, 230),)),
+    Slide("1-dots", "Todos os seus Dots a um clique",
+          "Uma barra lateral nativa com o pet, o nome e a função de cada Dot.",
+          (Window("workspace.png", 276, 238, 0.9),)),
+    Slide("2-pets", "Um pet para cada Dot",
+          "Doze pets de pelúcia. Escolha na galeria ou deixe o Dotdeck escolher pela função.",
+          (Window("pets.png", 276, 238, 0.9),)),
+    Slide("3-modelos-de-ia", "Modelos de IA, com o custo à vista",
+          "Saiba qual modelo os seus Dots usam, quanto custa e teste com um clique.",
+          (Window("workspace.png", 150, 330, 0.7), Window("settings-model.png", 628, 290))),
+    Slide("4-chamadas", "Ligue para os seus Dots",
+          "Chamadas de voz com cancelamento de eco, no tema claro ou no escuro.",
+          (Window("workspace-dark.png", 150, 330, 0.7),
+           Window("settings-voice-dark.png", 628, 290))),
+    Slide("5-configuracao", "Pronto em poucos segundos",
+          "Conecte-se ao seu OpenDots: neste computador, na rede de casa ou na nuvem.",
+          (Window("welcome.png", 130, 280, 0.6), Window("connected.png", 825, 420, 0.6))),
 )
 
 
@@ -142,6 +149,39 @@ def text(x: float, y: float, value: str, size: int, *, weight: str = "Regular",
             f'text-anchor="{anchor}">{escape(value)}</text>')
 
 
+@functools.cache
+def _font(family: str, size: int):
+    """The font librsvg will use for ``family`` (asked to fontconfig), for measuring."""
+    try:
+        path = subprocess.run(["fc-match", "-f", "%{file}", family], check=True,
+                              capture_output=True, text=True).stdout
+        return ImageFont.truetype(path, size)
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def text_width(value: str, size: int, weight: str = "Regular") -> float:
+    font = _font("Inter SemiBold" if weight == "SemiBold" else "Inter", size)
+    return font.getlength(value) if font else len(value) * size * 0.56
+
+
+def pills(x: float, y: float, labels: tuple[str, ...], size: int = 18,
+          gap: int = 16) -> str:
+    """Rounded tags on one line, starting at ``x`` (each sized to its label)."""
+    parts = []
+    height = round(size * 2.2)
+    for label in labels:
+        width = round(text_width(label, size, "SemiBold") + size * 2.2)
+        parts.append(
+            f'<rect x="{x}" y="{y}" width="{width}" height="{height}" rx="{height / 2}" '
+            'fill="#3b82f6" fill-opacity="0.18" stroke="#38bdf8" stroke-opacity="0.35" '
+            'stroke-width="1.5"/>'
+            + text(x + width / 2, y + height * 0.66, label, size, weight="SemiBold",
+                   fill="#e2e8f0"))
+        x += width + gap
+    return "".join(parts)
+
+
 def rounded(size: tuple[int, int], radius: float, outline: int = 0) -> Image.Image:
     """Antialiased rounded-rectangle mask (filled, or just the outline)."""
     k = 4
@@ -162,12 +202,10 @@ def layer(canvas: Image.Image, image: Image.Image, pos: tuple[int, int]) -> Imag
 
 def place(canvas: Image.Image, window: Window) -> Image.Image:
     shot = Image.open(SHOTS / window.file).convert("RGBA")
-    if window.width:
-        shot = shot.crop((0, 0, window.width, shot.height))
     if window.scale != 1:
         shot = shot.resize((round(shot.width * window.scale), round(shot.height * window.scale)),
                            Image.LANCZOS)
-    radius = RADIUS * window.scale
+    radius = RADIUS * max(window.scale, 0.75)
     mask = rounded(shot.size, radius)
 
     pad = 90
@@ -185,6 +223,21 @@ def place(canvas: Image.Image, window: Window) -> Image.Image:
     return layer(canvas, edge, (window.x, window.y))
 
 
+def place_icon(canvas: Image.Image, size: int, pos: tuple[int, int]) -> Image.Image:
+    """The plush icon with a soft shadow under it."""
+    if not ICON_PNG.exists():
+        return canvas
+    icon = Image.open(ICON_PNG).convert("RGBA").resize((size, size), Image.LANCZOS)
+    pad = size // 4
+    alpha = Image.new("L", (size + 2 * pad, size + 2 * pad), 0)
+    alpha.paste(icon.split()[3], (pad, pad))
+    alpha = alpha.filter(ImageFilter.GaussianBlur(size / 14)).point(lambda v: int(v * 0.7))
+    shadow = Image.new("RGBA", alpha.size, (2, 6, 18, 0))
+    shadow.putalpha(alpha)
+    canvas = layer(canvas, shadow, (pos[0] - pad, pos[1] - pad + size // 20))
+    return layer(canvas, icon, pos)
+
+
 def save(image: Image.Image, path: Path) -> None:
     image.convert("RGB").save(path, optimize=True)
     size = path.stat().st_size
@@ -195,8 +248,8 @@ def save(image: Image.Image, path: Path) -> None:
 
 def build_slide(slide: Slide, out: Path) -> None:
     cx = SLIDE_SIZE[0] / 2
-    header = (text(cx, 110, slide.title, 56, weight="SemiBold")
-              + text(cx, 168, slide.subtitle, 28, fill="#cbd5e1"))
+    header = (text(cx, 112, slide.title, 56, weight="SemiBold")
+              + text(cx, 170, slide.subtitle, 28, fill="#cbd5e1"))
     canvas = render_svg(backdrop(SLIDE_SIZE, header), SLIDE_SIZE)
     for window in slide.windows:
         canvas = place(canvas, window)
@@ -204,40 +257,34 @@ def build_slide(slide: Slide, out: Path) -> None:
 
 
 def build_banner(out: Path) -> None:
-    # 1800x600 banner
-    badge_bg = """<g>
-      <rect x="396" y="400" width="168" height="40" rx="20" fill="#3b82f6" fill-opacity="0.18"/>
-      <rect x="396" y="400" width="168" height="40" rx="20" fill="none" stroke="#38bdf8" stroke-opacity="0.35" stroke-width="1.5"/>
-      <rect x="580" y="400" width="144" height="40" rx="20" fill="#3b82f6" fill-opacity="0.18"/>
-      <rect x="580" y="400" width="144" height="40" rx="20" fill="none" stroke="#38bdf8" stroke-opacity="0.35" stroke-width="1.5"/>
-      <rect x="740" y="400" width="210" height="40" rx="20" fill="#3b82f6" fill-opacity="0.18"/>
-      <rect x="740" y="400" width="210" height="40" rx="20" fill="none" stroke="#38bdf8" stroke-opacity="0.35" stroke-width="1.5"/>
-    </g>"""
-
+    """1800×600: the icon, the name and the promise on the left, the app on the right."""
     content = (
-        text(396, 285, "Dotdeck", 124, weight="SemiBold", anchor="start")
-        + text(400, 355, "Your OpenDots AI coworkers on the desktop", 36, anchor="start", fill="#f8fafc")
-        + badge_bg
-        + text(480, 426, "Native GNOME", 18, weight="SemiBold", fill="#e2e8f0", anchor="middle")
-        + text(652, 426, "Voice Calls", 18, weight="SemiBold", fill="#e2e8f0", anchor="middle")
-        + text(845, 426, "Free & Open Source", 18, weight="SemiBold", fill="#e2e8f0", anchor="middle")
+        text(396, 282, "Dotdeck", 120, weight="SemiBold", anchor="start")
+        + text(400, 350, "Seus Dots na área de trabalho", 38, anchor="start", fill="#f8fafc")
+        + pills(400, 396, ("Feito para o GNOME", "Chamadas de voz", "Livre e gratuito"))
     )
     canvas = render_svg(backdrop(BANNER_SIZE, content), BANNER_SIZE)
-
-    # Paste the icon on the left
-    if ICON_PNG.exists():
-        icon_img = Image.open(ICON_PNG).convert("RGBA").resize((240, 240), Image.LANCZOS)
-        # Icon shadow
-        icon_shadow = Image.new("RGBA", (280, 280), (0, 0, 0, 0))
-        icon_mask = icon_img.split()[3].filter(ImageFilter.GaussianBlur(18)).point(lambda v: int(v * 0.7))
-        shadow_layer = Image.new("RGBA", (240, 240), (2, 6, 18, 0))
-        shadow_layer.putalpha(icon_mask)
-        canvas.paste(shadow_layer, (110, 190), shadow_layer)
-        canvas.paste(icon_img, (110, 180), icon_img)
-
-    # Place preview window on the right
-    canvas = place(canvas, Window("workspace.png", 1000, 100, scale=0.62))
+    canvas = place_icon(canvas, 236, (124, 182))
+    canvas = place(canvas, Window("workspace.png", 1075, 88, 0.5))
     save(canvas, out / "banner.png")
+
+
+def build_social_card(out: Path) -> None:
+    """1200×630 for link previews of the website (Open Graph and Twitter)."""
+    content = (
+        text(80, 312, "Dotdeck", 92, weight="SemiBold", anchor="start")
+        + text(84, 370, "Seus Dots na área de trabalho", 32, anchor="start", fill="#f8fafc")
+        + text(84, 414, "App nativo para Linux do OpenDots", 24, anchor="start",
+               fill="#cbd5e1")
+        + pills(84, 454, ("GNOME", "Chamadas de voz", "Código aberto"), size=17, gap=12)
+    )
+    canvas = render_svg(backdrop(CARD_SIZE, content), CARD_SIZE)
+    canvas = place_icon(canvas, 132, (80, 106))
+    canvas = place(canvas, Window("workspace.png", 650, 172, 0.56))
+    path = out / "social-card.png"
+    canvas.convert("RGB").save(path, optimize=True)
+    print(f"{path.relative_to(ROOT)}  {canvas.width}×{canvas.height}  "
+          f"{path.stat().st_size // 1024} KB")
 
 
 def build_icon(out: Path) -> None:
@@ -259,6 +306,7 @@ def main() -> None:
     for slide in SLIDES:
         build_slide(slide, args.out)
     build_banner(args.out)
+    build_social_card(args.out)
 
 
 if __name__ == "__main__":
