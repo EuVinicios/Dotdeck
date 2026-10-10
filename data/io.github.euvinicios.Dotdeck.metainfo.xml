@@ -154,6 +154,14 @@
   </screenshots>
 
   <releases>
+    <release version="0.3.4" date="2026-10-10">
+      <description>
+        <p>Voice calls fixed.</p>
+        <ul>
+          <li>Calling a Dot no longer fails with "Dotdeck only carries the microphone in calls" on busy pages: the microphone hand-off now survives WebKit's memory clean-up</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.3" date="2026-10-10">
       <description>
         <p>Clearer AI models.</p>

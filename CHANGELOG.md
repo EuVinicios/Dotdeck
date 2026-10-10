@@ -4,6 +4,16 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.4] - 2026-10-10
+
+### Corrigido
+
+- **Ligações**: ligar para um Dot falhava com "Dotdeck only carries the microphone in calls."
+  Depois de uma limpeza de memória do WebKit, que acontece na página real do OpenDots, a página
+  ganhava um `navigator.mediaDevices` novo e voltava a usar o microfone nativo, que a ponte de
+  voz não leva. A troca do microfone agora fica em `MediaDevices.prototype`, que dura enquanto
+  a página existir. Um teste força a limpeza de memória e faz a ligação.
+
 ## [0.3.3] - 2026-10-10
 
 ### Adicionado
