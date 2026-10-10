@@ -28,7 +28,7 @@ FLATPAK_BUILDER ?= $(shell command -v flatpak-builder 2>/dev/null || echo flatpa
 HEADLESS := $(shell command -v dbus-run-session >/dev/null 2>&1 && echo "dbus-run-session --") \
             $(shell command -v xvfb-run >/dev/null 2>&1 && echo "xvfb-run -a -s '-screen 0 1600x1000x24'")
 
-.PHONY: all run test smoke screenshots icon validate locale install uninstall deb flatpak \
+.PHONY: all run test smoke screenshots store-assets icon validate locale install uninstall deb flatpak \
 	flatpak-lint snap pot clean version
 
 all: locale
@@ -50,6 +50,9 @@ screenshots:
 	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py $(if $(DEMO_URL),--url $(DEMO_URL))
 	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py --dark --out build/dark $(if $(DEMO_URL),--url $(DEMO_URL))
 	cp build/dark/workspace-dark.png data/screenshots/
+
+store-assets:
+	$(PYTHON) tools/store_assets.py
 
 icon:
 	$(PYTHON) tools/render_icon.py data/icons/hicolor

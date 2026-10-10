@@ -84,8 +84,8 @@ A interface `unity7` (ícone na bandeja) é conectada automaticamente.
 
 Em <https://snapcraft.io/dotdeck/listing>:
 
-- **Capturas de tela:** `data/screenshots/` (workspace, welcome, connected, preferences e
-  workspace-dark).
+- **Capturas de tela e banner:** gerados com `make store-assets` em `data/store/`
+  (banner 1800×600 e 5 capturas 1760×1100 emolduradas com gradiente, título e subtítulo).
 - **Categorias:** "Produtividade" (principal) e "Social".
 - **Ícone, título, resumo, descrição, licença e links** já vêm do `snapcraft.yaml` e do
   metainfo.
