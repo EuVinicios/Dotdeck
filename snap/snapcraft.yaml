@@ -17,6 +17,15 @@ platforms:
   amd64:
   arm64:
 
+# GApplication owns its application id on the session bus (one instance, actions from
+# notifications and the tray). Under strict confinement snapd only lets a snap own the
+# names it declares here; without it the app stops at "Failed to register".
+slots:
+  dotdeck-dbus:
+    interface: dbus
+    bus: session
+    name: io.github.euvinicios.Dotdeck
+
 apps:
   dotdeck:
     command: usr/bin/dotdeck
@@ -26,6 +35,7 @@ apps:
     common-id: io.github.euvinicios.Dotdeck
     desktop: usr/share/applications/io.github.euvinicios.Dotdeck.desktop
     autostart: dotdeck-autostart.desktop
+    slots: [dotdeck-dbus]
     plugs: &plugs
       - network
       - network-status

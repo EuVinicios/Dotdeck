@@ -80,6 +80,12 @@ sudo snap connect dotdeck:password-manager-service
 
 A interface `unity7` (ícone na bandeja) é conectada automaticamente.
 
+O snap também declara um slot `dbus` com o nome `io.github.euvinicios.Dotdeck`: sem ele, o
+confinamento impede o app de registrar o próprio nome no D-Bus e ele para em "Failed to
+register" antes de abrir a janela (corrigido na 0.3.1). Dentro do snap, o libsecret guarda o
+token num chaveiro próprio e criptografado (`~/snap/dotdeck/current/.local/share/keyrings`),
+com a chave entregue pelo portal Secret.
+
 ## 4. Página da loja
 
 Em <https://snapcraft.io/dotdeck/listing>:
