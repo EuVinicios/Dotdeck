@@ -426,6 +426,32 @@ class BridgeSoundsTest(unittest.TestCase):
         self.connection("failed")
         self.assertEqual(self.player.plays(), ["ringback", "connected", "error"])
 
+    def test_the_page_ending_a_dropped_call_hangs_up_once(self):
+        # useVoice.ts: 5 s after "disconnected" the page ends the call itself (microphone
+        # off, audio paused), before GStreamer calls the connection failed.
+        self.connection("connected")
+        self.connection("disconnected")  # "connecting" again: no ringing mid-call
+        self.op(op="setMicEnabled", enabled=False)
+        self.op(op="setSpeakerMuted", muted=True, paused=True)
+        self.connection("failed")
+        self.op(op="close")
+        self.bridge.close_all()
+        self.assertEqual(self.player.plays(), ["ringback", "connected", "hang-up"])
+
+    def test_a_second_call_while_the_first_is_saved_rings_again(self):
+        self.connection("connected")
+        self.op(op="setMicEnabled", enabled=False)
+        self.op(op="setSpeakerMuted", muted=True, paused=True)  # hung up, saving (~40 s)
+        self.bridge._peers["2"] = StubPeer("2")
+        second = self.bridge._trackers["2"] = voice.CallTracker()
+        self.bridge._apply("2", second.start())
+        self.assertEqual(self.player.plays(), ["ringback", "connected", "hang-up", "ringback"])
+        self.op(op="close")  # the first call is saved: no second hang-up
+        self.bridge._relay("2", {"type": "connectionstatechange", "state": "connected"})
+        self.bridge.close_all()
+        self.assertEqual(self.player.plays(), ["ringback", "connected", "hang-up",
+                                               "ringback", "connected", "hang-up"])
+
     def test_the_server_hanging_up_first_is_a_plain_hang_up(self):
         self.connection("connected")
         self.op(op="setMicEnabled", enabled=False)
