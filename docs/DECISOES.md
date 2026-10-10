@@ -473,9 +473,11 @@ Configurações cortada na altura padrão e uma chamada que continuava sem pági
   alocação), com o ponto do clique convertido para as coordenadas dela. Não vai na linha porque
   Fixar e Ocultar refazem as linhas com o menu aberto. Abre à direita do ponteiro
   (`halign=START`, como os menus de contexto do próprio GTK), também com Shift+F10 e a tecla
-  Menu, e o toque longo vale só para telas de toque. Um teste abre o menu em cada Dot e confere
-  que a rolagem interna não tem nada a rolar; ele falha com o código antigo (281 > 268) e passa
-  no SDK do GNOME 51 e no runtime do próprio snap.
+  Menu, e o toque longo vale só para telas de toque. Como a barra lateral não recebe foco, o
+  GTK deixava o foco cair fora da lista quando o menu fechava; ele volta para o Dot (ou para a
+  lista, se o Dot saiu dela), e a lista refeita por Fixar mantém o foco no mesmo Dot. Um teste
+  abre o menu em cada Dot e confere que a rolagem interna não tem nada a rolar; ele falha com o
+  código antigo (281 > 268) e passa no SDK do GNOME 51 e no runtime do próprio snap.
 - **Uma mensagem por sentido**: o menu diz "Abrir"; o selo do servidor usa "Current" ("Atual").
 - **Cabeçalho da chamada de largura fixa**: "Chamando…" até conectar, depois "Em chamada ·
   01:23" com algarismos tabulares; a fase fica no pet e na dica. Do clique em Ligar até a página
@@ -484,6 +486,8 @@ Configurações cortada na altura padrão e uma chamada que continuava sem pági
   chamada, `close_all()`.
 - **Janelas estreitas**: abaixo de 480 sp, "Conversas" vai para o menu principal.
 - Configurações abre com 980 × 760 (limitado à altura da tela), e a galeria de pets com 712 px.
+  As páginas de Configurações deixam de ter a mesma largura (`hhomogeneous=False`): a 360 px só
+  Aparência ainda passa da borda, por causa dos seletores lado a lado.
 
 **Fora desta rodada** (baixo impacto ou risco de regressão): os dois botões "+" vizinhos, um
 botão de criar o primeiro Dot na lista vazia, trocar os IDs de modelo por nomes, o texto de

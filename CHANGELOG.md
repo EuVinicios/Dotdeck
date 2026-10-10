@@ -21,7 +21,8 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 - **Configurações** abre com 760 px de altura (menos numa tela baixa): a lista de seções cabe
   inteira, sem "Avançado" cortado nem "Sobre" escondido, e Privacidade não rola mais. Numa
   janela estreita, "Editar o Dot…", "Microfone…" e os outros atalhos abrem a página pedida, e
-  não a lista.
+  não a lista, e cada página ocupa só a largura de que precisa: antes todas ficavam tão largas
+  quanto Aparência e passavam da borda direita.
 - **Galeria de pets**: os 12 pets cabem sem uma rolagem de 7 px.
 - **Sem conexão com o servidor**: o botão Ligar fica apagado, com o motivo na dica, e a barra
   de erro da página em inglês ("Load failed") some enquanto o aviso do Dotdeck está na tela.
@@ -33,7 +34,8 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 ### Adicionado
 
 - **Menu do Dot pelo teclado**: Shift+F10 ou a tecla Menu abrem o menu do Dot em foco, como nos
-  campos de texto do GNOME. O Dot fica destacado enquanto o menu dele está aberto.
+  campos de texto do GNOME. O Dot fica destacado enquanto o menu dele está aberto, e o foco
+  volta para ele quando o menu fecha (também depois de Fixar no topo).
 
 ### Alterado
 
