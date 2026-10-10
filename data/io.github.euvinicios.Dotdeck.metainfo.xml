@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copyright 2026 EuVinicios -->
+<component type="desktop-application">
+  <id>io.github.euvinicios.Dotdeck</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>Dotdeck</name>
+  <summary>Your OpenDots AI coworkers on the desktop</summary>
+  <summary xml:lang="pt-BR">Seus colegas de IA do OpenDots no desktop</summary>
+  <summary xml:lang="es">Tus compañeros de IA de OpenDots en el escritorio</summary>
+
+  <developer id="io.github.euvinicios">
+    <name>EuVinicios</name>
+  </developer>
+
+  <description>
+    <p>
+      Dotdeck is a native desktop client for OpenDots, the self-hosted workspace of
+      always-on AI coworkers called Dots. Connect to your own server on this computer,
+      your home network, Tailscale or the cloud, and keep your Dots one shortcut away.
+    </p>
+    <p xml:lang="pt-BR">
+      O Dotdeck é um cliente desktop nativo para o OpenDots, o espaço de trabalho
+      auto-hospedado de colegas de IA sempre ativos, os Dots. Conecte-se ao seu próprio
+      servidor neste computador, na rede de casa, pelo Tailscale ou na nuvem, e deixe
+      seus Dots a um atalho de distância.
+    </p>
+    <p xml:lang="es">
+      Dotdeck es un cliente de escritorio nativo para OpenDots, el espacio de trabajo
+      autoalojado de compañeros de IA siempre activos llamados Dots. Conéctate a tu propio
+      servidor en este equipo, en la red de tu casa, por Tailscale o en la nube.
+    </p>
+    <ul>
+      <li>Guided setup that tests the connection and finds the right address</li>
+      <li xml:lang="pt-BR">Configuração guiada que testa a conexão e acha o endereço certo</li>
+      <li xml:lang="es">Configuración guiada que prueba la conexión y encuentra la dirección correcta</li>
+      <li>Several servers, each with its own sign-in and data</li>
+      <li xml:lang="pt-BR">Vários servidores, cada um com o seu acesso e os seus dados</li>
+      <li xml:lang="es">Varios servidores, cada uno con su acceso y sus datos</li>
+      <li>Owner access tokens kept in the system keyring, never in plain text</li>
+      <li xml:lang="pt-BR">Tokens de acesso guardados no chaveiro do sistema, nunca em texto puro</li>
+      <li xml:lang="es">Tokens de acceso guardados en el llavero del sistema, nunca en texto plano</li>
+      <li>Voice calls with your Dots, with a native audio engine and echo cancellation</li>
+      <li xml:lang="pt-BR">Chamadas de voz com os seus Dots, com motor de áudio nativo e cancelamento de eco</li>
+      <li xml:lang="es">Llamadas de voz con tus Dots, con motor de audio nativo y cancelación de eco</li>
+      <li>Notifications when a Dot finishes or fails a task, or a scheduled task starts</li>
+      <li xml:lang="pt-BR">Notificações quando um Dot termina ou falha uma tarefa, ou quando uma tarefa agendada começa</li>
+      <li xml:lang="es">Notificaciones cuando un Dot termina o falla una tarea, o empieza una tarea programada</li>
+      <li>Tray icon with status, keeps running in the background</li>
+      <li xml:lang="pt-BR">Ícone na bandeja com o status, continua rodando em segundo plano</li>
+      <li xml:lang="es">Icono en la bandeja con el estado, sigue funcionando en segundo plano</li>
+      <li>Global shortcuts: Super+Shift+D to show Dotdeck, mute and push-to-talk</li>
+      <li xml:lang="pt-BR">Atalhos globais: Super+Shift+D para mostrar o Dotdeck, mudo e aperte-para-falar</li>
+      <li xml:lang="es">Atajos globales: Super+Shift+D para mostrar Dotdeck, silencio y pulsar para hablar</li>
+      <li>Light and dark style following the system</li>
+      <li xml:lang="pt-BR">Estilo claro e escuro acompanhando o sistema</li>
+      <li xml:lang="es">Estilo claro y oscuro según el sistema</li>
+    </ul>
+    <p>
+      Dotdeck needs an OpenDots server. It is an independent project, not affiliated with
+      or endorsed by CopilotKit.
+    </p>
+    <p xml:lang="pt-BR">
+      O Dotdeck precisa de um servidor OpenDots. É um projeto independente, sem vínculo
+      com a CopilotKit.
+    </p>
+    <p xml:lang="es">
+      Dotdeck necesita un servidor OpenDots. Es un proyecto independiente, sin relación
+      con CopilotKit.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">io.github.euvinicios.Dotdeck.desktop</launchable>
+  <provides>
+    <binary>dotdeck</binary>
+  </provides>
+  <translation type="gettext">dotdeck</translation>
+
+  <url type="homepage">https://github.com/EuVinicios/Dotdeck</url>
+  <url type="bugtracker">https://github.com/EuVinicios/Dotdeck/issues</url>
+  <url type="vcs-browser">https://github.com/EuVinicios/Dotdeck</url>
+  <url type="contribute">https://github.com/EuVinicios/Dotdeck/blob/main/CONTRIBUTING.md</url>
+  <url type="translate">https://github.com/EuVinicios/Dotdeck/tree/main/po</url>
+
+  <content_rating type="oars-1.1"/>
+
+  <requires>
+    <display_length compare="ge">360</display_length>
+    <internet>always</internet>
+  </requires>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+    <control>touch</control>
+  </supports>
+
+  <keywords>
+    <keyword>OpenDots</keyword>
+    <keyword>AI</keyword>
+    <keyword>assistant</keyword>
+    <keyword>agents</keyword>
+    <keyword>chat</keyword>
+    <keyword>voice</keyword>
+    <keyword xml:lang="pt-BR">assistente</keyword>
+    <keyword xml:lang="pt-BR">agentes</keyword>
+  </keywords>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#a9cdff</color>
+    <color type="primary" scheme_preference="dark">#1b3f99</color>
+  </branding>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/workspace.png</image>
+      <caption>Your OpenDots workspace in a native window</caption>
+      <caption xml:lang="pt-BR">Seu espaço de trabalho OpenDots numa janela nativa</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/welcome.png</image>
+      <caption>Guided setup for your own server</caption>
+      <caption xml:lang="pt-BR">Configuração guiada para o seu servidor</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/connected.png</image>
+      <caption>Background, start at login and a global shortcut</caption>
+      <caption xml:lang="pt-BR">Segundo plano, início com a sessão e atalho global</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/preferences.png</image>
+      <caption>Preferences</caption>
+      <caption xml:lang="pt-BR">Preferências</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/workspace-dark.png</image>
+      <caption>Dark style</caption>
+      <caption xml:lang="pt-BR">Estilo escuro</caption>
+    </screenshot>
+  </screenshots>
+
+  <releases>
+    <release version="0.1.0" date="2026-10-09">
+      <description>
+        <p>First release.</p>
+        <ul>
+          <li>Guided setup, several servers and tokens in the keyring</li>
+          <li>Native voice calls for OpenDots, which WebKitGTK cannot place on its own</li>
+          <li>Notifications, tray icon, background mode and global shortcuts</li>
+        </ul>
+      </description>
+    </release>
+  </releases>
+</component>

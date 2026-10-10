@@ -1,0 +1,78 @@
+name: dotdeck
+# Title, summary, description and version come from the AppStream metainfo
+# (parse-info), so the Snap Store and the Ubuntu App Center show exactly what
+# GNOME Software shows. License and links are explicit for the store listing.
+adopt-info: dotdeck
+icon: data/icons/hicolor/512x512/apps/io.github.euvinicios.Dotdeck.png
+license: GPL-3.0-or-later
+website: https://github.com/EuVinicios/Dotdeck
+source-code: https://github.com/EuVinicios/Dotdeck
+issues: https://github.com/EuVinicios/Dotdeck/issues
+contact: https://github.com/EuVinicios/Dotdeck/issues
+base: core26
+grade: stable
+confinement: strict
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  dotdeck:
+    command: usr/bin/dotdeck
+    # GTK 4, Libadwaita, WebKitGTK 6.0, PyGObject, pycairo, libsecret, libsoup and
+    # GStreamer (base/good) come from the shared gnome-core26 runtime (GNOME 50).
+    extensions: [gnome]
+    common-id: io.github.euvinicios.Dotdeck
+    desktop: usr/share/applications/io.github.euvinicios.Dotdeck.desktop
+    autostart: dotdeck-autostart.desktop
+    plugs: &plugs
+      - network
+      - network-status
+      - audio-playback
+      # Voice calls with the Dots. Until the store grants auto-connection, users run:
+      #   snap connect dotdeck:audio-record
+      - audio-record
+      # Owner tokens in the GNOME keyring. Until the store grants auto-connection:
+      #   snap connect dotdeck:password-manager-service
+      - password-manager-service
+      # Tray icon (StatusNotifierItem on /StatusNotifierItem and /MenuBar).
+      - unity7
+
+parts:
+  dotdeck:
+    plugin: nil
+    source: .
+    source-type: local
+    parse-info: [usr/share/metainfo/io.github.euvinicios.Dotdeck.metainfo.xml]
+    build-packages:
+      - gettext
+    override-build: |
+      make install DESTDIR="$CRAFT_PART_INSTALL" PREFIX=/usr PYTHON="/usr/bin/env python3"
+
+  # Voice calls need GStreamer's WebRTC stack, which lives in plugins-bad and is not
+  # part of the runtime. Only the few plugins and libraries the call uses are kept.
+  webrtc:
+    plugin: nil
+    stage-packages:
+      - gstreamer1.0-plugins-bad
+      - gstreamer1.0-nice
+      - gir1.2-gst-plugins-bad-1.0
+    prime:
+      - usr/lib/*/gstreamer-1.0/libgstwebrtc.so
+      - usr/lib/*/gstreamer-1.0/libgstdtls.so
+      - usr/lib/*/gstreamer-1.0/libgstsrtp.so
+      - usr/lib/*/gstreamer-1.0/libgstsctp.so
+      - usr/lib/*/gstreamer-1.0/libgstnice.so
+      - usr/lib/*/gstreamer-1.0/libgstwebrtcdsp.so
+      - usr/lib/*/libgstwebrtc-1.0.so*
+      - usr/lib/*/libgstwebrtcnice-1.0.so*
+      - usr/lib/*/libgstsctp-1.0.so*
+      - usr/lib/*/libgstbadaudio-1.0.so*
+      - usr/lib/*/libnice.so*
+      - usr/lib/*/libgupnp-igd-1.6.so*
+      - usr/lib/*/libgupnp-1.6.so*
+      - usr/lib/*/libgssdp-1.6.so*
+      - usr/lib/*/libsrtp2.so*
+      - usr/lib/*/libwebrtc-audio-processing-1.so*
+      - usr/lib/*/girepository-1.0/GstWebRTC-1.0.typelib

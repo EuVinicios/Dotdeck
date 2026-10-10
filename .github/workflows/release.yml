@@ -1,0 +1,113 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag a publicar (ex.: v0.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  deb:
+    name: Pacote .deb (Ubuntu 26.04)
+    runs-on: ubuntu-latest
+    container: ubuntu:26.04
+    steps:
+      - name: Instalar ferramentas
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git make gettext python3 desktop-file-utils appstream
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - run: make validate
+      - run: make deb
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deb
+          path: dist/*.deb
+          if-no-files-found: error
+
+  flatpak:
+    name: Bundle Flatpak (GNOME 51)
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-51
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: Dotdeck.flatpak
+          manifest-path: build-aux/flatpak/io.github.euvinicios.Dotdeck.json
+          cache-key: flatpak-builder-${{ github.sha }}
+          upload-artifact: false
+      - uses: actions/upload-artifact@v7
+        with:
+          name: flatpak
+          path: Dotdeck.flatpak
+          if-no-files-found: error
+
+  publish:
+    name: Publicar release
+    needs: [deb, flatpak]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Checksums e notas
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          VERSION="${TAG#v}"
+          (cd dist && sha256sum * > SHA256SUMS && cat SHA256SUMS)
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" {found=1; next}
+            found && /^## \[/ {exit}
+            found {print}
+          ' CHANGELOG.md > notes.md
+          cat >> notes.md <<'EOF'
+
+          ### Instalação
+
+          **Central de Aplicativos do Ubuntu:** procure por Dotdeck ou use `sudo snap install dotdeck`.
+
+          **Ubuntu 26.04 LTS ou mais recente (.deb):**
+
+          ```bash
+          sudo apt install ./dotdeck_*_all.deb
+          ```
+
+          **Outras distribuições (Flatpak):**
+
+          ```bash
+          flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user ./Dotdeck.flatpak
+          ```
+
+          Confira a integridade dos arquivos com `sha256sum -c SHA256SUMS`.
+          EOF
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+      - name: Criar ou atualizar a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" dist/* --title "Dotdeck $VERSION" --notes-file notes.md
+          fi
