@@ -112,7 +112,7 @@ class Call:
     # that outlives ``max_duration`` (OpenDots ends calls at 15 min) is closed here.
     connect_timeout = 60.0
     max_duration = 20 * 60.0
-    # The Dot answers the call ("Oi, aqui é o Chefe…") this long after the data channel
+    # The Dot answers the call ("Oi, aqui é a Assistente…") this long after the data channel
     # opens, unless the caller is already talking: proof that the call is live.
     greeting_delay = 0.2
     greeting_prompt = ("(The call just connected. Answer it with one short sentence in the same "
