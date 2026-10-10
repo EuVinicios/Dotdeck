@@ -114,7 +114,7 @@ class Call:
     max_duration = 20 * 60.0
     # The Dot answers the call ("Oi, aqui é o Chefe…") this long after the data channel
     # opens, unless the caller is already talking: proof that the call is live.
-    greeting_delay = 0.6
+    greeting_delay = 0.2
     greeting_prompt = ("(The call just connected. Answer it with one short sentence in the same "
                        "language as your role instructions: say your name and ask how you can help.)")
 
