@@ -406,6 +406,12 @@ já tem um site no GitHub Pages (`website/`, `build-aux/website.sh` e
 - **Textos cortados.** Na fonte padrão do GNOME, "Pesquisar nas configurações" e os estados
   "Em repouso" e "Trabalhando" do pet não cabiam. Viraram "Pesquisar configurações",
   "Livre" e "Ocupado".
+- **Só promete o que funciona para quem instala.** Modelos de IA (o modelo no rodapé, os
+  preços, a troca e o teste) dependem de `GET /api/model-config`, e a voz só com a chave do
+  OpenRouter depende da ponte de voz e de o OpenDots aceitar outro endereço de voz
+  (`VOICE_REALTIME_URL`). O OpenDots oficial ainda não tem nenhum dos dois, e nele o áudio de
+  uma chamada vai do Dotdeck direto para a API Realtime da OpenAI. O site diz isso nas seções
+  de modelos, de voz e de privacidade, e a frase de abertura fala de pets, chamadas e avisos.
 
 O site só fica no ar depois do merge e de uma configuração única no GitHub: Settings → Pages
 → Build and deployment → Source: GitHub Actions (como no PodFlow).

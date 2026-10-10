@@ -46,8 +46,9 @@
       <div class="summary">
         <p>
           <strong>Em resumo:</strong> o Dotdeck não tem conta, anúncios nem estatísticas de uso
-          e não envia nada ao desenvolvedor. Ele conversa só com os servidores OpenDots que
-          você adicionar. Os seus Dots, conversas e chaves de API ficam nesses servidores.
+          e não envia nada ao desenvolvedor. Ele conversa com os servidores OpenDots que você
+          adicionar e, durante uma chamada de voz, com o serviço de voz que o servidor indicar.
+          Os seus Dots, conversas e chaves de API ficam nesses servidores.
         </p>
       </div>
 
@@ -68,6 +69,7 @@
       <h2>Com quem o app conversa</h2>
       <ul>
         <li><strong>Os servidores OpenDots que você adicionar</strong>, e o atualizador que roda ao lado de cada um deles, se você o instalou. A janela só abre páginas desses servidores; qualquer outro link abre no seu navegador.</li>
+        <li><strong>O serviço de voz de uma chamada</strong>, só enquanto ela dura: o endereço que o seu servidor indicar ao abrir a chamada. No OpenDots oficial, é a API Realtime da OpenAI; com a ponte de voz do Dotdeck, é o próprio servidor.</li>
         <li><strong>O seu sistema</strong>, pelos portais do desktop: notificações, atalhos globais, chaveiro e início com a sessão.</li>
       </ul>
       <p>
@@ -81,8 +83,8 @@
         O microfone é usado em dois momentos: numa chamada de voz com um Dot, depois que você
         permitir (o Dotdeck pergunta uma vez para cada servidor, e a resposta pode ser mudada em
         <em>Configurações › Chamadas de voz</em>), e no medidor de teste dessa mesma página,
-        enquanto ela está aberta. O áudio das chamadas vai para o seu servidor OpenDots; o do
-        teste não sai do seu computador. No snap, o microfone também depende de conectar a
+        enquanto ela está aberta. O áudio das chamadas vai para o serviço de voz que o seu
+        servidor indicar (veja acima); o do teste não sai do seu computador. No snap, o microfone também depende de conectar a
         interface <code>audio-record</code>.
       </p>
 

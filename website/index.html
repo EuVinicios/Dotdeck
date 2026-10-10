@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dotdeck · Seus Dots na área de trabalho</title>
-  <meta name="description" content="O app nativo para Linux do OpenDots: todos os seus colegas de IA numa janela leve, com pets de pelúcia, chamadas de voz e o custo de cada modelo à vista. Gratuito e de código aberto.">
+  <meta name="description" content="O app nativo para Linux do OpenDots: todos os seus colegas de IA numa janela leve, com pets de pelúcia, chamadas de voz e avisos quando uma tarefa termina. Gratuito e de código aberto.">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#f8faff" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0a0f1d" media="(prefers-color-scheme: dark)">
@@ -16,14 +16,14 @@
   <meta property="og:locale" content="pt_BR">
   <meta property="og:url" content="https://euvinicios.github.io/Dotdeck/">
   <meta property="og:title" content="Dotdeck · Seus Dots na área de trabalho">
-  <meta property="og:description" content="O app nativo para Linux do OpenDots, com pets de pelúcia, chamadas de voz e o custo de cada modelo à vista.">
+  <meta property="og:description" content="O app nativo para Linux do OpenDots, com pets de pelúcia, chamadas de voz e avisos quando uma tarefa termina.">
   <meta property="og:image" content="https://euvinicios.github.io/Dotdeck/assets/social-card.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="O ícone de pelúcia do Dotdeck ao lado da janela do app com oito Dots na barra lateral">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Dotdeck · Seus Dots na área de trabalho">
-  <meta name="twitter:description" content="O app nativo para Linux do OpenDots, com pets de pelúcia, chamadas de voz e o custo de cada modelo à vista.">
+  <meta name="twitter:description" content="O app nativo para Linux do OpenDots, com pets de pelúcia, chamadas de voz e avisos quando uma tarefa termina.">
   <meta name="twitter:image" content="https://euvinicios.github.io/Dotdeck/assets/social-card.png">
   <link rel="stylesheet" href="assets/style.css">
   <script src="assets/site.js" defer></script>
@@ -57,7 +57,7 @@
         <h1 id="titulo">Seus Dots na área de trabalho.</h1>
         <p class="lead">
           O Dotdeck é o app para Linux do OpenDots: todos os seus colegas de IA numa janela
-          leve e bonita, com pets de pelúcia, chamadas de voz e o custo de cada modelo à vista.
+          leve e bonita, com pets de pelúcia, chamadas de voz e avisos quando uma tarefa termina.
         </p>
         <div class="actions">
           <a class="button" href="#instalar">
@@ -99,7 +99,7 @@
           <article class="card">
             <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg>
             <h3>Custo à vista</h3>
-            <p>Saiba qual modelo de IA os seus Dots usam, quanto ele custa por milhão de tokens e teste com um clique.</p>
+            <p>Quando o servidor informa os modelos, veja qual modelo de IA os seus Dots usam, quanto ele custa por milhão de tokens e teste com um clique.</p>
           </article>
           <article class="card">
             <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
@@ -133,7 +133,7 @@
             </p>
             <ul class="checks">
               <li>Doze pets, sem repetir entre os Dots</li>
-              <li>Um anel mostra se o Dot está trabalhando, em chamada, falando ou pausado</li>
+              <li>O pet mostra se o Dot está trabalhando, em chamada, falando ou pausado</li>
               <li>Edite nome, função, instruções e permissões de cada Dot nas Configurações</li>
             </ul>
           </div>
@@ -145,7 +145,7 @@
         <ul class="pets" aria-label="Os doze pets">
           <li><img src="assets/pets/sky.png" alt="" width="76" height="76" loading="lazy"><strong>Céu</strong><span>coordena</span></li>
           <li><img src="assets/pets/sprout.png" alt="" width="76" height="76" loading="lazy"><strong>Broto</strong><span>dia a dia</span></li>
-          <li><img src="assets/pets/ember.png" alt="" width="76" height="76" loading="lazy"><strong>Brasa</strong><span>negócios</span></li>
+          <li><img src="assets/pets/ember.png" alt="" width="76" height="76" loading="lazy"><strong>Brasa</strong><span>vendas</span></li>
           <li><img src="assets/pets/plum.png" alt="" width="76" height="76" loading="lazy"><strong>Ameixa</strong><span>código</span></li>
           <li><img src="assets/pets/sunny.png" alt="" width="76" height="76" loading="lazy"><strong>Solzinho</strong><span>finanças</span></li>
           <li><img src="assets/pets/rosy.png" alt="" width="76" height="76" loading="lazy"><strong>Rosinha</strong><span>textos</span></li>
@@ -170,7 +170,7 @@
           </p>
           <ul class="checks">
             <li>Cancelamento de eco e de ruído, mudo na barra de título e aperte-para-falar</li>
-            <li>Funciona só com a chave do OpenRouter: a ponte de voz do Dotdeck usa o GPT Audio Mini, por cerca de US$&nbsp;0,005 por minuto de fala</li>
+            <li>A voz vem do seu servidor: o OpenDots oficial usa a API Realtime da OpenAI. Com a <a href="https://github.com/EuVinicios/Dotdeck/tree/main/server">ponte de voz do Dotdeck</a> e um ajuste no OpenDots, basta a chave do OpenRouter (GPT Audio Mini, cerca de US$&nbsp;0,005 por minuto de fala)</li>
             <li>Os três modelos da chamada à vista: quem fala, quem transcreve e quem pesquisa</li>
           </ul>
           <p class="note">Uma chamada por vez, de até 15 minutos, como no OpenDots.</p>
@@ -201,7 +201,7 @@
             <li>Preço por milhão de tokens e velocidade de cada modelo, e o botão <strong>Testar agora</strong></li>
             <li>As chaves ficam no servidor: o Dotdeck nunca as mostra nem as guarda</li>
           </ul>
-          <p class="note">Os preços são aproximados e vêm do seu servidor OpenDots.</p>
+          <p class="note">Os preços são aproximados e vêm do servidor. O modelo no rodapé, os preços, a troca e o teste dependem de o servidor informar os modelos ao Dotdeck. O OpenDots oficial ainda não faz isso: com ele, a página mostra onde o modelo é configurado.</p>
         </div>
         <picture class="shot">
           <source srcset="screenshots/settings-model-dark.png" media="(prefers-color-scheme: dark)">
@@ -221,7 +221,7 @@
           <article class="card">
             <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
             <h3>Nada sai do seu servidor para nós</h3>
-            <p>Sem conta, sem anúncios e sem estatísticas de uso. O Dotdeck conversa só com o seu servidor OpenDots, e é ele que fala com o provedor de IA que você configurou.</p>
+            <p>Sem conta, sem anúncios e sem estatísticas de uso. O Dotdeck conversa com o seu servidor OpenDots, e é ele que fala com o provedor de IA que você configurou. Numa chamada, o áudio vai para o serviço de voz que o servidor indicar.</p>
           </article>
           <article class="card">
             <svg class="glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5z"/><path d="M3 8v8l9 5 9-5V8M12 13v8"/></svg>
@@ -295,7 +295,7 @@
         </details>
         <details>
           <summary>Quanto custam as conversas e as chamadas?</summary>
-          <p>Depende do modelo. Em <em>Configurações › Modelos de IA</em>, o Dotdeck mostra o custo aproximado do modelo em uso por milhão de tokens. Em <em>Chamadas de voz</em>, aparecem os três modelos de uma chamada.</p>
+          <p>Depende do modelo e do provedor que o seu servidor usa. Quando o servidor informa os modelos ao Dotdeck, <em>Configurações › Modelos de IA</em> mostra o custo aproximado do modelo em uso por milhão de tokens, e <em>Chamadas de voz</em> mostra os três modelos de uma chamada.</p>
         </details>
         <details>
           <summary>Quem baixa o app recebe os meus Dots ou as minhas chaves?</summary>
