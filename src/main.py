@@ -32,8 +32,11 @@ class DotdeckApplication(Adw.Application):
                          "push-to-talk": ""}
 
     def __init__(self):
-        super().__init__(application_id=config.APP_ID,
-                         flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
+        flags = Gio.ApplicationFlags.HANDLES_COMMAND_LINE
+        if config.IN_SNAP:
+            # Owning the app id on D-Bus needs a Snap Store review; see core/instance.py.
+            flags |= Gio.ApplicationFlags.NON_UNIQUE
+        super().__init__(application_id=config.APP_ID, flags=flags)
         GLib.set_application_name(config.APP_NAME)
         options = [
             ("version", ord("v"), _("Show the version and exit")),
@@ -57,6 +60,7 @@ class DotdeckApplication(Adw.Application):
         self.shortcuts: portals.GlobalShortcuts | None = None
         self._background_requested = False
         self._told_background = False
+        self._instance = None
 
     # -- lifecycle -------------------------------------------------------------------------
 
@@ -69,6 +73,14 @@ class DotdeckApplication(Adw.Application):
                             format="%(levelname)s %(name)s: %(message)s")
         if options.contains("self-test"):
             return self_test()
+        if config.IN_SNAP:
+            from .core.instance import SingleInstance
+            self._instance = SingleInstance()
+            if not self._instance.acquire():
+                command = ("toggle-mute" if options.contains("toggle-mute") else
+                           "toggle" if options.contains("toggle") else
+                           "background" if options.contains("background") else "activate")
+                return 0 if self._instance.send(command) else 1
         return -1
 
     def do_startup(self) -> None:
@@ -86,6 +98,8 @@ class DotdeckApplication(Adw.Application):
         self.profiles.connect("active-changed", self._on_active_changed)
         self._install_actions()
         self._sync_monitors()
+        if self._instance is not None:
+            self._instance.listen(self._on_remote_command)
 
         connection = self.get_dbus_connection()
         if connection is not None:
@@ -122,6 +136,16 @@ class DotdeckApplication(Adw.Application):
     def do_activate(self) -> None:
         self.show_window()
 
+    def _on_remote_command(self, command: str) -> None:
+        """A second launch inside the snap (see core/instance.py)."""
+        if command == "toggle-mute":
+            if self.window is not None:
+                self.window.toggle_mute()
+        elif command == "toggle":
+            self.toggle_window()
+        elif command == "activate":
+            self.show_window()
+
     def do_shutdown(self) -> None:
         for mon in self.monitors.values():
             mon.stop()
@@ -131,6 +155,8 @@ class DotdeckApplication(Adw.Application):
             self.tray.stop()
         if self.shortcuts is not None:
             self.shortcuts.close()
+        if self._instance is not None:
+            self._instance.close()
         Adw.Application.do_shutdown(self)
 
     def _load_style(self) -> None:
