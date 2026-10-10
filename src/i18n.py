@@ -21,3 +21,8 @@ ngettext = _translation.ngettext
 def N_(message: str) -> str:
     """Mark a string for translation without translating it yet (translate with _ later)."""
     return message
+
+
+def translating() -> bool:
+    """Dotdeck speaks a language other than English (a catalog in src/locale was found)."""
+    return isinstance(_translation, gettext.GNUTranslations)

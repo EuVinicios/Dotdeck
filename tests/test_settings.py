@@ -23,26 +23,17 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk  # noqa: E402
 
-from src.core import monitor, secrets, store  # noqa: E402
+from src.core import models, monitor, secrets, store  # noqa: E402
 from src.ui.settings import search  # noqa: E402
+from tests.fake_server import (ANTHROPIC_URL, MODEL_CONFIG, MODEL_CONFIG_032,  # noqa: E402
+                               FakeModelConfig)
 
 TOKEN = "owner-token-for-settings-tests-0123456789"
 DOT_KEYS = {"name", "instructions", "researchAllowed", "memoryAllowed", "learningContainerId",
             "skillDeliveryEnabled", "spaceIds", "spaceId"}
 SETTINGS_KEYS = {"name", "paused", "researchAllowed", "memoryAllowed"}
-GATEWAY_CONFIG = {
-    "model": "deepseek/deepseek-v4-flash-0731", "baseUrl": "https://openrouter.ai/api/v1",
-    "provider": "openrouter", "hasApiKey": True, "voiceModel": "openai/gpt-audio-mini",
-    "voiceName": "marin", "hasVoiceKey": False, "voiceReady": True, "voiceGateway": True,
-    "presets": [
-        {"id": "deepseek/deepseek-v4-flash-0731", "name": "DeepSeek V4 Flash (fast, low cost)",
-         "provider": "openrouter"},
-        {"id": "anthropic/claude-sonnet-5.5", "name": "Claude Sonnet 5.5 (Anthropic)",
-         "provider": "openrouter"},
-        {"id": "google/gemini-3.8-flash", "name": "Gemini 3.8 Flash (Google)",
-         "provider": "openrouter"},
-    ],
-}
+# A server set up with Dotdeck 0.3.2 (calls through the voice gateway).
+GATEWAY_CONFIG = MODEL_CONFIG_032
 
 
 def owner_dots() -> list[dict]:
@@ -55,7 +46,7 @@ def owner_dots() -> list[dict]:
                 "learningContainerId": None, "skillDeliveryEnabled": True}
     return [
         dot(0, "Dot", "", "Be thoughtful, practical, and concise. Help with everyday tasks."),
-        dot(1, "Chefe", "chefe de gabinete do Vinicios",
+        dot(1, "Chefe", "chefe de gabinete da Ana",
             "Coordinate the other Dots and keep the week on track.", ("s1", "s2")),
         dot(2, "Zelador", "SRE da casa", "Keep the homelab healthy: backups, updates, disks.",
             ("s3",)),
@@ -84,7 +75,7 @@ class RecordingOpenDots:
     def __init__(self, token: str = TOKEN, model_config: dict | None = None,
                  voice: bool = True):
         self.token = token
-        self.model_config = dict(model_config) if model_config else None
+        self.model = FakeModelConfig(model_config)
         self.dots = owner_dots()
         self.spaces = owner_spaces()
         self.settings = {"name": "OpenDots Homelab", "paused": False, "researchAllowed": True,
@@ -131,9 +122,10 @@ class RecordingOpenDots:
                 elif self.path == "/api/workspace":
                     self._json(200, {"spaces": fake.spaces, "dots": fake.dots,
                                      "conversations": [], "calls": [],
-                                     "setup": {"voice": fake.voice, "missing": []}})
-                elif self.path == "/api/model-config" and fake.model_config is not None:
-                    self._json(200, fake.model_config)
+                                     "setup": {"voice": fake.voice, "missing": []},
+                                     **fake.model.workspace_fields()})
+                elif self.path == "/api/model-config":
+                    self._json(*fake.model.get())
                 else:
                     self._json(404, {"error": "Not found."})
 
@@ -172,14 +164,10 @@ class RecordingOpenDots:
                 fake.requests.append(("POST", self.path, body))
                 if not self._authorized():
                     return
-                if self.path == "/api/model-config" and fake.model_config is not None:
-                    fake.model_config.update({k: v for k, v in body.items()
-                                              if k not in ("apiKey", "voiceKey")})
-                    if body.get("apiKey"):
-                        fake.model_config["hasApiKey"] = True
-                    self._json(200, {"ok": True, **{k: fake.model_config.get(k) for k in (
-                        "model", "baseUrl", "voiceModel", "voiceName", "hasVoiceKey",
-                        "voiceReady", "voiceGateway")}})
+                if self.path == "/api/model-config":
+                    self._json(*fake.model.post(body))
+                elif self.path == "/api/model-config/test":
+                    self._json(*fake.model.test(body))
                 else:
                     self._json(404, {"error": "Not found."})
 
@@ -187,6 +175,11 @@ class RecordingOpenDots:
         self._httpd.daemon_threads = True
         self.url = f"http://127.0.0.1:{self._httpd.server_address[1]}"
         threading.Thread(target=self._httpd.serve_forever, daemon=True).start()
+
+    @property
+    def model_config(self) -> dict | None:
+        """The server's model settings as they are now (tests may change them)."""
+        return self.model.data
 
     def writes(self, method: str | None = None) -> list[tuple[str, str, object]]:
         return [r for r in self.requests if method is None or r[0] == method]
@@ -653,7 +646,8 @@ class SettingsWindowTests(unittest.TestCase):
         page = win.pages["voice"]
         self.assertFalse(any(isinstance(w, Adw.PasswordEntryRow)
                              for w in descendants(page.widget)))
-        timbre = next(row for row in page._voice_rows if isinstance(row, Adw.ComboRow))
+        timbre = next(row for row in page._voice_rows if isinstance(row, Adw.ComboRow)
+                      and row.get_title() == "Voice")
         timbre.set_selected(1)    # cedar
         self.assertTrue(run_until(lambda: self.fake.writes("POST"), 5))
         self.assertEqual(self.fake.writes("POST")[-1][2], {"voiceName": "cedar"})
@@ -665,6 +659,40 @@ class SettingsWindowTests(unittest.TestCase):
         page = win.pages["voice"]
         self.assertTrue(any(isinstance(w, Adw.PasswordEntryRow)
                             for w in descendants(page.widget)))
+        speech = next(row for row in page._voice_rows if row.get_title() == "Speech")
+        self.assertNotIsInstance(speech, Adw.ComboRow)     # gateway ids would not work here
+        self.assertEqual(speech.get_subtitle(), "gpt-realtime · OpenAI Realtime")
+
+    def test_a_0_3_2_server_shows_what_it_reports(self):
+        """Older fork servers: one key, no provider menu, no price, no test, no transcription."""
+        self.fake.model_config["hasApiKey"] = False
+        win = self.open("model")
+        self.wait_model(win)
+        page = win.pages["model"]
+        self.assertEqual(page.model_row.get_title(), "DeepSeek V4 Flash")
+        self.assertEqual(page.model_row.get_subtitle(),
+                         "deepseek/deepseek-v4-flash-0731 · OpenRouter")
+        for row in (page.provider_combo, page.price_row, page.test_row, page.advanced,
+                    page.new_key):
+            self.assertFalse(row.get_visible(), row.get_title())
+        self.assertEqual((page.key_status.get_title(), page.key_status.get_subtitle()),
+                         ("OpenRouter Key", "No key yet"))
+        self.assertEqual([row.get_title() for row in page._key_rows], ["OpenRouter"])
+        self.assertEqual(page.key_row.get_title(), "Set a New OpenRouter Key")
+        self.assertEqual(page.speech_row.get_subtitle(),
+                         "openai/gpt-audio-mini · Dotdeck voice gateway")
+        self.assertEqual(page.transcribe_row.get_subtitle(), "This server does not report it")
+        self.assertEqual(page.thinking_row.get_subtitle(), "DeepSeek V4 Flash · the chat model")
+        # Ids go as typed: these servers check nothing per provider and ignore "provider".
+        page.combo.set_selected(page._choices.index(""))
+        page.custom.set_text("my-model")
+        self.assertTrue(page.apply.get_sensitive())
+        page._apply(page._selected_model())
+        self.assertTrue(run_until(lambda: self.fake.model.posts, 5))
+        self.assertEqual(self.fake.model.posts[-1], {"model": "my-model"})
+        voice = win.pages["voice"]
+        self.assertTrue(run_until(lambda: any(r.get_title() == "Transcription"
+                                              for r in voice._voice_rows), 5))
 
     def test_audio_devices_are_listed_and_chosen(self):
         from unittest import mock
@@ -797,9 +825,9 @@ class SettingsWindowTests(unittest.TestCase):
         profile = self.app.profiles.get(self.profile.id)
         profile.name = "R&D <Lab>"
         self.app.profiles.update(profile)
-        self.fake.dots[2]["instructions"] = "# Zelador — Vinicios's SRE\n\nKeep it healthy."
+        self.fake.dots[2]["instructions"] = "# Zelador — Ana's SRE\n\nKeep it healthy."
         self.mon.poll_now()
-        self.assertTrue(run_until(lambda: "Vinicios's" in self.mon.workspace.dot("d2").job, 5))
+        self.assertTrue(run_until(lambda: "Ana's" in self.mon.workspace.dot("d2").job, 5))
         errors = self.collect_errors()
         win = self.open("voice")
         self.assertTrue(run_until(lambda: "R&amp;D" in win.pages["voice"].status.get_title(), 3))
@@ -807,11 +835,11 @@ class SettingsWindowTests(unittest.TestCase):
         win.search_entry.set_text("noise")
         self.assertTrue(run_until(lambda: win.search_results(), 3))
         self.assertEqual(win.search_results()[0].title, "Noise Suppression")
-        win.search_entry.set_text("vinicios's sre")
+        win.search_entry.set_text("ana's sre")
         self.assertTrue(run_until(lambda: any(e.title == "Zelador"
                                               for e in win.search_results()), 3))
         found = next(e for e in win.search_results() if e.title == "Zelador")
-        self.assertEqual(found.subtitle, "Vinicios's SRE")
+        self.assertEqual(found.subtitle, "Ana's SRE")
         self.assertEqual(errors, [])
 
     def collect_errors(self) -> list[str]:
@@ -998,6 +1026,257 @@ class NoServerTests(unittest.TestCase):
         self.assertIn("model", win.pages["model"].problem.status.get_description())
         self.assertFalse(win.pages["privacy"].server.get_sensitive())
         self.assertEqual(self.errors, [])
+
+
+@unittest.skipUnless(Gtk.init_check(), "no display available")
+class ModernModelTests(unittest.TestCase):
+    """A server for Dotdeck 0.3.3: providers, a key per provider, prices and call models."""
+
+    model_config = MODEL_CONFIG
+    open = SettingsWindowTests.open
+    wait_model = SettingsWindowTests.wait_model
+
+    def setUp(self):
+        import locale
+        numeric = locale.setlocale(locale.LC_NUMERIC)
+        locale.setlocale(locale.LC_NUMERIC, "C")     # "0.10" whatever the machine speaks
+        self.addCleanup(locale.setlocale, locale.LC_NUMERIC, numeric)
+        SettingsWindowTests.setUp(self)
+
+    def tearDown(self):
+        SettingsWindowTests.tearDown(self)
+
+    def page(self):
+        win = self.open("model")
+        self.wait_model(win)
+        return win, win.pages["model"]
+
+    def test_the_model_in_use_with_its_price_key_and_a_test(self):
+        _win, page = self.page()
+        self.assertEqual(page.model_row.get_title(), "Claude Haiku 5.5")
+        self.assertEqual(page.model_row.get_subtitle(), "anthropic/claude-haiku-5.5 · OpenRouter")
+        self.assertTrue(page.price_row.get_visible())
+        self.assertEqual(page.price_row.get_title(), "Approximate Cost")
+        self.assertEqual(page.price_row.get_subtitle(),
+                         "US$ 0.10 input · US$ 0.50 output per million tokens")
+        self.assertEqual((page.key_status.get_title(), page.key_status.get_subtitle()),
+                         ("OpenRouter Key", "Configured"))
+        self.assertTrue(page.test_row.get_visible())
+        page.test_button.emit("clicked")
+        self.assertTrue(run_until(lambda: page.test_row.get_subtitle() == "Answered in 1.2 s",
+                                  5), page.test_row.get_subtitle())
+        self.assertEqual(self.fake.model.tests, [{}])
+        self.fake.model.test_result = {"ok": False, "ms": 900, "error": "401 Invalid key"}
+        page.test_button.emit("clicked")
+        self.assertTrue(run_until(
+            lambda: page.test_row.get_subtitle() == "Did not answer: 401 Invalid key", 5))
+        self.assertEqual(self.fake.model.posts, [])        # testing changes nothing
+
+    def test_models_of_the_provider_with_price_and_speed(self):
+        _win, page = self.page()
+        self.assertTrue(page.provider_combo.get_visible())
+        self.assertEqual(page._provider, "openrouter")
+        self.assertEqual(page._choices, ["deepseek/deepseek-v4-flash-0731",
+                                         "anthropic/claude-haiku-5.5",
+                                         "anthropic/claude-sonnet-5.5", ""])
+        self.assertEqual(page._selected_model(), "anthropic/claude-haiku-5.5")
+        item = page.combo.get_selected_item()
+        self.assertEqual(item.props.detail,
+                         "In use · US$ 0.10 / 0.50 per million tokens · fast")
+        self.assertFalse(page.apply.get_visible())          # nothing to change yet
+        page.combo.set_selected(0)
+        self.assertEqual(page.combo.get_subtitle(),
+                         "US$ 0.0046 / 1.28 per million tokens · fast · lowest cost")
+        self.assertTrue(page.apply.get_sensitive())
+        page._apply(page._selected_model())
+        self.assertTrue(run_until(lambda: self.fake.model.posts, 5))
+        self.assertEqual(self.fake.model.posts[-1], {"model": "deepseek/deepseek-v4-flash-0731"})
+        self.assertTrue(run_until(lambda: page.model_row.get_title() == "DeepSeek V4 Flash", 5))
+
+    def test_switching_to_anthropic_takes_its_key(self):
+        _win, page = self.page()
+        page.select_provider("anthropic")
+        self.assertEqual(page._choices, ["claude-haiku-5-5", "claude-sonnet-5-5",
+                                         "claude-opus-5-5", ""])
+        self.assertTrue(page.new_key.get_visible())
+        self.assertEqual(page.new_key.get_title(), "Anthropic Key")
+        self.assertTrue(page.apply.get_visible())
+        self.assertFalse(page.apply.get_sensitive())        # no Anthropic key yet
+        page.new_key.set_text("sk-ant-test-key")
+        self.assertTrue(page.apply.get_sensitive())
+        page._apply(page._selected_model())
+        self.assertTrue(run_until(lambda: self.fake.model.posts, 5))
+        self.assertEqual(self.fake.model.posts[-1], {"model": "claude-haiku-5-5",
+                                                     "provider": "anthropic",
+                                                     "apiKey": "sk-ant-test-key"})
+        self.assertTrue(run_until(
+            lambda: page.model_row.get_subtitle() == "claude-haiku-5-5 · Anthropic", 5),
+            page.model_row.get_subtitle())
+        self.assertEqual(page.model_row.get_title(), "Claude Haiku 5.5")
+        self.assertEqual((page.key_status.get_title(), page.key_status.get_subtitle()),
+                         ("Anthropic Key", "Configured"))
+        self.assertEqual(page.new_key.get_text(), "")
+        self.assertFalse(page.new_key.get_visible())
+        self.assertEqual(page._provider, "anthropic")
+        # Back to OpenRouter: its key is there, so none is asked.
+        page.select_provider("openrouter")
+        self.assertEqual(page.new_key.get_title(), "New OpenRouter Key (optional)")
+        self.assertTrue(page.apply.get_sensitive())
+
+    def test_custom_ids_are_checked_against_the_provider(self):
+        _win, page = self.page()
+        page.combo.set_selected(page._choices.index(""))
+        self.assertTrue(page.custom.get_visible())
+        page.custom.set_text("haiku")
+        self.assertFalse(page.apply.get_sensitive())
+        self.assertTrue(page.custom.has_css_class("error"))
+        page.custom.set_text("vendor/model-x")
+        self.assertTrue(page.apply.get_sensitive())
+        self.assertFalse(page.custom.has_css_class("error"))
+        page.select_provider("anthropic")
+        page.new_key.set_text("sk-ant-test-key")
+        page.combo.set_selected(page._choices.index(""))
+        self.assertEqual(page.custom.get_title(), "Model ID, for example claude-haiku-5-5")
+        page.custom.set_text("anthropic/claude-haiku-5.5")
+        self.assertFalse(page.apply.get_sensitive())
+        page.custom.set_text("claude-haiku-5-5-20261007")
+        self.assertTrue(page.apply.get_sensitive())
+
+    def test_an_openai_compatible_server_needs_its_address(self):
+        _win, page = self.page()
+        self.assertFalse(page.advanced.get_visible())
+        page.select_provider("openai-compatible")
+        self.assertTrue(page.advanced.get_visible())
+        self.assertEqual(page._choices, [""])                # no presets: type the id
+        self.assertTrue(page.custom.get_visible())
+        page.custom.set_text("llama-local")
+        page.new_key.set_text("local-test-key")
+        self.assertFalse(page.apply.get_sensitive())        # no address yet
+        page.base_url.set_text("not an address")
+        self.assertFalse(page.apply.get_sensitive())
+        page.base_url.set_text("http://192.168.0.10:8080/v1")
+        self.assertTrue(page.apply.get_sensitive())
+        page._apply(page._selected_model())
+        self.assertTrue(run_until(lambda: self.fake.model.posts, 5))
+        self.assertEqual(self.fake.model.posts[-1], {
+            "model": "llama-local", "provider": "openai-compatible",
+            "baseUrl": "http://192.168.0.10:8080/v1", "apiKey": "local-test-key"})
+        self.assertTrue(run_until(
+            lambda: page.model_row.get_subtitle() == "llama-local · OpenAI-compatible", 5))
+        self.assertEqual(page.key_status.get_title(), "OpenAI-compatible Server Key")
+
+    def test_switching_to_a_compatible_server_always_sends_its_address(self):
+        """Even the address in use now: the server refuses the switch without one."""
+        self.fake.model_config.update(provider="anthropic", baseUrl=ANTHROPIC_URL,
+                                      model="claude-haiku-5-5")
+        self.fake.model_config["keys"]["anthropic"] = True
+        _win, page = self.page()
+        page.select_provider("openai-compatible")
+        page.custom.set_text("claude-haiku-5-5")
+        page.new_key.set_text("local-test-key")
+        page.base_url.set_text(ANTHROPIC_URL)               # Anthropic's compatible API
+        self.assertTrue(page.apply.get_sensitive())
+        self.assertEqual(page._pending()[0], {
+            "model": "claude-haiku-5-5", "provider": "openai-compatible",
+            "baseUrl": ANTHROPIC_URL, "apiKey": "local-test-key"})
+
+    def test_a_key_typed_for_one_provider_never_goes_to_another(self):
+        _win, page = self.page()
+        page.select_provider("anthropic")
+        page.new_key.set_text("sk-ant-test-key")
+        self.assertEqual(page._pending()[0].get("apiKey"), "sk-ant-test-key")
+        # Changed their mind: the Anthropic key must not go to a compatible server.
+        page.select_provider("openai-compatible")
+        self.assertEqual(page.new_key.get_text(), "")
+        self.assertEqual(page.new_key.get_title(), "OpenAI-compatible Server Key")
+        page.custom.set_text("llama-local")
+        page.base_url.set_text("http://192.168.0.10:8080/v1")
+        changes, problem = page._pending()
+        self.assertNotIn("apiKey", changes)
+        self.assertIsNotNone(problem)                       # its own key is still missing
+        self.assertFalse(page.apply.get_sensitive())
+        # Nor back to Anthropic after a refresh of the page.
+        page.select_provider("anthropic")
+        page.new_key.set_text("sk-ant-test-key")
+        page._signature = None
+        page.model_changed()                                # the server answered again
+        self.assertEqual(page._provider, "openrouter")
+        self.assertEqual(page.new_key.get_text(), "")
+        self.assertEqual(self.fake.model.posts, [])
+
+    def test_one_key_row_per_provider(self):
+        _win, page = self.page()
+        self.assertEqual([r.get_title() for r in page._key_rows],
+                         ["OpenRouter", "Anthropic", "OpenAI-compatible"])
+        self.assertEqual([r.get_subtitle() for r in page._key_rows],
+                         ["Configured", "No key yet", "No key yet"])
+        self.assertEqual(page.key_row.get_title(), "Set a New OpenRouter Key")
+        page.key_row.set_text("sk-or-test-key")
+        page.key_row.emit("apply")
+        self.assertTrue(run_until(lambda: self.fake.model.posts, 5))
+        self.assertEqual(self.fake.model.posts[-1], {"apiKey": "sk-or-test-key"})
+        self.assertTrue(run_until(lambda: page.key_row.get_text() == "", 5))
+        # Another provider's key goes in with one of its models, under Change.
+        button = next(w for w in descendants(page._key_rows[1]) if isinstance(w, Gtk.Button)
+                      and w.get_label() == "Set New Key…")
+        button.emit("clicked")
+        self.assertEqual(page._provider, "anthropic")
+        self.assertTrue(page.new_key.get_visible())
+        self.assertEqual(len(self.fake.model.posts), 1)
+
+    def test_the_three_models_of_a_call(self):
+        win, page = self.page()
+        self.assertEqual(page.calls.get_title(), "Voice Call Model")
+        self.assertEqual(page.speech_row.get_subtitle(),
+                         "openai/gpt-audio-mini · Dotdeck voice gateway")
+        self.assertEqual(page.transcribe_row.get_subtitle(), "google/gemini-2.5-flash-lite")
+        self.assertEqual(page.thinking_row.get_subtitle(), "Claude Haiku 5.5 · the chat model")
+        page.calls_button.emit("activated")
+        self.assertTrue(run_until(lambda: win.visible_page == "voice", 2))
+        voice = win.pages["voice"]
+        groups = [w for w in descendants(voice.widget) if isinstance(w, Adw.PreferencesGroup)]
+        self.assertEqual(groups.index(voice.voice_group), groups.index(voice.status) + 1)
+        self.assertEqual([r.get_title() for r in voice._voice_rows][:4],
+                         ["Speech", "Transcription", "Research During Calls", "Voice"])
+        speech = voice._voice_rows[0]
+        self.assertIsInstance(speech, Adw.ComboRow)
+        self.assertEqual(voice._voice_rows[1].get_subtitle(), "google/gemini-2.5-flash-lite")
+        speech.set_selected(1)          # openai/gpt-audio
+        self.assertTrue(run_until(lambda: self.fake.model.posts, 5))
+        self.assertEqual(self.fake.model.posts[-1], {"voiceModel": "openai/gpt-audio"})
+        self.assertTrue(run_until(lambda: "openai/gpt-audio ·" in page.speech_row.get_subtitle(),
+                                  5), page.speech_row.get_subtitle())
+
+    def test_a_change_the_server_could_not_save_is_reported(self):
+        win, page = self.page()
+        toasts: list[str] = []
+        win.toast = toasts.append
+        self.fake.model.persisted = False
+        page.combo.set_selected(0)
+        page._apply(page._selected_model())
+        self.assertTrue(run_until(lambda: len(toasts) == 2, 5), toasts)
+        self.assertIn("until OpenDots restarts", toasts[0])
+        self.assertEqual(toasts[1], "The Dots now use DeepSeek V4 Flash")
+        # The name of the old model is not lent to the new one meanwhile.
+        self.assertTrue(run_until(lambda: page.model_row.get_title() == "DeepSeek V4 Flash", 5))
+
+    def test_no_model_yet(self):
+        self.fake.model_config.update(model=None, modelName=None, price=None, configured=False,
+                                      hasApiKey=False)
+        self.fake.model_config["keys"]["openrouter"] = False
+        _win, page = self.page()
+        self.assertEqual(page.model_row.get_title(), "No Model Yet")
+        self.assertFalse(page.price_row.get_visible())
+        self.assertEqual(page.key_status.get_subtitle(), "No key yet")
+        self.assertFalse(page.test_button.get_sensitive())
+        self.assertEqual(page._choices[0], "deepseek/deepseek-v4-flash-0731")
+
+    def test_the_sidebar_names_the_model_from_the_monitor(self):
+        self.assertTrue(run_until(lambda: self.mon.model_config is not None, 10))
+        self.assertEqual(models.at_a_glance(self.mon.workspace.active_model,
+                                            self.mon.workspace.active_provider,
+                                            self.mon.model_config),
+                         "Claude Haiku 5.5 · OpenRouter")
 
 
 @unittest.skipUnless(Gtk.init_check(), "no display available")

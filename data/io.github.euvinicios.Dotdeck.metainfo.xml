@@ -154,6 +154,17 @@
   </screenshots>
 
   <releases>
+    <release version="0.3.3" date="2026-10-10">
+      <description>
+        <p>Clearer AI models.</p>
+        <ul>
+          <li>The new AI Models page names the model your Dots chat with, shows its approximate price per million tokens and whether its key is set, and tests it with one click</li>
+          <li>Choose the provider: OpenRouter, Anthropic with your own API key (Claude Haiku, Sonnet and Opus), or any OpenAI-compatible server, with one key per provider</li>
+          <li>See the three models of a voice call (speech, transcription and research) and switch the speech model on the Voice Calls page</li>
+          <li>The sidebar shows which model the Dots are using</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.2" date="2026-10-10">
       <description>
         <p>The Snap package opens its window again, without needing any extra permission.</p>

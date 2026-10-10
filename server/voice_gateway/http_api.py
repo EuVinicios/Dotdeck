@@ -2,7 +2,8 @@
 
 ``POST /v1/realtime/calls`` takes a multipart form with the caller's SDP offer and the
 session configuration and answers with our SDP; ``POST /v1/realtime/calls/<id>/hangup``
-ends the call. ``GET /health`` is for monitoring.
+ends the call. ``GET /health`` is for monitoring: ``{ok, calls, model, transcribeModel}``,
+the models a call uses (never a key; OpenDots shows them in its model settings).
 """
 
 from __future__ import annotations
@@ -74,7 +75,7 @@ class Gateway:
 
             def do_GET(self):  # noqa: N802
                 if self.path == "/health":
-                    self._reply(200, json.dumps({"ok": True, "calls": len(gateway.calls)}).encode())
+                    self._reply(200, json.dumps(gateway.health()).encode())
                 else:
                     self._error(404, "Not found.")
 
@@ -145,10 +146,16 @@ class Gateway:
             call.close("could not answer")
             handler._error(502, f"Could not start the call: {error}")
             return
-        log.info("Call %s started: model %s, voice %s, answered in %.2f s (%d in progress)",
-                 call_id, call.model, call.voice, time.monotonic() - began, len(self.calls))
+        log.info("Call %s started: model %s, transcription %s, voice %s, answered in %.2f s "
+                 "(%d in progress)", call_id, call.model, self.config.transcribe_model or "off",
+                 call.voice, time.monotonic() - began, len(self.calls))
         handler._reply(201, answer.encode(), "application/sdp",
                        {"Location": f"/v1/realtime/calls/{call_id}"})
+
+    def health(self) -> dict:
+        """What ``GET /health`` answers: calls in progress and the models calls use."""
+        return {"ok": True, "calls": len(self.calls), "model": self.config.model,
+                "transcribeModel": self.config.transcribe_model or None}
 
     def hangup(self, call_id: str) -> None:
         call = self.calls.get(call_id)

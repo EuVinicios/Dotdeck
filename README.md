@@ -25,8 +25,9 @@ conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailsca
 
 - **Barra lateral nativa com todos os Dots**: cada Dot aparece com o seu pet, o nome e a
   função, no estilo do Grok Bot. Logo abaixo ficam os Espaços, e no rodapé Atividade,
-  Memórias e Configurações. Você pode buscar (`Ctrl+K`), fixar e ocultar Dots, e trocar de
-  Dot com `Ctrl+1…9` ou `Alt+↑/↓`. A página do OpenDots aparece limpa, sem a barra dela.
+  Memórias, Configurações e o modelo que os Dots estão usando. Você pode buscar (`Ctrl+K`),
+  fixar e ocultar Dots, e trocar de Dot com `Ctrl+1…9` ou `Alt+↑/↓`. A página do OpenDots
+  aparece limpa, sem a barra dela.
 - **12 pets de pelúcia**, um diferente para cada Dot, escolhidos pela função. Dá para trocar
   na galeria, e o mesmo pet aparece na conversa e na chamada.
 - **Configurações avançadas** com seções e busca:
@@ -34,7 +35,9 @@ conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailsca
   - Notificações por evento
   - Editor completo de cada Dot
   - Voz e microfone, com teste de nível
-  - Modelo de IA
+  - Modelos de IA: provedor (OpenRouter, Anthropic com chave de API ou compatível com
+    OpenAI), uma chave por provedor, custo aproximado, teste do modelo e os três modelos de
+    uma chamada de voz
   - Servidores, privacidade e diagnóstico
 - **Ligar para um Dot** com um clique (ou `Ctrl+Shift+L`), com o tempo da chamada na barra.
 - **Configuração guiada**: digite `localhost:4310`, um IP da rede ou um nome do Tailscale. O

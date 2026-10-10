@@ -39,7 +39,7 @@ def shorten(text: str, limit: int = JOB_LIMIT) -> str:
 def job_of(name: str, instructions: str) -> str:
     """A short "what this Dot does" line, from the first line of its instructions.
 
-    ``# Chefe — chefe de gabinete do Vinicios`` gives ``chefe de gabinete do Vinicios``;
+    ``# Atlas — chief of staff for the team`` gives ``chief of staff for the team``;
     plain prose gives its first sentence. There is no job field in OpenDots.
     """
     for line in instructions.splitlines():
@@ -255,7 +255,7 @@ class Workspace:
                 tuple((s.id, s.name) for s in self.spaces),
                 tuple((c.id, c.dot_id, c.title) for c in self.conversations),
                 tuple((c.id, c.status) for c in self.calls if c.active),
-                bool(self.setup.get("voice")))
+                bool(self.setup.get("voice")), self.active_model, self.active_provider)
 
 
 @dataclass(frozen=True)

@@ -4,6 +4,40 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.3] - 2026-10-10
+
+### Adicionado
+
+- **Modelos de IA** (antes "Modelo de IA"): o modelo das conversas aparece pelo nome, com o
+  id e o provedor embaixo, o **custo aproximado** por milhão de tokens, o estado da chave e o
+  botão **Testar agora**, que mostra em quanto tempo o modelo respondeu (ou o erro).
+- **Provedor**: OpenRouter, Anthropic com chave de API (Claude Haiku, Sonnet e Opus) ou um
+  servidor compatível com OpenAI (endereço em **Avançado**). Cada provedor tem a sua chave, e a
+  lista de modelos mostra preço e velocidade de cada um. O Dotdeck nunca mostra nem guarda
+  chaves.
+- **Modelo das chamadas de voz**: as três partes de uma chamada (quem fala, quem transcreve e
+  quem pesquisa, que é o modelo das conversas) aparecem em Modelos de IA e em Chamadas de
+  voz, logo abaixo do status. Em Chamadas de voz dá para trocar o modelo que fala (GPT Audio
+  Mini ou GPT Audio).
+- **O modelo à vista**: o rodapé da barra lateral mostra o modelo em uso (por exemplo "Claude
+  Haiku 5.5 · OpenRouter"); um clique abre Modelos de IA.
+- **Ponte de voz**: `GET /health` informa o modelo de voz e o de transcrição, e o log de cada
+  chamada diz qual modelo atendeu (inclusive quando o OpenDots pede um id que a ponte não usa).
+- **Privacidade na CI**: `make privacy` (`tools/privacy_scan.py`) procura chaves, tokens de
+  bot, pastas pessoais e endereços privados no código, e o fluxo do snap faz a mesma busca no
+  pacote gerado. Os padrões são genéricos, sem nenhum valor real.
+
+### Alterado
+
+- Provedor, preços, teste e modelo de transcrição dependem do servidor OpenDots atualizado
+  (`GET /api/model-config` com provedores). Servidores configurados com o Dotdeck 0.3.2
+  continuam funcionando: a página mostra só o que eles informam.
+
+### Corrigido
+
+- A chave sem valor aparecia como "Não definido" (masculino); agora é "Nenhuma chave ainda".
+- Um exemplo no código citava o nome do dono; virou um exemplo fictício.
+
 ## [0.3.2] - 2026-10-10
 
 ### Corrigido

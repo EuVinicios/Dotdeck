@@ -6,7 +6,7 @@ from tests.helpers import run_until
 
 from src.core import monitor  # noqa: E402
 from src.core.store import Profile  # noqa: E402
-from tests.fake_server import FakeOpenDots  # noqa: E402
+from tests.fake_server import MODEL_CONFIG, FakeOpenDots  # noqa: E402
 
 
 def task(id_, status, interval=None, next_run=None, error=""):
@@ -74,6 +74,43 @@ class ServerMonitorTest(unittest.TestCase):
             self.assertTrue(run_until(lambda: events, 10))
             self.assertEqual(events[0][:3], ("completed", "a", "Weekly report"))
             self.assertEqual(mon.active_tasks, 0)
+            mon.stop()
+
+    def test_model_names_are_asked_once_per_model(self):
+        with FakeOpenDots(token="t" * 24, model_config=MODEL_CONFIG) as fake:
+            mon = monitor.ServerMonitor(Profile("p", "Home", fake.url), lambda cb: cb("t" * 24))
+            changed = []
+            mon.connect("workspace-changed", lambda _m: changed.append(1))
+            mon.start()
+            self.assertTrue(run_until(lambda: mon.model_config is not None, 10))
+            self.assertEqual(mon.workspace.active_model, "anthropic/claude-haiku-5.5")
+            self.assertEqual(mon.model_config["modelName"], "Claude Haiku 5.5")
+            asked = [path for path, _auth in fake.requests if path == "/api/model-config"]
+            self.assertEqual(len(asked), 1)
+            polls = len([p for p, _a in fake.requests if p == "/api/workspace"])
+            mon.poll_now()
+            self.assertTrue(run_until(lambda: len([p for p, _a in fake.requests
+                                                   if p == "/api/workspace"]) > polls, 10))
+            run_until(lambda: False, 0.3)
+            self.assertEqual(sum(1 for p, _a in fake.requests if p == "/api/model-config"), 1)
+            # Changed elsewhere (the browser): asked again once the workspace says so.
+            fake.model.data["model"] = "deepseek/deepseek-v4-flash-0731"
+            fake.model.data["modelName"] = "DeepSeek V4 Flash"
+            before = len(changed)
+            mon.poll_now()
+            self.assertTrue(run_until(
+                lambda: (mon.model_config or {}).get("modelName") == "DeepSeek V4 Flash", 10))
+            self.assertGreater(len(changed), before)
+            mon.stop()
+
+    def test_upstream_servers_are_not_asked_for_model_names(self):
+        with FakeOpenDots(token="t" * 24) as fake:
+            mon = monitor.ServerMonitor(Profile("p", "Home", fake.url), lambda cb: cb("t" * 24))
+            mon.start()
+            self.assertTrue(run_until(lambda: mon.status == "online", 10))
+            run_until(lambda: False, 0.3)
+            self.assertIsNone(mon.model_config)
+            self.assertFalse(any(p == "/api/model-config" for p, _a in fake.requests))
             mon.stop()
 
     def test_token_and_offline_states(self):

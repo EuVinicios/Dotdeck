@@ -6,6 +6,7 @@
 #   make screenshots    refresh data/screenshots (DEMO_URL=… DEMO_TOKEN=… from tools/demo_server.py)
 #   make icon           re-render the plush app icon (tools/render_icon.py)
 #   make validate       desktop file, AppStream and release checks
+#   make privacy        no keys, tokens, home folders or private addresses in the tree
 #   make install        install system-wide (PREFIX=/usr/local, DESTDIR supported)
 #   make deb            build dist/dotdeck_<version>_all.deb
 #   make flatpak        build and install the Flatpak locally (needs org.flatpak.Builder)
@@ -28,8 +29,8 @@ FLATPAK_BUILDER ?= $(shell command -v flatpak-builder 2>/dev/null || echo flatpa
 HEADLESS := $(shell command -v dbus-run-session >/dev/null 2>&1 && echo "dbus-run-session --") \
             $(shell command -v xvfb-run >/dev/null 2>&1 && echo "xvfb-run -a -s '-screen 0 1600x1000x24'")
 
-.PHONY: all run test smoke screenshots store-assets icon validate locale install uninstall deb flatpak \
-	flatpak-lint snap pot clean version
+.PHONY: all run test smoke screenshots store-assets icon validate privacy locale install uninstall \
+	deb flatpak flatpak-lint snap pot clean version
 
 all: locale
 
@@ -63,6 +64,9 @@ validate:
 	@grep -q '<release version="$(VERSION)"' data/$(APP_ID).metainfo.xml || \
 		{ echo "metainfo sem <release> para $(VERSION)"; exit 1; }
 	@for lang in $(LINGUAS); do msgfmt --check -o /dev/null po/$$lang.po || exit 1; done
+
+privacy:
+	$(PYTHON) tools/privacy_scan.py
 
 locale:
 	@for lang in $(LINGUAS); do \

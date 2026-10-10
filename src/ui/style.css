@@ -78,6 +78,20 @@ statuspage.compact > scrolledwindow > viewport > box {
   color: var(--accent-fg-color);
 }
 
+/* The chat model at a glance, under Settings: quiet until hovered. */
+.dotdeck-sidebar .model-glance {
+  padding: 4px 12px;
+  font-weight: normal;
+}
+
+.dotdeck-sidebar .model-glance label {
+  opacity: 0.75;
+}
+
+.dotdeck-sidebar .model-glance:hover label {
+  opacity: 1;
+}
+
 .call-button {
   padding-left: 12px;
   padding-right: 14px;

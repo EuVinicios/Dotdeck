@@ -90,6 +90,20 @@ class SidebarTests(unittest.TestCase):
         visible = [r.dot.id for r in self.rows() if r.get_child_visible()]
         self.assertEqual(visible, ["b"])
 
+    def test_the_model_at_a_glance_opens_ai_models(self):
+        self.assertFalse(self.sidebar.model_button.get_visible())    # server did not say
+        keys = []
+        self.sidebar.connect("nav-activated", lambda _s, key: keys.append(key))
+        self.sidebar.set_model("Claude Haiku 5.5 · OpenRouter")
+        self.assertTrue(self.sidebar.model_button.get_visible())
+        self.assertEqual(self.sidebar.model_label.get_label(), "Claude Haiku 5.5 · OpenRouter")
+        self.assertIn("Claude Haiku 5.5 · OpenRouter",
+                      self.sidebar.model_button.get_tooltip_text())
+        self.sidebar.model_button.emit("clicked")
+        self.assertEqual(keys, ["model"])
+        self.sidebar.set_model("")
+        self.assertFalse(self.sidebar.model_button.get_visible())
+
     def test_animations_off_stops_running_avatars(self):
         row = self.rows()[0]
         row.avatar.state = "working"

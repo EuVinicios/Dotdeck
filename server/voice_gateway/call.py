@@ -130,6 +130,10 @@ class Call:
 
         model = str(session.get("model") or "")
         self.model = model if "/" in model else config.model
+        if model and model != self.model:
+            # An OpenAI Realtime id (no "/") cannot go to OpenRouter: say which one answers.
+            log.info("Call %s: %r is not an OpenRouter model id; using %s (VOICE_GATEWAY_MODEL)",
+                     call_id, model[:60], self.model)
         voice = session_voice(session)
         self.voice = config.voice_override or (voice if voice in VOICES else config.voice)
         self.tools = chat_tools(session)
@@ -688,7 +692,7 @@ class Call:
     # -- teardown --------------------------------------------------------------------------
 
     def close(self, reason: str = "hangup") -> None:
-        """End the call; logs one line with how long it lasted and what it cost."""
+        """End the call; logs one line with the model, how long it lasted and what it cost."""
         with self._lock:
             if self.closed:
                 return
@@ -708,7 +712,7 @@ class Call:
             if obj.handler_is_connected(handler):
                 obj.disconnect(handler)
         self._channel = None
-        log.info("Call %s ended (%s): %s, %s, %s, US$ %.5f", self.id, reason,
+        log.info("Call %s ended (%s): %s, %s, %s, %s, US$ %.5f", self.id, reason, self.model,
                  _duration(time.monotonic() - self.started),
                  _plural(replies, "reply", "replies"),
                  _plural(computes, "compute request", "compute requests"), cost)
