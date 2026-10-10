@@ -852,7 +852,15 @@ class MainWindow(Adw.ApplicationWindow):
         area.x, area.y = int(bounds.get_x()), int(bounds.get_y())
         area.width, area.height = int(bounds.get_width()), int(bounds.get_height())
         popover.set_pointing_to(area)
-        popover.connect("closed", lambda p: GLib.idle_add(p.unparent))
+
+        def closed(popover):
+            # GTK hands the focus back to the header bar, which cannot take it (it fell into
+            # the page): it goes back to the menu the list was opened from.
+            focus = self.get_focus()
+            if focus is None or focus.is_ancestor(popover):
+                self.menu_button.grab_focus()
+            GLib.idle_add(popover.unparent)
+        popover.connect("closed", closed)
         popover.popup()
 
     def _fill_history(self, listbox: Gtk.ListBox | None = None) -> None:

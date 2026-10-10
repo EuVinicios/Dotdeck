@@ -265,6 +265,8 @@ class Sidebar(Adw.Bin):
         selected = self.selected_dot()
         order = [d.id for d in visible]
         if order != [r.dot.id for r in self._iter_rows()]:
+            # Pin or Hide from the keyboard: the focus stays with the Dot (or the list).
+            focused = next((r.dot.id for r in self._iter_rows() if r.has_focus()), None)
             self._selecting = True
             for row in list(self._iter_rows()):
                 self.dots.remove(row)
@@ -274,6 +276,8 @@ class Sidebar(Adw.Bin):
                 self._rows[dot.id] = row
                 self.dots.append(row)
             self._selecting = False
+            if focused is not None:
+                self._rows.get(focused, self.dots).grab_focus()
         for dot in visible:
             self._rows[dot.id].update(dot, pet_map.get(dot.id, pets.DEFAULT.id), density=density,
                                       show_job=show_job, state=self._states.get(dot.id, "idle"),
@@ -437,6 +441,13 @@ class Sidebar(Adw.Bin):
 
         def closed(popover):
             row.remove_css_class("menu-open")
+            # GTK hands the focus back to the menu's parent, and the sidebar cannot take it,
+            # so it fell out of the list (onto the header's New Chat button). It goes back to
+            # the Dot, before the chosen item runs: Open or New Chat can still move it on.
+            root = self.get_root()
+            focus = root.get_focus() if root is not None else None
+            if focus is None or focus.is_ancestor(popover):
+                (row if row.get_parent() is self.dots else self.dots).grab_focus()
             GLib.idle_add(popover.unparent)
         popover.connect("closed", closed)
         popover.popup()

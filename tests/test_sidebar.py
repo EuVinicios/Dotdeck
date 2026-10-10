@@ -152,6 +152,32 @@ class SidebarTests(unittest.TestCase):
         popover.popdown()
         self.assertTrue(run_until(lambda: not self.menus(), 2))
 
+    def test_the_focus_goes_back_to_the_dot_when_its_menu_closes(self):
+        """Escape, or an item that rebuilds the rows: the arrows go on from the same Dot.
+
+        The menu belongs to the sidebar, which cannot take the focus GTK hands back to it.
+        """
+        self.sidebar.menu_for_dot = lambda dot_id: dot_menu(
+            WORKSPACE.dot(dot_id), pinned=False, chief=False, can_call=True)
+        row = self.rows()[1]
+        row.grab_focus()
+        self.assertTrue(self.sidebar._on_dot_menu_key())
+        popover, = self.menus()
+        self.assertTrue(run_until(popover.get_mapped, 3))
+        self.assertFalse(row.has_focus())          # the menu has it while open
+        popover.popdown()
+        self.assertTrue(run_until(lambda: not self.menus(), 2))
+        self.assertIs(self.window.get_focus(), row)
+        # Pin to Top from the keyboard rebuilds the rows: the new row of that Dot keeps it.
+        self.fill(pinned={"b"})
+        new_row = self.rows()[0]
+        self.assertIsNot(new_row, row)
+        self.assertEqual(new_row.dot.id, "b")
+        self.assertIs(self.window.get_focus(), new_row)
+        # Hide From Sidebar: the Dot is gone, the list keeps the focus.
+        self.fill(pinned={"b"}, hidden={"b"})
+        self.assertIs(self.window.get_focus(), self.sidebar.dots)
+
     def test_a_long_press_is_for_touch_screens(self):
         press = next(c for c in self.sidebar.dots.observe_controllers()
                      if isinstance(c, Gtk.GestureLongPress))
