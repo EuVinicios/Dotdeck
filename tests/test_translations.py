@@ -51,6 +51,14 @@ class TranslationTest(unittest.TestCase):
         model_page = (PO.parent / "src" / "ui" / "settings" / "model.py").read_text()
         self.assertNotIn('_("Not set")', model_page)
 
+    def test_the_dot_menu_opens_with_a_verb(self):
+        """"Abrir", not "Aberto": the badge of the open server has a message of its own."""
+        self.assertEqual(entries(PO / "pt_BR.po")["Open"], ["Abrir"])
+        self.assertEqual(entries(PO / "es.po")["Open"], ["Abrir"])
+        servers = (PO.parent / "src" / "ui" / "settings" / "servers.py").read_text()
+        self.assertNotIn('_("Open")', servers)
+        self.assertEqual(entries(PO / "pt_BR.po")["Current"], ["Atual"])
+
     def test_each_provider_key_has_the_right_article(self):
         """"Chave do OpenRouter" but "Chave da Anthropic" (one message per provider)."""
         catalog = entries(PO / "pt_BR.po")

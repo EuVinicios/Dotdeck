@@ -100,7 +100,7 @@ class ServersPage(SettingsPage):
             row.set_subtitle_lines(1)
             row.add_prefix(status_dot(status))
             if active is not None and profile.id == active.id:
-                badge = Gtk.Label(label=_("Open"), valign=Gtk.Align.CENTER)
+                badge = Gtk.Label(label=_("Current"), valign=Gtk.Align.CENTER)
                 badge.add_css_class("settings-badge")
                 badge.add_css_class("accent")
                 row.add_suffix(badge)
