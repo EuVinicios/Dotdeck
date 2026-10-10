@@ -15,6 +15,7 @@ from gi.repository import Gio, GLib, GObject
 
 from . import server
 from .store import Profile
+from .workspace import ServerState, Workspace
 
 log = logging.getLogger(__name__)
 
@@ -86,9 +87,14 @@ class ServerMonitor(GObject.Object):
         "changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
         "task-event": (GObject.SignalFlags.RUN_FIRST, None, (str, str, str, str)),
         "updates-available": (GObject.SignalFlags.RUN_FIRST, None, (int, str)),
+        # The Dots, Spaces, conversations or calls changed (not emitted on every poll).
+        "workspace-changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
+        # online <-> offline, for "server went down / is back" notifications.
+        "status-changed": (GObject.SignalFlags.RUN_FIRST, None, (str, str)),
     }
 
     INTERVAL = 20          # seconds between polls while healthy
+    FAST_INTERVAL = 4      # while its window is on screen, like the web page (3 s)
     MAX_INTERVAL = 300     # backoff ceiling while the server is down
     UPDATE_INTERVAL = 1800  # seconds between updater status checks
 
@@ -112,6 +118,10 @@ class ServerMonitor(GObject.Object):
         self.updates: dict | None = None
         self._update_timer = 0
         self._announced_upstream = ""
+        self.workspace = Workspace()
+        self.state = ServerState()
+        self._signature: tuple | None = None
+        self._fast = False
 
     @property
     def online(self) -> bool:
@@ -132,6 +142,19 @@ class ServerMonitor(GObject.Object):
             self._cancellable.cancel()
             self._cancellable = None
 
+    def set_fast(self, fast: bool) -> None:
+        """Poll every few seconds while the user is looking at this server."""
+        if fast == self._fast:
+            return
+        self._fast = fast
+        if fast and self._timer and self._failures == 0:
+            self.poll_now()
+
+    def _set_status(self, status: str) -> None:
+        old, self.status = self.status, status
+        if old != status:
+            self.emit("status-changed", old, status)
+
     def poll_now(self) -> None:
         if self._timer:
             GLib.source_remove(self._timer)
@@ -143,7 +166,8 @@ class ServerMonitor(GObject.Object):
         self._token_lookup(lambda token: self._poll(token, cancellable))
 
     def _schedule(self) -> None:
-        delay = self.INTERVAL if self._failures == 0 else \
+        healthy = self.FAST_INTERVAL if self._fast else self.INTERVAL
+        delay = healthy if self._failures == 0 else \
             min(self.MAX_INTERVAL, self.INTERVAL * (2 ** min(self._failures, 4)))
         self._timer = GLib.timeout_add_seconds(delay, self._on_timer)
 
@@ -166,9 +190,9 @@ class ServerMonitor(GObject.Object):
             kind = server.UNREACHABLE if error is not None else \
                 server.classify(status, data, bool(client.token)).kind
             self._failures += 1
-            self.status = {server.TOKEN_REQUIRED: "token", server.TOKEN_INVALID: "token",
-                           server.LOCAL_ONLY: "local-only", server.UNREACHABLE: "offline"}.get(
-                               kind, "other")
+            self._set_status({server.TOKEN_REQUIRED: "token", server.TOKEN_INVALID: "token",
+                              server.LOCAL_ONLY: "local-only", server.UNREACHABLE: "offline"}.get(
+                                  kind, "other"))
             self.active_tasks = 0
             self.emit("changed")
             self._schedule()
@@ -176,6 +200,7 @@ class ServerMonitor(GObject.Object):
         self._failures = 0
         settings = data.get("settings") if isinstance(data.get("settings"), dict) else {}
         self.name = str(settings.get("name") or "")
+        self.state = ServerState.from_json(data)
         tasks = [t for t in (TaskSnapshot.from_json(item) for item in data.get("tasks", []) or [])
                  if t]
         if self._tasks is not None:
@@ -198,7 +223,12 @@ class ServerMonitor(GObject.Object):
             setup = data.get("setup") if isinstance(data.get("setup"), dict) else {}
             self.missing = [m for m in setup.get("missing", []) or [] if isinstance(m, str)]
             self.voice_ready = bool(setup.get("voice"))
-        self.status = "online"
+            self.workspace = Workspace.from_json(data)
+        self._set_status("online")
+        signature = self.workspace.signature()
+        if signature != self._signature:
+            self._signature = signature
+            self.emit("workspace-changed")
         self.emit("changed")
         self._schedule()
         if not self._update_timer:

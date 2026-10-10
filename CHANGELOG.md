@@ -4,6 +4,38 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.0] - 2026-10-10
+
+### Adicionado
+
+- **Barra lateral nativa** com todos os Dots: pet, nome e função de cada um (tirada da primeira
+  linha das instruções), Espaços, e Atividade, Memórias e Configurações no rodapé. Busca
+  (`Ctrl+K`), fixar e ocultar Dots, menu de contexto (abrir, nova conversa, ligar, trocar pet,
+  editar, tornar Chefe). A página do OpenDots roda em modo foco, sem a barra dela.
+- **12 pets de pelúcia** próprios, um por Dot, sem repetir; galeria para trocar, com troca
+  automática entre dois Dots. Os mascotes da página passam a ser os mesmos pets.
+- **Janela de Configurações** com seções e busca: Geral, Aparência (tema, densidade, animações
+  dos pets), Notificações por evento, Atalhos, Dots (editor completo), Voz e chamadas
+  (microfone, alto-falante, teste de microfone, eco, ruído, aperte-para-falar), Modelo de IA,
+  Servidores, Privacidade, Avançado e Sobre.
+- **Chamadas com os Dots:** botão Ligar no topo, no menu do Dot e na bandeja, `Ctrl+Shift+L`,
+  tempo da chamada e aviso antes de sair de uma chamada.
+- **Novo Dot** a partir de modelos (Chefe de gabinete, Pesquisador, Escritor, Finanças, Casa e
+  infraestrutura, Parceiro de estudos).
+- Atalhos no estilo Grok Bot: `Ctrl+1…9` abre um Dot, `Alt+↑/↓` troca de Dot, `Ctrl+B`
+  mostra ou esconde a barra.
+- Notificação quando o servidor cai e quando volta; conteúdo das notificações pode ser privado.
+
+### Alterado
+
+- O topo mostra o Dot aberto (pet, nome e função) em vez do nome do servidor.
+- A ponte de voz registra cada chamada no diário com o nome `opendots-voice-gateway`, mantém a
+  ordem "você → Dot" no resumo e não perde a sua fala enquanto o Dot pesquisa.
+
+### Removido
+
+- `tools/update_store_listing.py`, que lia os cookies do navegador para editar a ficha da loja.
+
 ## [0.2.0] - 2026-10-09
 
 ### Adicionado

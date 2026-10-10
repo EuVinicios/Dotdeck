@@ -1,22 +1,52 @@
-"""The main window: header bar, server switcher, status banner and the server page."""
+"""The main window: a native sidebar with the Dots, and the server's page next to it.
+
+The OpenDots page runs in "focus mode" (its own sidebar and top bar hidden, see
+src/web/focus.js); every click in the native sidebar is turned into a page action.
+When a page is not recognized (an OpenDots version with a different layout), the
+native sidebar steps aside and the page shows its own navigation, as in Dotdeck 0.2.
+"""
 
 from __future__ import annotations
 
+import time
 from typing import Callable
 
 import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
-from gi.repository import Adw, Gio, GLib, Gtk, Pango
+from gi.repository import Adw, Gio, GLib, GObject, Gtk, Pango
 
 from .. import config
-from ..core import monitor, server
+from ..core import api, dotprefs, monitor, pets, server, voice
 from ..core.store import MIC_ALLOW, MIC_DENY, Profile
+from ..core.workspace import Dot, Workspace
 from ..i18n import _, ngettext
 from ..web.webview import ServerView
+from . import pet as pet_ui
 from .onboarding import Onboarding
+from .pet import PetAvatar
+from .sidebar import Sidebar, dot_menu
 
 ZOOM_STEPS = (0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0)
+DEFAULT_THREAD_TITLE = "A new thought"
+
+
+def ago(timestamp: float) -> str:
+    """"3 min ago" style times for the conversation list (timestamps in s or ms)."""
+    if timestamp > 1e12:
+        timestamp /= 1000
+    delta = max(0, time.time() - timestamp)
+    if delta < 60:
+        return _("Just now")
+    if delta < 3600:
+        n = int(delta // 60)
+        return ngettext("{n} minute ago", "{n} minutes ago", n).format(n=n)
+    if delta < 86400:
+        n = int(delta // 3600)
+        return ngettext("{n} hour ago", "{n} hours ago", n).format(n=n)
+    if delta < 2 * 86400:
+        return _("Yesterday")
+    return GLib.DateTime.new_from_unix_local(int(timestamp)).format("%x")
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -32,10 +62,25 @@ class MainWindow(Adw.ApplicationWindow):
             self.maximize()
         if config.DEVEL:
             self.add_css_class("devel")
+        pet_ui.set_animations(settings.get("pet-animations"))
 
         self.view: ServerView | None = None
         self._view_profile: str | None = None
         self._seen_updates: str | None = None
+        self._dot_id: str | None = None        # the Dot shown on the page
+        self._place = "home"                    # home | dot | activity | memories | space
+        self._space_id: str | None = None
+        self._focus_ok: bool | None = None      # None until the page answers
+        self._told_fallback = False
+        self._call_dot: str | None = None
+        self._call_started = 0.0
+        self._call_timer = 0
+        self._prefs: dotprefs.DotPrefs | None = None
+        self._prefs_handler = 0
+        self._mon: monitor.ServerMonitor | None = None
+        self._mon_handlers: list[int] = []
+        self._pet_map: dict[str, str] = {}
+        self._last_status: dict[str, str] = {}
 
         self.toasts = Adw.ToastOverlay()
         self.set_content(self.toasts)
@@ -50,7 +95,9 @@ class MainWindow(Adw.ApplicationWindow):
         self._install_actions()
         self.connect("close-request", self._on_close_request)
         self.connect("notify::fullscreened", self._on_fullscreen)
-        self.connect("notify::is-active", lambda *_: app.refresh_status())
+        self.connect("notify::is-active", lambda *_: (app.refresh_status(), self._sync_fast()))
+        self.connect("notify::visible", lambda *_: self._sync_fast())
+        settings.connect("changed", self._on_setting_changed)
 
         if app.profiles.active:
             self.show_profile(app.profiles.active)
@@ -59,29 +106,69 @@ class MainWindow(Adw.ApplicationWindow):
 
     # -- layout ----------------------------------------------------------------------------
 
+    def _server_switcher(self) -> tuple[Gtk.MenuButton, Gtk.Label, Gtk.Label]:
+        dot = Gtk.Label(label="●")
+        dot.add_css_class("status-dot")
+        name = Gtk.Label(ellipsize=Pango.EllipsizeMode.END, max_width_chars=18)
+        name.add_css_class("heading")
+        box = Gtk.Box(spacing=6)
+        box.append(dot)
+        box.append(name)
+        button = Gtk.MenuButton(child=box, always_show_arrow=True, tooltip_text=_("Switch Server"))
+        button.add_css_class("flat")
+        return button, dot, name
+
     def _build_workspace(self) -> Gtk.Widget:
+        # Sidebar: server switcher, search and the lists.
+        self.server_button, dot1, name1 = self._server_switcher()
+        sidebar_header = Adw.HeaderBar()
+        new_menu = Gio.Menu()
+        new_menu.append(_("New Chat"), "win.new-chat")
+        new_menu.append(_("New Dot…"), "win.new-dot")
+        sidebar_header.pack_start(Gtk.MenuButton(icon_name="list-add-symbolic", menu_model=new_menu,
+                                                 tooltip_text=_("New")))
+        sidebar_header.set_title_widget(self.server_button)
+        search = Gtk.Button(icon_name="system-search-symbolic", action_name="win.search",
+                            tooltip_text=_("Search (Ctrl+K)"))
+        sidebar_header.pack_end(search)
+        self.sidebar = Sidebar()
+        self.sidebar.connect("dot-activated", lambda _s, dot_id: self.open_dot(dot_id))
+        self.sidebar.connect("space-activated", lambda _s, space_id: self.open_space(space_id))
+        self.sidebar.connect("nav-activated", lambda _s, key: self._on_nav(key))
+        self.sidebar.connect("new-dot", lambda *_: self.new_dot())
+        self.sidebar.menu_for_dot = self._menu_for_dot
+        sidebar_view = Adw.ToolbarView(content=self.sidebar)
+        sidebar_view.add_top_bar(sidebar_header)
+
+        # Content: the open Dot in the header, then the page.
         header = Adw.HeaderBar()
         self.header = header
+        self.sidebar_button = Gtk.ToggleButton(icon_name="sidebar-show-symbolic",
+                                               tooltip_text=_("Show Sidebar (Ctrl+B)"),
+                                               action_name="win.toggle-sidebar")
+        header.pack_start(self.sidebar_button)
+        # Used when the native sidebar is off or the page was not recognized.
+        self.server_button_fallback, dot2, name2 = self._server_switcher()
+        header.pack_start(self.server_button_fallback)
+        self._status_dots = (dot1, dot2)
+        self._server_labels = (name1, name2)
+        self.reload_button = Gtk.Button(icon_name="view-refresh-symbolic",
+                                        tooltip_text=_("Reload (F5)"), action_name="win.reload")
+        header.pack_start(self.reload_button)
 
-        self._status_dot = Gtk.Label(label="●")
-        self._status_dot.add_css_class("status-dot")
-        self._server_label = Gtk.Label(ellipsize=Pango.EllipsizeMode.END, max_width_chars=18)
-        box = Gtk.Box(spacing=6)
-        box.append(self._status_dot)
-        box.append(self._server_label)
-        self.server_button = Gtk.MenuButton(child=box, always_show_arrow=True,
-                                            tooltip_text=_("Switch Server"))
-        self.server_button.add_css_class("flat")
-        header.pack_start(self.server_button)
-
-        reload = Gtk.Button(icon_name="view-refresh-symbolic", tooltip_text=_("Reload (F5)"),
-                            action_name="win.reload")
-        header.pack_start(reload)
-
+        self.title_avatar = PetAvatar(None, size=30, visible=False)
         self.title = Adw.WindowTitle(title=config.APP_NAME)
-        header.set_title_widget(self.title)
+        title_box = Gtk.Box(spacing=10, halign=Gtk.Align.CENTER)
+        title_box.append(self.title_avatar)
+        title_box.append(self.title)
+        header.set_title_widget(title_box)
 
         menu = Gio.Menu()
+        section = Gio.Menu()
+        section.append(_("Reload"), "win.reload")
+        section.append(_("Show Computer"), "win.toggle-computer")
+        section.append(_("Pause All Dots"), "win.pause-all")
+        menu.append_section(None, section)
         section = Gio.Menu()
         section.append(_("Zoom In"), "win.zoom-in")
         section.append(_("Zoom Out"), "win.zoom-out")
@@ -89,7 +176,7 @@ class MainWindow(Adw.ApplicationWindow):
         section.append(_("Fullscreen"), "win.fullscreen")
         menu.append_section(None, section)
         section = Gio.Menu()
-        section.append(_("Preferences"), "app.preferences")
+        section.append(_("Settings"), "app.preferences")
         section.append(_("Keyboard Shortcuts"), "app.shortcuts")
         section.append(_("About Dotdeck"), "app.about")
         menu.append_section(None, section)
@@ -99,10 +186,41 @@ class MainWindow(Adw.ApplicationWindow):
         header.pack_end(Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu,
                                        primary=True, tooltip_text=_("Main Menu")))
 
+        self.call_content = Adw.ButtonContent(icon_name="call-start-symbolic", label=_("Call"))
+        self.call_button = Gtk.Button(child=self.call_content, action_name="win.call",
+                                      visible=False)
+        self.call_button.add_css_class("call-button")
+        header.pack_end(self.call_button)
+
         self.mic_button = Gtk.ToggleButton(icon_name="audio-input-microphone-symbolic",
                                            visible=False, action_name="win.toggle-mute",
                                            tooltip_text=_("Mute Microphone (Ctrl+Shift+M)"))
         header.pack_end(self.mic_button)
+        # In push-to-talk mode the same button talks while it is held down.
+        hold = Gtk.GestureClick()
+        hold.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        hold.connect("pressed", lambda g, *_: self._hold_to_talk(g, True))
+        hold.connect("released", lambda g, *_: self._hold_to_talk(g, False))
+        hold.connect("cancel", lambda g, *_: self._hold_to_talk(g, False))
+        self.mic_button.add_controller(hold)
+
+        self.history_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+        self.history_list.add_css_class("navigation-sidebar")
+        self.history_list.connect("row-activated", self._on_history_row)
+        scroller = Gtk.ScrolledWindow(child=self.history_list, propagate_natural_height=True,
+                                      max_content_height=460, min_content_width=320,
+                                      hscrollbar_policy=Gtk.PolicyType.NEVER)
+        popover = Gtk.Popover(child=scroller)
+        popover.add_css_class("menu")
+        popover.connect("show", lambda *_: self._fill_history())
+        self.history_button = Gtk.MenuButton(icon_name="document-open-recent-symbolic",
+                                             popover=popover, visible=False,
+                                             tooltip_text=_("Conversations"))
+        header.pack_end(self.history_button)
+        self.new_chat_button = Gtk.Button(icon_name="chat-message-new-symbolic",
+                                          action_name="win.new-chat", visible=False,
+                                          tooltip_text=_("New Chat (Ctrl+N)"))
+        header.pack_end(self.new_chat_button)
 
         self._tasks_label = Gtk.Label()
         tasks = Gtk.Box(spacing=6)
@@ -125,7 +243,17 @@ class MainWindow(Adw.ApplicationWindow):
         view.add_top_bar(header)
         view.add_top_bar(self.banner)
         self.toolbar = view
-        return view
+
+        self.split = Adw.OverlaySplitView(sidebar=sidebar_view, content=view,
+                                          min_sidebar_width=264, max_sidebar_width=320,
+                                          sidebar_width_fraction=0.24)
+        self.split.connect("notify::show-sidebar", lambda *_: self._sync_sidebar_button())
+        self.split.connect("notify::collapsed", lambda *_: self._sync_sidebar_button())
+        breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 720sp"))
+        breakpoint.add_setter(self.split, "collapsed", True)
+        self.add_breakpoint(breakpoint)
+        self._apply_layout()
+        return self.split
 
     def _install_actions(self) -> None:
         def add(name, callback, parameter=None):
@@ -134,28 +262,46 @@ class MainWindow(Adw.ApplicationWindow):
             self.add_action(action)
             return action
 
+        text = GLib.VariantType("s")
         add("reload", lambda *_: self.view and self.view.reload())
         add("zoom-in", lambda *_: self._zoom(+1))
         add("zoom-out", lambda *_: self._zoom(-1))
         add("zoom-reset", lambda *_: self._zoom(0))
         add("fullscreen", lambda *_: self.unfullscreen() if self.is_fullscreen()
             else self.fullscreen())
-        add("activity", lambda *_: self.page_action("activity"))
-        add("new-chat", lambda *_: self.page_action("new-chat"))
+        add("activity", lambda *_: self.open_activity())
+        add("memories", lambda *_: self.open_memories())
+        add("new-chat", lambda *_: self.new_chat())
+        add("new-dot", lambda *_: self.new_dot())
         add("talk-to-chief", lambda *_: self.talk_to_chief())
         add("go-back", lambda *_: self.view and self.view.webview.go_back())
+        add("search", lambda *_: self._search())
+        add("toggle-sidebar", lambda *_: self._toggle_sidebar())
+        add("toggle-computer", lambda *_: self.view and self.view.toggle_computer())
+        add("pause-all", lambda *_: self._pause_all())
+        add("call", lambda *_: self.call_current())
+        add("previous-dot", lambda *_: self._step_dot(-1))
+        add("next-dot", lambda *_: self._step_dot(+1))
+        add("dot-open", lambda _a, v: self.open_dot(v.unpack()), text)
+        add("dot-new-chat", lambda _a, v: self.new_chat(v.unpack()), text)
+        add("dot-call", lambda _a, v: self.call_dot(v.unpack()), text)
+        add("dot-pet", lambda _a, v: self.change_pet(v.unpack()), text)
+        add("dot-edit", lambda _a, v: self.app.show_preferences("dots", dot=v.unpack()), text)
+        add("dot-pin", lambda _a, v: self._toggle_pin(v.unpack()), text)
+        add("dot-hide", lambda _a, v: self._hide_dot(v.unpack()), text)
+        add("dot-chief", lambda _a, v: self._make_chief(v.unpack()), text)
         self._mute_action = Gio.SimpleAction.new_stateful("toggle-mute", None,
                                                           GLib.Variant("b", False))
         self._mute_action.connect("activate", lambda *_: self.toggle_mute())
         self._mute_action.set_enabled(False)
         self.add_action(self._mute_action)
-        switch = Gio.SimpleAction.new_stateful("profile", GLib.VariantType("s"),
-                                               GLib.Variant("s", ""))
+        switch = Gio.SimpleAction.new_stateful("profile", text, GLib.Variant("s", ""))
         switch.connect("activate", lambda _a, value: self.app.profiles.set_active(value.unpack()))
         self.add_action(switch)
         self._profile_action = switch
         for index in range(1, 10):
             add(f"profile-{index}", lambda _a, _p, i=index: self._switch_index(i))
+            add(f"dot-{index}", lambda _a, _p, i=index: self._open_dot_index(i))
 
     # -- servers ---------------------------------------------------------------------------
 
@@ -172,6 +318,7 @@ class MainWindow(Adw.ApplicationWindow):
         manage.append(_("Manage Servers…"), "app.manage-servers")
         menu.append_section(None, manage)
         self.server_button.set_menu_model(menu)
+        self.server_button_fallback.set_menu_model(menu)
         active = self.app.profiles.active
         self._profile_action.set_state(GLib.Variant("s", active.id if active else ""))
 
@@ -191,6 +338,7 @@ class MainWindow(Adw.ApplicationWindow):
     def show_profile(self, profile: Profile) -> None:
         self.pages.set_visible_child_name("workspace")
         self.rebuild_server_menu()
+        self._watch(profile)
         if self.view is not None and self._view_profile == profile.id \
                 and self.view.profile.url == profile.url:
             self.view.profile = profile
@@ -198,6 +346,7 @@ class MainWindow(Adw.ApplicationWindow):
             return
         self._drop_view()
         self._view_profile = profile.id
+        self._dot_id, self._place, self._focus_ok = None, "home", None
         self.content.set_visible_child_name("loading")
         self.refresh_status()
 
@@ -206,10 +355,20 @@ class MainWindow(Adw.ApplicationWindow):
                 return
             view = ServerView(profile, token, self, self.app.settings.get("zoom"))
             view.voice.connect("calls-changed", lambda *_: self._on_calls_changed())
+            if GObject.signal_lookup("call-phase", type(view.voice)):
+                view.voice.connect("call-phase", self._on_call_phase)
+                view.voice.connect("call-error", lambda _v, message: self.toast(message))
             view.connect("state-changed", lambda *_: self.refresh_status())
+            if hasattr(view, "set_focus_mode"):
+                view.connect("focus-changed", self._on_focus_changed)
+                view.connect("page-selection", self._on_page_selection)
+                view.connect("dot-state", self._on_dot_state)
+                view.set_focus_mode(bool(self.app.settings.get("native-sidebar")))
+                view.sync_color_scheme(self.app.settings.get("color-scheme"))
             self.view = view
             self.content.add_named(view, f"view-{profile.id}")
             self.content.set_visible_child(view)
+            self._push_pets()
 
         self.app.tokens.lookup(profile.id, profile.url, with_token)
 
@@ -227,6 +386,689 @@ class MainWindow(Adw.ApplicationWindow):
         if self.view is not None and self.view.profile.id == profile_id:
             self.view.set_token(token)
 
+    def _watch(self, profile: Profile) -> None:
+        """Follow the active server's monitor and the owner's choices for its Dots."""
+        mon = self.app.monitors.get(profile.id)
+        if mon is not self._mon:
+            if self._mon is not None:
+                for handler in self._mon_handlers:
+                    self._mon.disconnect(handler)
+                self._mon.set_fast(False)
+            self._mon_handlers = []
+            self._mon = mon
+            if mon is not None:
+                self._mon_handlers = [
+                    mon.connect("workspace-changed", lambda *_: self._refresh_workspace()),
+                ]
+        prefs = dotprefs.for_profile(profile.id)
+        if prefs is not self._prefs:
+            if self._prefs is not None and self._prefs_handler:
+                self._prefs.disconnect(self._prefs_handler)
+            self._prefs = prefs
+            self._prefs_handler = prefs.connect("changed", lambda *_: self._refresh_workspace())
+        self._sync_fast()
+        self._refresh_workspace()
+
+    def _sync_fast(self) -> None:
+        if self._mon is not None:
+            self._mon.set_fast(bool(self.get_visible()))
+
+    # -- layout state ----------------------------------------------------------------------
+
+    def _native(self) -> bool:
+        """The native sidebar is in charge (setting on and the page recognized)."""
+        return bool(self.app.settings.get("native-sidebar")) and self._focus_ok is not False
+
+    def _apply_layout(self) -> None:
+        native = self._native()
+        self.split.set_show_sidebar(native and bool(self.app.settings.get("sidebar-visible"))
+                                    and not self.split.get_collapsed())
+        self.split.set_enable_show_gesture(native)
+        self.split.set_enable_hide_gesture(native)
+        self.server_button_fallback.set_visible(not native)
+        self.reload_button.set_visible(not native)
+        self._sync_sidebar_button()
+        self._refresh_header()
+
+    def _sync_sidebar_button(self) -> None:
+        native = self._native()
+        shown = self.split.get_show_sidebar()
+        self.sidebar_button.set_visible(native and (self.split.get_collapsed() or not shown))
+        self.sidebar_button.set_active(shown)
+
+    def _toggle_sidebar(self) -> None:
+        if not self._native():
+            return
+        shown = not self.split.get_show_sidebar()
+        self.split.set_show_sidebar(shown)
+        if not self.split.get_collapsed():
+            self.app.settings.set("sidebar-visible", shown)
+
+    def _search(self) -> None:
+        if not self._native():
+            return
+        self.split.set_show_sidebar(True)
+        self.sidebar.show_search()
+
+    def _on_focus_changed(self, _view, active: bool) -> None:
+        was = self._focus_ok
+        self._focus_ok = bool(active)
+        if not active and self.app.settings.get("native-sidebar") and was is not False \
+                and not self._told_fallback:
+            self._told_fallback = True
+            self.toast(_("This server's page has a different layout, so it shows its own "
+                         "navigation."))
+        self._apply_layout()
+
+    def _on_setting_changed(self, _settings, key: str) -> None:
+        if key in ("density", "show-jobs"):
+            self._refresh_workspace()
+        elif key == "pet-animations":
+            pet_ui.set_animations(self.app.settings.get(key))
+            self.queue_draw()
+        elif key == "pets-in-page":
+            self._push_pets()
+        elif key == "native-sidebar":
+            if self.view is not None and hasattr(self.view, "set_focus_mode"):
+                self.view.set_focus_mode(bool(self.app.settings.get(key)))
+            self._apply_layout()
+        elif key == "color-scheme" and self.view is not None and \
+                hasattr(self.view, "sync_color_scheme"):
+            self.view.sync_color_scheme(self.app.settings.get(key))
+
+    # -- workspace data --------------------------------------------------------------------
+
+    @property
+    def workspace(self) -> Workspace:
+        return self._mon.workspace if self._mon is not None else Workspace()
+
+    def current_dot(self) -> Dot | None:
+        return self.workspace.dot(self._dot_id)
+
+    def _refresh_workspace(self) -> None:
+        profile = self.app.profiles.active
+        if profile is None or self._prefs is None:
+            return
+        workspace = self.workspace
+        settings = self.app.settings
+        self._pet_map = self._prefs.pets_for(workspace.dots) if workspace.dots else {}
+        visible = self._prefs.ordered(workspace.dots)
+        hidden = self._prefs.hidden(workspace.dots)
+        pinned = {d.id for d in workspace.dots if self._prefs.is_pinned(d.id)}
+        call_dot = workspace.dot_in_call()
+        if self.view is not None and self.view.voice.in_call and self._call_dot:
+            call_dot = workspace.dot(self._call_dot) or call_dot
+        status = self._mon.status if self._mon is not None else "unknown"
+        self.sidebar.set_placeholder({
+            "unknown": _("Connecting…"), "offline": _("No connection to the server"),
+            "token": _("An access token is needed to see the Dots"),
+        }.get(status, _("No Dots yet") if status == "online" else ""))
+        self.sidebar.set_dots(workspace, visible, hidden, self._pet_map,
+                              density=settings.get("density"), show_job=settings.get("show-jobs"),
+                              pinned=pinned, in_call=call_dot.id if call_dot else None,
+                              offline=bool(self._mon and self._mon.status != "online"))
+        if self._place == "dot" and self._dot_id:
+            self.sidebar.select_dot(self._dot_id)
+        pending = getattr(self, "_pending_dot", None)
+        if pending and workspace.dot(pending) is not None:
+            self._pending_dot = None
+            GLib.idle_add(lambda: (self.open_dot(pending), False)[1])
+        self._push_pets()
+        self._refresh_header()
+
+    def _push_pets(self) -> None:
+        if self.view is None or not hasattr(self.view, "set_pets"):
+            return
+        names = {d.name: self._pet_map[d.id] for d in self.workspace.dots if d.id in self._pet_map}
+        self.view.set_pets(names, bool(self.app.settings.get("pets-in-page")))
+
+    # -- navigation ------------------------------------------------------------------------
+
+    def _confirm_leave_call(self, dot_id: str | None, then: Callable[[], None]) -> None:
+        """Opening another Dot unmounts the page's call: ask first."""
+        if not (self.view and self.view.voice.in_call) or dot_id == self._call_dot or \
+                not self.app.settings.get("confirm-call-end"):
+            then()
+            return
+        current = self.workspace.dot(self._call_dot)
+        dialog = Adw.AlertDialog(
+            heading=_("End the Call?"),
+            body=_("Leaving {name} ends the call in progress.").format(
+                name=current.name if current else _("this Dot")))
+        dialog.add_response("stay", _("Stay"))
+        dialog.add_response("leave", _("End Call and Continue"))
+        dialog.set_response_appearance("leave", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("stay")
+        dialog.set_close_response("stay")
+
+        def chosen(_dialog, response):
+            if response == "leave":
+                then()
+            else:
+                self._select_current()
+        dialog.connect("response", chosen)
+        dialog.present(self)
+
+    def _select_current(self) -> None:
+        if self._place == "dot":
+            self.sidebar.select_dot(self._dot_id)
+        elif self._place in ("activity", "memories"):
+            self.sidebar.select_nav(self._place)
+        elif self._place == "space":
+            self.sidebar.select_space(self._space_id)
+
+    def open_dot(self, dot_id: str, conversation_id: str | None = None) -> None:
+        dot = self.workspace.dot(dot_id)
+        if dot is None:
+            return
+
+        def go():
+            self._dot_id, self._place = dot.id, "dot"
+            self.sidebar.select_dot(dot.id)
+            if self.split.get_collapsed():
+                self.split.set_show_sidebar(False)
+            if self._prefs is not None:
+                self._prefs.mark_seen(dot.id)
+            self._refresh_header()
+            if self.view is None:
+                return
+            index = self.workspace.dot_index(dot.id)
+            done = self._page_done(_("Could not open {name} on the page.").format(name=dot.name))
+            if conversation_id and hasattr(self.view, "open_conversation"):
+                self.view.open_conversation(conversation_id, index, dot.name, done)
+            elif hasattr(self.view, "open_dot"):
+                self.view.open_dot(index, dot.name, done)
+            else:
+                self.view.run_page_action("dot", dot.name, done)
+        in_call = bool(self.view and self.view.voice.in_call)
+        self._confirm_leave_call(None if conversation_id and in_call else dot.id, go)
+
+    def _page_done(self, message: str) -> Callable[[bool], None]:
+        def done(ok: bool) -> None:
+            if not ok:
+                self.toast(message)
+        return done
+
+    def open_space(self, space_id: str) -> None:
+        def go():
+            self._place, self._space_id = "space", space_id
+            self.sidebar.select_space(space_id)
+            self._refresh_header()
+            if self.view is not None and hasattr(self.view, "open_space"):
+                self.view.open_space(space_id)
+        self._confirm_leave_call(None, go)
+
+    def open_activity(self) -> None:
+        def go():
+            self._place = "activity"
+            self.sidebar.select_nav("activity")
+            self._refresh_header()
+            if self.view is not None:
+                if hasattr(self.view, "open_activity"):
+                    self.view.open_activity()
+                else:
+                    self.view.run_page_action("activity")
+        self._confirm_leave_call(None, go)
+
+    def open_memories(self) -> None:
+        def go():
+            self._place = "memories"
+            self.sidebar.select_nav("memories")
+            self._refresh_header()
+            if self.view is not None and hasattr(self.view, "open_memories"):
+                self.view.open_memories()
+        self._confirm_leave_call(None, go)
+
+    def _on_nav(self, key: str) -> None:
+        if key == "activity":
+            self.open_activity()
+        elif key == "memories":
+            self.open_memories()
+        elif key == "settings":
+            self.sidebar.select_nav(None)
+            self._select_current()
+            self.app.show_preferences()
+        elif key == "hidden":
+            self.app.show_preferences("dots")
+
+    def _open_dot_index(self, index: int) -> None:
+        ids = self.sidebar.visible_dot_ids()
+        if index <= len(ids):
+            self.open_dot(ids[index - 1])
+
+    def _step_dot(self, step: int) -> None:
+        ids = self.sidebar.visible_dot_ids()
+        if not ids:
+            return
+        position = ids.index(self._dot_id) if self._dot_id in ids else (-1 if step > 0 else 0)
+        self.open_dot(ids[(position + step) % len(ids)])
+
+    def _on_page_selection(self, _view, dot_name: str, place: str) -> None:
+        """The page changed by itself (a link, a notification): follow it."""
+        if place in ("chat", "home") and dot_name:
+            dot = self.workspace.dot_named(dot_name)
+            if dot is not None:
+                self._dot_id, self._place = dot.id, "dot"
+                self.sidebar.select_dot(dot.id)
+        elif place == "tasks":
+            self._place = "activity"
+            self.sidebar.select_nav("activity")
+        elif place == "memories":
+            self._place = "memories"
+            self.sidebar.select_nav("memories")
+        elif place == "space":
+            self._place = "space"
+        self._refresh_header()
+
+    def _on_dot_state(self, _view, dot_name: str, state: str) -> None:
+        dot = self.workspace.dot_named(dot_name)
+        self.sidebar.set_dot_state(dot.id if dot else None, state)
+        self._refresh_workspace()
+
+    def new_chat(self, dot_id: str | None = None) -> None:
+        dot = self.workspace.dot(dot_id) if dot_id else self.current_dot()
+        if self.view is None:
+            return
+        if dot is None or not hasattr(self.view, "new_chat"):
+            self.view.run_page_action("new-chat")
+            return
+
+        def go():
+            self._dot_id, self._place = dot.id, "dot"
+            self.sidebar.select_dot(dot.id)
+            self._refresh_header()
+            self.view.new_chat(self.workspace.dot_index(dot.id), dot.name,
+                               self._page_done(_("Could not start a new chat.")))
+        # Even for the Dot in the call: its empty composer drops the call's conversation.
+        self._confirm_leave_call(None if self.view.voice.in_call else dot.id, go)
+
+    def new_dot(self) -> None:
+        profile = self.app.profiles.active
+        if profile is None:
+            return
+        try:
+            from .new_dot import create_dot
+        except ImportError:
+            self.app.show_preferences("dots")
+            return
+
+        def created(dot_id):
+            if dot_id and self._mon is not None:
+                self._pending_dot = dot_id   # opened as soon as the monitor sees it
+                self._mon.poll_now()
+        create_dot(self.app, profile, self, created)
+
+    def change_pet(self, dot_id: str) -> None:
+        profile, dot = self.app.profiles.active, self.workspace.dot(dot_id)
+        if profile is None or dot is None:
+            return
+        try:
+            from .pet_gallery import choose_pet
+        except ImportError:
+            return
+        choose_pet(self.app, profile, dot, self)
+
+    def _toggle_pin(self, dot_id: str) -> None:
+        if self._prefs is not None:
+            self._prefs.set_pinned(dot_id, not self._prefs.is_pinned(dot_id))
+
+    def _hide_dot(self, dot_id: str) -> None:
+        if self._prefs is None:
+            return
+        dot = self.workspace.dot(dot_id)
+        self._prefs.set_hidden(dot_id, True)
+        if dot is not None:
+            self.toast(_("{name} is hidden from the sidebar.").format(name=dot.name), _("Undo"),
+                       lambda: self._prefs.set_hidden(dot_id, False))
+
+    def _make_chief(self, dot_id: str) -> None:
+        profile, dot = self.app.profiles.active, self.workspace.dot(dot_id)
+        if profile is None or dot is None:
+            return
+        profile.chief = dot.name
+        self.app.profiles.update(profile)
+        self.toast(_("{name} is now the Chief.").format(name=dot.name))
+        self.app.refresh_status()
+
+    def _menu_for_dot(self, dot_id: str):
+        dot = self.workspace.dot(dot_id)
+        profile = self.app.profiles.active
+        if dot is None or profile is None:
+            return None
+        chief = monitor.chief_dot(profile, [d.name for d in self.workspace.dots])
+        return dot_menu(dot, pinned=bool(self._prefs and self._prefs.is_pinned(dot_id)),
+                        chief=chief == dot.name, can_call=self._call_blocker(dot) is None)
+
+    # -- conversations ---------------------------------------------------------------------
+
+    def _fill_history(self) -> None:
+        listbox = self.history_list
+        while (child := listbox.get_first_child()) is not None:
+            listbox.remove(child)
+        dot = self.current_dot()
+        if dot is None:
+            return
+        new = Gtk.ListBoxRow()
+        new._conversation = None
+        box = Gtk.Box(spacing=10)
+        box.append(Gtk.Image(icon_name="chat-message-new-symbolic"))
+        box.append(Gtk.Label(label=_("New Chat"), xalign=0))
+        new.set_child(box)
+        listbox.append(new)
+        # The page's chat header is hidden in focus mode: its two actions live here.
+        for icon, label, action in (("document-save-symbolic", _("Save Conversation as Page…"),
+                                     "save-page"),
+                                    ("alarm-symbolic", _("Schedule a Task…"), "schedule")):
+            row = Gtk.ListBoxRow()
+            row._conversation, row._page_action = None, action
+            box = Gtk.Box(spacing=10)
+            box.append(Gtk.Image(icon_name=icon))
+            box.append(Gtk.Label(label=label, xalign=0))
+            row.set_child(box)
+            listbox.append(row)
+        divider = Gtk.ListBoxRow(activatable=False, selectable=False,
+                                 child=Gtk.Separator(margin_top=4, margin_bottom=4))
+        listbox.append(divider)
+        conversations = self.workspace.conversations_of(dot.id)
+        rows = {}
+        for conversation in conversations[:40]:
+            row = Gtk.ListBoxRow()
+            row._conversation = conversation.id
+            texts = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            title = conversation.title if conversation.title != DEFAULT_THREAD_TITLE \
+                else _("Conversation")
+            label = Gtk.Label(label=title, xalign=0, ellipsize=Pango.EllipsizeMode.END,
+                              max_width_chars=40)
+            when = Gtk.Label(label=ago(conversation.created_at), xalign=0)
+            when.add_css_class("dim-label")
+            when.add_css_class("caption")
+            texts.append(label)
+            texts.append(when)
+            row.set_child(texts)
+            listbox.append(row)
+            rows[conversation.id] = (label, when)
+        if not conversations:
+            empty = Gtk.Label(label=_("No conversations yet"), margin_top=8, margin_bottom=8)
+            empty.add_css_class("dim-label")
+            listbox.append(Gtk.ListBoxRow(activatable=False, selectable=False, child=empty))
+        profile = self.app.profiles.active
+        if profile is None or not rows:
+            return
+
+        def got(data, error):
+            if error or not isinstance(data, dict):
+                return
+            for thread in data.get("threads", []):
+                if not isinstance(thread, dict) or thread.get("id") not in rows:
+                    continue
+                label, when = rows[thread["id"]]
+                name = thread.get("name")
+                if isinstance(name, str) and name and name != DEFAULT_THREAD_TITLE:
+                    label.set_label(name)
+                updated = thread.get("updatedAt")
+                if isinstance(updated, str):
+                    parsed = GLib.DateTime.new_from_iso8601(updated, None)
+                    if parsed is not None:
+                        when.set_label(ago(parsed.to_unix()))
+        api.for_profile(self.app, profile, lambda client: client.threads(dot.id, got))
+
+    def _on_history_row(self, _list, row) -> None:
+        self.history_button.popdown()
+        dot = self.current_dot()
+        if dot is None:
+            return
+        action = getattr(row, "_page_action", None)
+        if action and self.view is not None:
+            self.view.run_page_action(action, done=self._page_done(
+                _("Open a conversation first, and wait until the Dot is not working.")))
+            return
+        conversation = getattr(row, "_conversation", None)
+        if conversation is None:
+            self.new_chat(dot.id)
+        else:
+            self.open_dot(dot.id, conversation)
+
+    # -- calls -----------------------------------------------------------------------------
+
+    def _call_blocker(self, dot: Dot | None) -> str | None:
+        """Why a call cannot start now, in words for people (None = it can)."""
+        profile = self.app.profiles.active
+        if dot is None or profile is None or self.view is None:
+            return _("Open a Dot first.")
+        if not self.workspace.voice_ready:
+            return _("Voice calls are not set up on {name}.").format(name=profile.name)
+        if self._mon is not None and self._mon.state.paused:
+            return _("Your Dots are paused.")
+        if not voice.available():
+            return _("The voice engine is missing on this computer: {parts}.").format(
+                parts=", ".join(voice.missing_elements()))
+        call = self.workspace.active_call()
+        if call is not None and not self.view.voice.in_call:
+            return _("Another call is in progress on this server.")
+        return None
+
+    def call_current(self) -> None:
+        if self.view is not None and self.view.voice.in_call:
+            self.end_call()
+            return
+        dot = self.current_dot()
+        if dot is not None:
+            self.call_dot(dot.id)
+
+    def call_dot(self, dot_id: str) -> None:
+        dot = self.workspace.dot(dot_id)
+        reason = self._call_blocker(dot)
+        if reason:
+            self.toast(reason)
+            return
+        if voice.snap_microphone_blocked():
+            self.toast(_("Allow the microphone first: snap connect dotdeck:audio-record"))
+            return
+        if not getattr(self, "_mic_checked", False) and self._should_check_microphone():
+            # The device scan runs off the main thread; the call continues when it is done.
+            def scanned(_devices) -> None:
+                self._mic_checked = True
+                if self._no_microphone():
+                    self._ask_about_microphone(dot_id)
+                else:
+                    self.call_dot(dot_id)
+            voice.list_devices_async("source", scanned)
+            return
+        self._mic_checked = False
+        profile = self.app.profiles.active
+
+        def start(conversation_id: str | None) -> None:
+            self._dot_id, self._place, self._call_dot = dot.id, "dot", dot.id
+            self.sidebar.select_dot(dot.id)
+            self._refresh_header()
+            index = self.workspace.dot_index(dot.id)
+
+            def done(ok: bool) -> None:
+                if not ok:
+                    self._call_dot = None
+                    self.toast(_("The call with {name} could not start.").format(name=dot.name))
+                    self._refresh_header()
+            self.view.start_call(conversation_id, index, dot.name, done)
+
+        latest = self.workspace.latest_conversation(dot.id)
+        if latest is not None:
+            self._confirm_leave_call(dot.id, lambda: start(latest.id))
+            return
+
+        def created(data, error):
+            if error or not isinstance(data, dict) or not data.get("id"):
+                self.toast(_("Could not start a conversation with {name}: {error}").format(
+                    name=dot.name, error=error or "?"))
+                return
+            if self._mon is not None:
+                self._mon.poll_now()
+            start(str(data["id"]))
+        api.for_profile(self.app, profile, lambda client: client.create_conversation(
+            dot.id, created, title=_("Voice call")))
+
+    def _should_check_microphone(self) -> bool:
+        return not self.app.settings.get("microphone-device") and \
+            hasattr(voice, "default_device_name") and hasattr(voice, "list_devices_async")
+
+    def _no_microphone(self) -> bool:
+        """No microphone chosen and the system has no default one (only speaker monitors)."""
+        if self.app.settings.get("microphone-device") or not hasattr(voice, "default_device_name"):
+            return False
+        try:
+            return voice.default_device_name("source") is None
+        except Exception:  # a sound server problem must not block the call
+            return False
+
+    def _ask_about_microphone(self, dot_id: str) -> None:
+        dialog = Adw.AlertDialog(
+            heading=_("No Microphone Found"),
+            body=_("This computer has no default microphone, so the Dot would not hear you. "
+                   "Plug in a headset, or choose a microphone in Settings."))
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("anyway", _("Call Anyway"))
+        dialog.add_response("choose", _("Choose Microphone…"))
+        dialog.set_response_appearance("choose", Adw.ResponseAppearance.SUGGESTED)
+        dialog.set_default_response("choose")
+        dialog.set_close_response("cancel")
+
+        def chosen(_dialog, response):
+            if response == "choose":
+                self._mic_checked = False
+                self.app.show_preferences("voice")
+            elif response == "anyway":
+                self._mic_checked = True
+                self.call_dot(dot_id)
+            else:
+                self._mic_checked = False
+        dialog.connect("response", chosen)
+        dialog.present(self)
+
+    def end_call(self) -> None:
+        if self.view is None:
+            return
+        if hasattr(self.view, "end_call"):
+            self.view.end_call(lambda ok: ok or self.view.voice.close_all())
+        else:
+            self.view.voice.close_all()
+
+    def _on_calls_changed(self) -> None:
+        in_call = bool(self.view and self.view.voice.in_call)
+        muted = in_call and not self.view.voice.mic_enabled
+        self.mic_button.set_visible(in_call)
+        self._mute_action.set_enabled(in_call)
+        self._mute_action.set_state(GLib.Variant("b", muted))
+        self.mic_button.set_icon_name("microphone-disabled-symbolic" if muted
+                                      else "audio-input-microphone-symbolic")
+        if self._push_to_talk():
+            self.mic_button.set_tooltip_text(_("Hold to Talk"))
+        else:
+            self.mic_button.set_tooltip_text(_("Unmute Microphone (Ctrl+Shift+M)") if muted
+                                             else _("Mute Microphone (Ctrl+Shift+M)"))
+        if muted:
+            self.mic_button.add_css_class("destructive-action")
+        else:
+            self.mic_button.remove_css_class("destructive-action")
+        if in_call and not self._call_timer:
+            self._call_started = time.monotonic()
+            if self._call_dot is None:
+                dot = self.workspace.dot_in_call()
+                self._call_dot = dot.id if dot else self._dot_id
+            self._call_timer = GLib.timeout_add_seconds(1, self._tick_call)
+        elif not in_call:
+            if self._call_timer:
+                GLib.source_remove(self._call_timer)
+                self._call_timer = 0
+            self._call_dot = None
+            self._call_phase = ""
+        self._refresh_header()
+        self._refresh_workspace()
+        self.app.refresh_status()
+
+    def _on_call_phase(self, _voice, phase: str) -> None:
+        self._call_phase = phase
+        self._refresh_header()
+
+    def _tick_call(self) -> bool:
+        if not (self.view and self.view.voice.in_call):
+            self._call_timer = 0
+            return GLib.SOURCE_REMOVE
+        self._refresh_header()
+        return GLib.SOURCE_CONTINUE
+
+    def _call_elapsed(self) -> str:
+        seconds = int(time.monotonic() - self._call_started)
+        return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+    # -- header ----------------------------------------------------------------------------
+
+    def _refresh_header(self) -> None:
+        profile = self.app.profiles.active
+        if profile is None:
+            return
+        native = self._native()
+        dot = self.current_dot() if self._place == "dot" else None
+        in_call = bool(self.view and self.view.voice.in_call)
+        show_dot = native and dot is not None
+        self.title_avatar.set_visible(show_dot)
+        self.new_chat_button.set_visible(show_dot)
+        self.history_button.set_visible(show_dot)
+        if show_dot:
+            self.title_avatar.pet = self._pet_map.get(dot.id, pets.DEFAULT.id)
+            calling_here = in_call and self._call_dot == dot.id
+            phase = getattr(self, "_call_phase", "") if calling_here else ""
+            phase = "" if phase == "ended" else phase
+            self.title_avatar.state = (phase if phase in ("listening", "thinking", "speaking")
+                                       else "call") if calling_here else "idle"
+            self.title.set_title(dot.name)
+            if calling_here and phase == "" and getattr(self, "_call_phase", "") == "ended":
+                self.title.set_subtitle(_("Saving the call…"))
+            elif calling_here:
+                words = {"connecting": _("Connecting…"), "listening": _("Listening"),
+                         "thinking": _("Thinking…"), "speaking": _("Speaking")}
+                line = _("In a call · {time}").format(time=self._call_elapsed())
+                self.title.set_subtitle(f"{line} · {words[phase]}" if phase in words else line)
+            else:
+                self.title.set_subtitle(dot.job)
+        elif native and self._place in ("activity", "memories", "space"):
+            space = self.workspace.space(self._space_id) if self._place == "space" else None
+            self.title.set_title({"activity": _("Activity"), "memories": _("Memories")}.get(
+                self._place, space.name if space else _("Spaces")))
+            self.title.set_subtitle(profile.name)
+        else:
+            mon = self.app.monitors.get(profile.id)
+            self.title.set_title(mon.name if mon and mon.name else profile.name)
+            self.title.set_subtitle(self.app.status_line(profile.id))
+
+        # The call button: "Call" for the open Dot, "End 01:23" during a call. After hanging
+        # up, OpenDots keeps the line for ~40 s while it saves the call's summary.
+        saving = in_call and getattr(self, "_call_phase", "") == "ended"
+        if saving:
+            self.call_button.set_visible(True)
+            self.call_content.set_icon_name("call-stop-symbolic")
+            self.call_content.set_label(_("Saving…"))
+            self.call_button.remove_css_class("destructive-action")
+            self.call_button.remove_css_class("suggested-action")
+            self.call_button.set_sensitive(False)
+            self.call_button.set_tooltip_text(_("Saving the call's summary"))
+        elif in_call:
+            self.call_button.set_visible(True)
+            self.call_content.set_icon_name("call-stop-symbolic")
+            self.call_content.set_label(_("End {time}").format(time=self._call_elapsed()))
+            self.call_button.remove_css_class("suggested-action")
+            self.call_button.add_css_class("destructive-action")
+            self.call_button.set_tooltip_text(_("End the Call (Ctrl+Shift+L)"))
+            self.call_button.set_sensitive(True)
+        else:
+            reason = self._call_blocker(dot) if show_dot else None
+            self.call_button.set_visible(show_dot and self.workspace.voice_ready)
+            self.call_content.set_icon_name("call-start-symbolic")
+            self.call_content.set_label(_("Call"))
+            self.call_button.remove_css_class("destructive-action")
+            self.call_button.add_css_class("suggested-action")
+            self.call_button.set_sensitive(reason is None)
+            self.call_button.set_tooltip_text(reason or _("Call {name} (Ctrl+Shift+L)").format(
+                name=dot.name if dot else ""))
+
     # -- status ----------------------------------------------------------------------------
 
     def refresh_status(self) -> None:
@@ -234,20 +1076,23 @@ class MainWindow(Adw.ApplicationWindow):
         if profile is None:
             return
         mon = self.app.monitors.get(profile.id)
+        if mon is not self._mon:
+            self._watch(profile)
         status = mon.status if mon else "unknown"
-        self._server_label.set_label(profile.name)
-        for name in ("success", "warning", "error", "dim-label"):
-            self._status_dot.remove_css_class(name)
-        self._status_dot.add_css_class({"online": "success", "offline": "error",
-                                        "token": "warning", "local-only": "warning"}.get(
-                                            status, "dim-label"))
-        self.title.set_title(mon.name if mon and mon.name else profile.name)
-        self.title.set_subtitle(self.app.status_line(profile.id))
+        for label in self._server_labels:
+            label.set_label(profile.name)
+        for dot in self._status_dots:
+            for name in ("success", "warning", "error", "dim-label"):
+                dot.remove_css_class(name)
+            dot.add_css_class({"online": "success", "offline": "error", "token": "warning",
+                               "local-only": "warning"}.get(status, "dim-label"))
         self.set_title(f"{profile.name} – {config.APP_NAME}")
+        self._refresh_header()
 
         active = mon.active_tasks if mon else 0
-        self.tasks_button.set_visible(active > 0)
+        self.tasks_button.set_visible(active > 0 and not self._native())
         self._tasks_label.set_label(ngettext("{n} task", "{n} tasks", active).format(n=active))
+        self.sidebar.set_counts(active, len(mon.state.memories) if mon else 0)
 
         if status == "token":
             self._set_banner(_("{name} needs a valid owner access token.").format(
@@ -258,6 +1103,9 @@ class MainWindow(Adw.ApplicationWindow):
         elif status == "offline" and (self.view is None or not self.view.failed):
             self._set_banner(_("No connection to {name}. Trying again…").format(
                 name=profile.name), _("Retry Now"), self._retry)
+        elif mon and mon.state.paused:
+            self._set_banner(_("Your Dots are paused."), _("Resume"),
+                             lambda: self._set_paused(False))
         elif mon and mon.updates and int(mon.updates.get("behind") or 0) \
                 and self._seen_updates != (mon.updates.get("upstream") or {}).get("short"):
             behind = int(mon.updates["behind"])
@@ -284,6 +1132,36 @@ class MainWindow(Adw.ApplicationWindow):
         if self.view:
             self.view.reload()
 
+    def _pause_all(self) -> None:
+        mon = self._mon
+        if mon is None:
+            return
+        if mon.state.paused:
+            self._set_paused(False)
+            return
+        dialog = Adw.AlertDialog(
+            heading=_("Pause All Dots?"),
+            body=_("Work in progress stops and scheduled tasks wait until you resume."))
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("pause", _("Pause"))
+        dialog.set_response_appearance("pause", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_close_response("cancel")
+        dialog.connect("response", lambda _d, r: r == "pause" and self._set_paused(True))
+        dialog.present(self)
+
+    def _set_paused(self, paused: bool) -> None:
+        profile = self.app.profiles.active
+        if profile is None:
+            return
+
+        def done(_data, error):
+            if error:
+                self.toast(_("Could not change it: {error}").format(error=error))
+            if self._mon is not None:
+                self._mon.poll_now()
+        api.for_profile(self.app, profile,
+                        lambda client: client.update_settings(done, paused=paused))
+
     def _set_banner(self, text: str | None, button: str = "",
                     action: Callable[[], None] | None = None) -> None:
         self._banner_action = action
@@ -298,26 +1176,12 @@ class MainWindow(Adw.ApplicationWindow):
         if self._banner_action:
             self._banner_action()
 
-    def _on_calls_changed(self) -> None:
-        in_call = bool(self.view and self.view.voice.in_call)
-        muted = in_call and not self.view.voice.mic_enabled
-        self.mic_button.set_visible(in_call)
-        self._mute_action.set_enabled(in_call)
-        self._mute_action.set_state(GLib.Variant("b", muted))
-        self.mic_button.set_icon_name("microphone-disabled-symbolic" if muted
-                                      else "audio-input-microphone-symbolic")
-        self.mic_button.set_tooltip_text(_("Unmute Microphone (Ctrl+Shift+M)") if muted
-                                         else _("Mute Microphone (Ctrl+Shift+M)"))
-        if muted:
-            self.mic_button.add_css_class("destructive-action")
-        else:
-            self.mic_button.remove_css_class("destructive-action")
-        self.app.refresh_status()
-
     # -- actions on the page ---------------------------------------------------------------
 
     def page_action(self, action: str, argument: str = "") -> None:
-        if self.view is not None:
+        if action == "activity":
+            self.open_activity()
+        elif self.view is not None:
             self.view.run_page_action(action, argument)
 
     def talk_to_chief(self) -> None:
@@ -325,13 +1189,25 @@ class MainWindow(Adw.ApplicationWindow):
         mon = self.app.monitors.get(profile.id) if profile else None
         name = monitor.chief_dot(profile, mon.dots if mon else []) if profile else None
         self.present()
-        if name and self.view is not None:
+        dot = self.workspace.dot_named(name)
+        if dot is not None and self._native():
+            self.open_dot(dot.id)
+        elif name and self.view is not None:
             self.view.run_page_action("dot", name, lambda ok: ok or self.toast(
                 _("Could not find {name} on the page.").format(name=name)))
 
     def toggle_mute(self) -> None:
         if self.view is not None:
             self.view.toggle_mute()
+
+    def _push_to_talk(self) -> bool:
+        return bool(self.view and getattr(self.view.voice, "push_to_talk", False))
+
+    def _hold_to_talk(self, gesture: Gtk.GestureClick, pressed: bool) -> None:
+        if not self._push_to_talk():
+            return
+        gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+        self.set_mic(pressed)
 
     def set_mic(self, enabled: bool) -> None:
         if self.view is not None and self.view.voice.in_call:
@@ -400,6 +1276,12 @@ class MainWindow(Adw.ApplicationWindow):
     def echo_cancellation(self) -> bool:
         return bool(self.app.settings.get("echo-cancellation"))
 
+    def voice_options(self) -> dict:
+        settings = self.app.settings
+        return {key: settings.get(key) for key in (
+            "microphone-device", "speaker-device", "echo-cancellation", "noise-suppression",
+            "gain-control", "mic-mode", "join-muted")}
+
     def ask_microphone(self, profile: Profile, callback: Callable[[bool], None]) -> None:
         current = self.app.profiles.get(profile.id) or profile
         if current.microphone == MIC_ALLOW:
@@ -407,7 +1289,7 @@ class MainWindow(Adw.ApplicationWindow):
             return
         if current.microphone == MIC_DENY:
             self.toast(_("The microphone is blocked for {name}.").format(name=current.name),
-                       _("Preferences"), lambda: self.app.edit_server(current.id))
+                       _("Settings"), lambda: self.app.edit_server(current.id))
             callback(False)
             return
         self.present()

@@ -15,6 +15,7 @@ import logging
 import re
 import secrets
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .call import Call
@@ -79,9 +80,19 @@ class Gateway:
 
             def do_POST(self):  # noqa: N802
                 if not self._authorized():
+                    # The usual cause: VOICE_API_KEY in the OpenDots .env was replaced (for
+                    # example by an OpenAI key pasted in its settings).
+                    log.warning("Refused %s: wrong gateway token (VOICE_API_KEY in the OpenDots "
+                                ".env must equal VOICE_GATEWAY_TOKEN)", self.path[:100])
                     self._error(401, "Invalid gateway token.")
                     return
-                length = int(self.headers.get("Content-Length") or 0)
+                try:
+                    length = int(self.headers.get("Content-Length") or 0)
+                except ValueError:
+                    length = -1
+                if length < 0:
+                    self._error(400, "Invalid Content-Length.")
+                    return
                 if length > MAX_BODY:
                     self._error(413, "Request is too large.")
                     return
@@ -108,30 +119,41 @@ class Gateway:
         try:
             session = json.loads(fields.get("session") or "{}")
         except ValueError:
-            handler._error(400, "The session is not valid JSON.")
+            session = None
+        if not isinstance(session, dict):
+            handler._error(400, "The session must be a JSON object.")
             return
         with self._lock:
             if len(self.calls) >= self.config.max_calls:
+                log.warning("Refused a call: %d already in progress (VOICE_GATEWAY_MAX_CALLS)",
+                            len(self.calls))
                 handler._error(429, "Too many calls in progress.")
                 return
             call_id = f"rtc_{secrets.token_hex(12)}"
-            call = Call(call_id, session, self.config, self.provider, self._forget)
+            try:
+                call = Call(call_id, session, self.config, self.provider, self._forget)
+            except Exception:
+                log.exception("Could not set up call %s", call_id)
+                handler._error(500, "Could not set up the call.")
+                return
             self.calls[call_id] = call
+        began = time.monotonic()
         try:
             answer = call.answer(sdp)
         except Exception as error:
             log.warning("Could not answer call %s: %s", call_id, error)
-            call.close()
+            call.close("could not answer")
             handler._error(502, f"Could not start the call: {error}")
             return
-        log.info("Call %s started (model %s, voice %s)", call_id, call.model, call.voice)
+        log.info("Call %s started: model %s, voice %s, answered in %.2f s (%d in progress)",
+                 call_id, call.model, call.voice, time.monotonic() - began, len(self.calls))
         handler._reply(201, answer.encode(), "application/sdp",
                        {"Location": f"/v1/realtime/calls/{call_id}"})
 
     def hangup(self, call_id: str) -> None:
         call = self.calls.get(call_id)
         if call is not None:
-            call.close()
+            call.close("hangup")
 
     def _forget(self, call_id: str) -> None:
         with self._lock:
@@ -147,6 +169,6 @@ class Gateway:
 
     def shutdown(self) -> None:
         for call in list(self.calls.values()):
-            call.close()
+            call.close("gateway stopped")
         self.server.shutdown()
         self.server.server_close()

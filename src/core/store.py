@@ -169,6 +169,31 @@ class Settings(GObject.Object):
         "window-height": 820,
         "window-maximized": False,
         "zoom": 1.0,
+        # Workspace layout (0.3)
+        "native-sidebar": True,          # Dotdeck's own sidebar; the page's is hidden
+        "sidebar-visible": True,
+        "density": "comfortable",        # comfortable | compact
+        "show-jobs": True,               # the "what it does" line under each Dot
+        "pet-animations": "full",        # full | subtle | off
+        "pets-in-page": True,            # the page's mascots become the Dots' pets
+        "confirm-call-end": True,        # ask before leaving a Dot while in a call
+        # Notifications, per event
+        "notify-task-completed": True,
+        "notify-task-failed": True,
+        "notify-task-started": True,
+        "notify-server": True,           # server went offline / came back
+        "notify-updates": True,
+        "notification-content": "full",  # full | private
+        # Voice and calls
+        "microphone-device": "",         # "" = system default
+        "speaker-device": "",
+        "noise-suppression": True,
+        "gain-control": True,
+        "mic-mode": "open",              # open | push-to-talk
+        "join-muted": False,
+        # Settings window and diagnostics
+        "settings-page": "general",
+        "verbose-logging": False,
     }
 
     def __init__(self, path: Path | None = None):
