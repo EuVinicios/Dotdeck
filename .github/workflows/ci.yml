@@ -78,4 +78,4 @@ jobs:
       # means something after a merge.
       - name: Linter da Flathub (AppStream)
         if: github.event_name != 'pull_request'
-        run: flatpak-builder-lint appstream data/io.github.euvinicios.Dotdeck.metainfo.xml
+        run: flatpak-builder-lint appstream --no-net data/io.github.euvinicios.Dotdeck.metainfo.xml
