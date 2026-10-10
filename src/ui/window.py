@@ -15,14 +15,14 @@ from typing import Callable
 import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
-from gi.repository import Adw, Gio, GLib, GObject, Gtk, Pango
+from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from .. import config
 from ..core import api, dotprefs, models, monitor, pets, server, voice
 from ..core.call_sounds import CallSounds
 from ..core.store import MIC_ALLOW, MIC_DENY, Profile
 from ..core.workspace import Dot, Workspace
-from ..i18n import _, ngettext
+from ..i18n import N_, _, ngettext
 from ..web.webview import ServerView
 from . import pet as pet_ui
 from .onboarding import Onboarding
@@ -31,6 +31,26 @@ from .sidebar import Sidebar, dot_menu
 
 ZOOM_STEPS = (0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0)
 DEFAULT_THREAD_TITLE = "A new thought"
+# From the click on Call until the page's call connects (creating the conversation, then the
+# page's own call button, which can take up to 10 s): after this long the button is freed.
+CALL_PENDING_SECONDS = 25
+# What the Dot is doing in a call: shown by its pet in the header, and said in its tooltip.
+PHASE_WORDS = {"connecting": N_("Connecting…"), "listening": N_("Listening"),
+               "thinking": N_("Thinking…"), "speaking": N_("Speaking")}
+
+
+def call_subtitle(phase: str, elapsed: str, *, connected: bool, compact: bool) -> str:
+    """The header's second line during a call with the open Dot.
+
+    One width for the whole call ("In a call · 01:23", tabular digits): the pet shows
+    whether the Dot listens, thinks or speaks, so the centred title stays put. Before the
+    call connects there is no time yet; ``compact`` windows keep just the time.
+    """
+    if phase == "ended":
+        return _("Saving the call…")
+    if phase == "connecting":
+        return _("Reconnecting…") if connected else _("Calling…")
+    return elapsed if compact else _("In a call · {time}").format(time=elapsed)
 
 
 def ago(timestamp: float) -> str:
@@ -77,6 +97,10 @@ class MainWindow(Adw.ApplicationWindow):
         self._call_dot: str | None = None
         self._call_started = 0.0
         self._call_timer = 0
+        self._call_connected = False            # the call reached the Dot at least once
+        self._call_pending: str | None = None   # a call being set up with this Dot
+        self._call_pending_timer = 0
+        self._very_narrow = False               # phone width: fewer buttons in the header
         self._prefs: dotprefs.DotPrefs | None = None
         self._prefs_handler = 0
         self._mon: monitor.ServerMonitor | None = None
@@ -164,13 +188,19 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.title_avatar = PetAvatar(None, size=30, visible=False)
         self.title = Adw.WindowTitle(title=config.APP_NAME)
+        self.title.add_css_class("dotdeck-title")
         title_box = Gtk.Box(spacing=10, halign=Gtk.Align.CENTER)
+        self.title_box = title_box
         title_box.append(self.title_avatar)
         title_box.append(self.title)
         header.set_title_widget(title_box)
 
         menu = Gio.Menu()
         section = Gio.Menu()
+        # Only in very narrow windows, which have no room for the Conversations button.
+        item = Gio.MenuItem.new(_("Conversations"), "win.conversations")
+        item.set_attribute_value("hidden-when", GLib.Variant("s", "action-disabled"))
+        section.append_item(item)
         section.append(_("Reload"), "win.reload")
         section.append(_("Show Computer"), "win.toggle-computer")
         section.append(_("Pause All Dots"), "win.pause-all")
@@ -189,11 +219,20 @@ class MainWindow(Adw.ApplicationWindow):
         section = Gio.Menu()
         section.append(_("Quit"), "app.quit")
         menu.append_section(None, section)
-        header.pack_end(Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu,
-                                       primary=True, tooltip_text=_("Main Menu")))
+        self.menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu,
+                                          primary=True, tooltip_text=_("Main Menu"))
+        header.pack_end(self.menu_button)
 
         self.call_content = Adw.ButtonContent(icon_name="call-start-symbolic", label=_("Call"))
-        self.call_button = Gtk.Button(child=self.call_content, action_name="win.call",
+        # While a call is being set up: a spinner and "Calling…", and no second click.
+        self.call_pending_label = Gtk.Label(label=_("Calling…"))
+        calling = Gtk.Box(spacing=6, halign=Gtk.Align.CENTER)
+        calling.append(Adw.Spinner())
+        calling.append(self.call_pending_label)
+        self.call_stack = Gtk.Stack(hhomogeneous=False)
+        self.call_stack.add_named(self.call_content, "call")
+        self.call_stack.add_named(calling, "calling")
+        self.call_button = Gtk.Button(child=self.call_stack, action_name="win.call",
                                       visible=False)
         self.call_button.add_css_class("call-button")
         header.pack_end(self.call_button)
@@ -210,15 +249,7 @@ class MainWindow(Adw.ApplicationWindow):
         hold.connect("cancel", lambda g, *_: self._hold_to_talk(g, False))
         self.mic_button.add_controller(hold)
 
-        self.history_list = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
-        self.history_list.add_css_class("navigation-sidebar")
-        self.history_list.connect("row-activated", self._on_history_row)
-        scroller = Gtk.ScrolledWindow(child=self.history_list, propagate_natural_height=True,
-                                      max_content_height=460, min_content_width=320,
-                                      hscrollbar_policy=Gtk.PolicyType.NEVER)
-        popover = Gtk.Popover(child=scroller)
-        popover.add_css_class("menu")
-        popover.connect("show", lambda *_: self._fill_history())
+        popover, self.history_list = self._history_popover()
         self.history_button = Gtk.MenuButton(icon_name="document-open-recent-symbolic",
                                              popover=popover, visible=False,
                                              tooltip_text=_("Conversations"))
@@ -260,8 +291,19 @@ class MainWindow(Adw.ApplicationWindow):
         breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 720sp"))
         breakpoint.add_setter(self.split, "collapsed", True)
         self.add_breakpoint(breakpoint)
+        # Phone width: Conversations moves into the main menu so the Dot's name fits. The
+        # last matching breakpoint wins, so this one collapses the sidebar too.
+        very_narrow = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 480sp"))
+        very_narrow.add_setter(self.split, "collapsed", True)
+        very_narrow.connect("apply", lambda *_: self._set_very_narrow(True))
+        very_narrow.connect("unapply", lambda *_: self._set_very_narrow(False))
+        self.add_breakpoint(very_narrow)
         self._apply_layout()
         return self.split
+
+    def _set_very_narrow(self, value: bool) -> None:
+        self._very_narrow = value
+        self._refresh_header()
 
     def _install_actions(self) -> None:
         def add(name, callback, parameter=None):
@@ -286,6 +328,8 @@ class MainWindow(Adw.ApplicationWindow):
         add("search", lambda *_: self._search())
         add("toggle-sidebar", lambda *_: self._toggle_sidebar())
         add("toggle-computer", lambda *_: self.view and self.view.toggle_computer())
+        self._conversations_action = add("conversations", lambda *_: self._show_conversations())
+        self._conversations_action.set_enabled(False)
         self._pause_action = Gio.SimpleAction.new_stateful("pause-all", None,
                                                            GLib.Variant("b", False))
         self._pause_action.connect("activate", lambda *_: self._pause_all())
@@ -401,6 +445,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.content.remove(self.view)
             self.view = None
         self._view_profile = None
+        self._set_call_pending(None)
         self._on_calls_changed()
 
     def reload_with_token(self, profile_id: str, token: str | None) -> None:
@@ -782,8 +827,37 @@ class MainWindow(Adw.ApplicationWindow):
 
     # -- conversations ---------------------------------------------------------------------
 
-    def _fill_history(self) -> None:
-        listbox = self.history_list
+    def _history_popover(self) -> tuple[Gtk.Popover, Gtk.ListBox]:
+        """The Conversations popover (filled each time it opens) and its list."""
+        listbox = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+        listbox.add_css_class("navigation-sidebar")
+        listbox.connect("row-activated", self._on_history_row)
+        scroller = Gtk.ScrolledWindow(child=listbox, propagate_natural_height=True,
+                                      max_content_height=460, min_content_width=320,
+                                      hscrollbar_policy=Gtk.PolicyType.NEVER)
+        popover = Gtk.Popover(child=scroller)
+        popover.add_css_class("menu")
+        popover.connect("show", lambda *_: self._fill_history(listbox))
+        return popover, listbox
+
+    def _show_conversations(self) -> None:
+        """Very narrow windows have no Conversations button: the list opens from the menu."""
+        if self.current_dot() is None:
+            return
+        popover, _list = self._history_popover()
+        # On the header bar, which re-sizes its popovers; pointing at the main menu button.
+        popover.set_parent(self.header)
+        _ok, bounds = self.menu_button.compute_bounds(self.header)
+        area = Gdk.Rectangle()
+        area.x, area.y = int(bounds.get_x()), int(bounds.get_y())
+        area.width, area.height = int(bounds.get_width()), int(bounds.get_height())
+        popover.set_pointing_to(area)
+        popover.connect("closed", lambda p: GLib.idle_add(p.unparent))
+        popover.popup()
+
+    def _fill_history(self, listbox: Gtk.ListBox | None = None) -> None:
+        if listbox is None:
+            listbox = self.history_list
         while (child := listbox.get_first_child()) is not None:
             listbox.remove(child)
         dot = self.current_dot()
@@ -796,11 +870,13 @@ class MainWindow(Adw.ApplicationWindow):
         box.append(Gtk.Label(label=_("New Chat"), xalign=0))
         new.set_child(box)
         listbox.append(new)
-        # The page's chat header is hidden in focus mode: its two actions live here.
+        conversations = self.workspace.conversations_of(dot.id)
+        # The page's chat header is hidden in focus mode: its two actions live here. Both
+        # work on a conversation, so a Dot without any offers them dimmed.
         for icon, label, action in (("document-save-symbolic", _("Save Conversation as Page…"),
                                      "save-page"),
                                     ("alarm-symbolic", _("Schedule a Task…"), "schedule")):
-            row = Gtk.ListBoxRow()
+            row = Gtk.ListBoxRow(sensitive=bool(conversations))
             row._conversation, row._page_action = None, action
             box = Gtk.Box(spacing=10)
             box.append(Gtk.Image(icon_name=icon))
@@ -810,7 +886,6 @@ class MainWindow(Adw.ApplicationWindow):
         divider = Gtk.ListBoxRow(activatable=False, selectable=False,
                                  child=Gtk.Separator(margin_top=4, margin_bottom=4))
         listbox.append(divider)
-        conversations = self.workspace.conversations_of(dot.id)
         rows = {}
         for conversation in conversations[:40]:
             row = Gtk.ListBoxRow()
@@ -853,8 +928,10 @@ class MainWindow(Adw.ApplicationWindow):
                         when.set_label(ago(parsed.to_unix()))
         api.for_profile(self.app, profile, lambda client: client.threads(dot.id, got))
 
-    def _on_history_row(self, _list, row) -> None:
-        self.history_button.popdown()
+    def _on_history_row(self, listbox, row) -> None:
+        popover = listbox.get_ancestor(Gtk.Popover)
+        if popover is not None:
+            popover.popdown()
         dot = self.current_dot()
         if dot is None:
             return
@@ -876,6 +953,13 @@ class MainWindow(Adw.ApplicationWindow):
         profile = self.app.profiles.active
         if dot is None or profile is None or self.view is None:
             return _("Open a Dot first.")
+        status = self._mon.status if self._mon is not None else "unknown"
+        if status == "offline":
+            return _("No connection to {name}.").format(name=profile.name)
+        if status == "token":
+            return _("{name} needs a valid owner access token.").format(name=profile.name)
+        if self._call_pending is not None and not self.view.voice.in_call:
+            return _("A call is already starting.")
         if not self.workspace.voice_ready:
             return _("Voice calls are not set up on {name}.").format(name=profile.name)
         if self._mon is not None and self._mon.state.paused:
@@ -919,8 +1003,14 @@ class MainWindow(Adw.ApplicationWindow):
         profile = self.app.profiles.active
         view, profile_id = self.view, self._view_profile
 
+        def begin(then: Callable[[], None]) -> None:
+            # From here until the page's call connects the button says "Calling…".
+            self._set_call_pending(dot.id)
+            then()
+
         def start(conversation_id: str | None) -> None:
             if self.view is not view or self._view_profile != profile_id:
+                self._set_call_pending(None)
                 return  # the server changed meanwhile
             self._dot_id, self._place, self._call_dot = dot.id, "dot", dot.id
             self._close_overlay()
@@ -931,26 +1021,44 @@ class MainWindow(Adw.ApplicationWindow):
             def done(ok: bool) -> None:
                 if not ok:
                     self._call_dot = None
+                    self._set_call_pending(None)
                     self.toast(_("The call with {name} could not start.").format(name=dot.name))
                     self._refresh_header()
             view.start_call(conversation_id, index, dot.name, done)
 
         latest = self.workspace.latest_conversation(dot.id)
         if latest is not None:
-            self._confirm_leave_call(dot.id, lambda: start(latest.id))
+            self._confirm_leave_call(dot.id, lambda: begin(lambda: start(latest.id)))
             return
 
         def created(data, error):
             if error or not isinstance(data, dict) or not data.get("id"):
+                self._set_call_pending(None)
                 self.toast(_("Could not start a conversation with {name}: {error}").format(
                     name=dot.name, error=error or "?"))
                 return
             if self._mon is not None:
                 self._mon.poll_now()
             start(str(data["id"]))
-        self._confirm_leave_call(dot.id, lambda: api.for_profile(
+        self._confirm_leave_call(dot.id, lambda: begin(lambda: api.for_profile(
             self.app, profile, lambda client: client.create_conversation(
-                dot.id, created, title=_("Voice call"))))
+                dot.id, created, title=_("Voice call")))))
+
+    def _set_call_pending(self, dot_id: str | None) -> None:
+        """A call with ``dot_id`` is being set up (None: it connected, failed or gave up)."""
+        if self._call_pending_timer:
+            GLib.source_remove(self._call_pending_timer)
+            self._call_pending_timer = 0
+        self._call_pending = dot_id
+        if dot_id is not None:
+            self._call_pending_timer = GLib.timeout_add_seconds(CALL_PENDING_SECONDS,
+                                                                self._call_pending_expired)
+        self._refresh_header()
+
+    def _call_pending_expired(self) -> bool:
+        self._call_pending_timer = 0
+        self._set_call_pending(None)
+        return GLib.SOURCE_REMOVE
 
     def _should_check_microphone(self) -> bool:
         return not self.app.settings.get("microphone-device") and \
@@ -1017,6 +1125,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.mic_button.remove_css_class("destructive-action")
         if in_call and not self._call_timer:
             self._call_started = time.monotonic()
+            self._call_connected = False
             if self._call_dot is None:
                 dot = self.workspace.dot_in_call()
                 self._call_dot = dot.id if dot else self._dot_id
@@ -1027,12 +1136,19 @@ class MainWindow(Adw.ApplicationWindow):
                 self._call_timer = 0
             self._call_dot = None
             self._call_phase = ""
+            self._call_connected = False
+        if in_call and self._call_pending is not None:
+            self._set_call_pending(None)    # the page's call is here: no more "Calling…"
         self._refresh_header()
         self._refresh_workspace()
         self.app.refresh_status()
 
     def _on_call_phase(self, _voice, phase: str) -> None:
         self._call_phase = phase
+        if phase in ("listening", "thinking", "speaking") and not self._call_connected:
+            # The time counts from when the Dot can hear, not from the first ring.
+            self._call_connected = True
+            self._call_started = time.monotonic()
         self._refresh_header()
 
     def _tick_call(self) -> bool:
@@ -1057,25 +1173,33 @@ class MainWindow(Adw.ApplicationWindow):
         in_call = bool(self.view and self.view.voice.in_call)
         show_dot = native and dot is not None
         narrow = self.split.get_collapsed()
-        # A narrow window cannot fit everything: New Chat stays in the conversations menu.
+        call_phase = getattr(self, "_call_phase", "")
+        pending = self._call_pending is not None and not in_call
+        # A narrow window cannot fit everything: New Chat stays in the conversations menu,
+        # and at phone width the conversations move into the main menu.
         self.title_avatar.set_visible(show_dot and not narrow)
         self.new_chat_button.set_visible(show_dot and not narrow)
-        self.history_button.set_visible(show_dot and not (narrow and in_call))
+        self.history_button.set_visible(show_dot and not self._very_narrow
+                                        and not (narrow and in_call))
+        conversations = getattr(self, "_conversations_action", None)
+        if conversations is not None:
+            conversations.set_enabled(show_dot and self._very_narrow and not in_call)
+        self.title_box.set_tooltip_text(None)
         if show_dot:
             self.title_avatar.pet = self._pet_map.get(dot.id, pets.DEFAULT.id)
             calling_here = in_call and self._call_dot == dot.id
-            phase = getattr(self, "_call_phase", "") if calling_here else ""
-            phase = "" if phase == "ended" else phase
+            phase = call_phase if calling_here else ""
             self.title_avatar.state = (phase if phase in ("listening", "thinking", "speaking")
                                        else "call") if calling_here else "idle"
             self.title.set_title(dot.name)
-            if calling_here and phase == "" and getattr(self, "_call_phase", "") == "ended":
-                self.title.set_subtitle(_("Saving the call…"))
-            elif calling_here:
-                words = {"connecting": _("Connecting…"), "listening": _("Listening"),
-                         "thinking": _("Thinking…"), "speaking": _("Speaking")}
-                line = _("In a call · {time}").format(time=self._call_elapsed())
-                self.title.set_subtitle(f"{line} · {words[phase]}" if phase in words else line)
+            if calling_here:
+                self.title.set_subtitle(call_subtitle(
+                    phase, self._call_elapsed(), connected=self._call_connected,
+                    compact=self._very_narrow))
+                if phase in PHASE_WORDS:
+                    self.title_box.set_tooltip_text(_(PHASE_WORDS[phase]))
+            elif pending and self._call_pending == dot.id:
+                self.title.set_subtitle(_("Calling…"))
             else:
                 self.title.set_subtitle(dot.job)
         elif native and self._place in ("activity", "memories", "space"):
@@ -1084,13 +1208,15 @@ class MainWindow(Adw.ApplicationWindow):
                 self._place, space.name if space else _("Spaces")))
             self.title.set_subtitle(profile.name)
         else:
-            mon = self.app.monitors.get(profile.id)
-            self.title.set_title(mon.name if mon and mon.name else profile.name)
+            # The name the owner gave the server, as in the switcher and the window title.
+            self.title.set_title(profile.name)
             self.title.set_subtitle(self.app.status_line(profile.id))
 
-        # The call button: "Call" for the open Dot, "End 01:23" during a call. After hanging
-        # up, OpenDots keeps the line for ~40 s while it saves the call's summary.
-        saving = in_call and getattr(self, "_call_phase", "") == "ended"
+        # The call button: "Call" for the open Dot, "Calling…" while the call is being set
+        # up, "End" during a call (its time is in the title). After hanging up, OpenDots
+        # keeps the line for ~40 s while it saves the call's summary.
+        saving = in_call and call_phase == "ended"
+        self.call_stack.set_visible_child_name("calling" if pending else "call")
         if saving:
             self.call_button.set_visible(True)
             self.call_content.set_icon_name("call-stop-symbolic")
@@ -1102,11 +1228,18 @@ class MainWindow(Adw.ApplicationWindow):
         elif in_call:
             self.call_button.set_visible(True)
             self.call_content.set_icon_name("call-stop-symbolic")
-            self.call_content.set_label(_("End {time}").format(time=self._call_elapsed()))
+            # TRANSLATORS: the button that hangs up a voice call.
+            self.call_content.set_label(_("End"))
             self.call_button.remove_css_class("suggested-action")
             self.call_button.add_css_class("destructive-action")
             self.call_button.set_tooltip_text(_("End the Call (Ctrl+Shift+L)"))
             self.call_button.set_sensitive(True)
+        elif pending:
+            self.call_button.set_visible(show_dot and self.workspace.voice_ready)
+            self.call_button.remove_css_class("destructive-action")
+            self.call_button.add_css_class("suggested-action")
+            self.call_button.set_sensitive(False)
+            self.call_button.set_tooltip_text(_("Calling…"))
         else:
             reason = self._call_blocker(dot) if show_dot else None
             self.call_button.set_visible(show_dot and self.workspace.voice_ready)
@@ -1117,6 +1250,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.call_button.set_sensitive(reason is None)
             self.call_button.set_tooltip_text(reason or _("Call {name} (Ctrl+Shift+L)").format(
                 name=dot.name if dot else ""))
+        self.call_pending_label.set_visible(not narrow)
         if narrow:  # icon only; the words stay in the tooltip
             self.call_content.set_label("")
             self.call_button.remove_css_class("call-button")
