@@ -52,6 +52,7 @@ class Profile:
     url: str
     chief: str = ""
     microphone: str = MIC_ASK
+    updater_url: str = ""          # "" = the server's host on port 4311
     created_at: float = field(default_factory=time.time)
 
     @classmethod

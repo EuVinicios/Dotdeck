@@ -123,3 +123,57 @@ A janela só carrega páginas da origem do perfil (`esquema://host:porta`). Link
 sites, `window.open` e navegações fora da origem abrem no navegador padrão. Assim o token
 injetado e a ponte de voz nunca ficam expostos a outra página. TLS inválido é recusado (sem
 "aceitar mesmo assim"); a mensagem sugere HTTPS do Tailscale.
+
+---
+
+## ADR-009 — Botão de atualização: atualizador ao lado do servidor (09/10/2026)
+
+**Contexto.** O dono pediu "um botão para o usuário verificar e aplicar atualização quando sair
+novidades no projeto oficial". O protótipo antigo fazia `git pull` + build + restart na própria
+máquina; isso não funciona dentro do Flatpak/snap nem a partir de outro aparelho (Mac pelo
+Tailscale). O OpenDots do homelab tem commits locais que não existem no oficial.
+
+**Decisão.** `server/updater/opendots_updater.py` (só biblioteca padrão do Python + git, npm e
+systemctl) roda como serviço de usuário ao lado do OpenDots, na porta 4311, protegido pelo
+`OWNER_TOKEN`. O Dotdeck mostra versão, novidades e commits locais e chama `/check` e
+`/update`. A atualização faz merge **preservando os commits locais**, `npm ci` só se as
+dependências mudaram, build, restart e checagem de saúde; qualquer falha restaura o ponto
+anterior. Conflito de merge não muda nada.
+
+**Prova.** `tests/test_updater.py` (7 testes com repositórios git temporários e `npm`/`systemctl`
+falsos no PATH) e `tests/test_updates_ui.py` (3 testes da interface com atualizador falso).
+
+## ADR-010 — Backup privado do OpenDots e tokens fora do código (09/10/2026)
+
+**Contexto.** Os commits locais do OpenDots só existiam na máquina; o `origin` é o repositório
+da CopilotKit. Ao preparar o backup, `scripts/opendots_telegram_bot.mjs` tinha o token do bot
+do Telegram e o `OWNER_TOKEN` escritos no código.
+
+**Decisão.** Repositório privado `EuVinicios/OpenDots` (remoto `backup`). Antes do envio, o
+token do Telegram foi para o `.env`, os 4 commits locais foram reescritos sem os tokens e um
+commit novo faz o script exigir os dois do `.env`. Cópias (`.env` e bundle do histórico antigo)
+em `~/work/backups/opendots-limpeza-<data>/` (local, permissão 700).
+
+**Respostas do dono:** "Sim, fork privado (Recomendado)"; "Limpar antes (Recomendado)".
+
+**Pendente (dono):** trocar os dois tokens, porque já estiveram em texto puro localmente.
+
+## ADR-011 — Voz com a chave do OpenRouter: ponte Realtime + gpt-audio-mini (09/10/2026)
+
+**Contexto.** O OpenDots usa a API Realtime da OpenAI (WebRTC), fixa em `api.openai.com`; o
+dono não tem chave da OpenAI, só do OpenRouter. No catálogo do OpenRouter (458 modelos) só
+`openai/gpt-audio-mini` e `openai/gpt-audio` respondem em voz, e não há API Realtime: só chat
+completions com áudio de entrada e saída (stream obrigatório).
+
+**Medição real (OpenRouter, 09/10/2026).** gpt-audio-mini: primeira fala em ~1,9 s, PCM 24 kHz,
+~20 tokens/s de saída e ~10 tokens/s de entrada; US$ 0,00025 por fala de 3,3 s (≈ US$ 0,005
+por minuto de fala). Vozes `marin`, `coral` e `nova` funcionam. Ponta a ponta pela ponte: resposta
+em português começando 2,7 s após o fim da fala, transcrição correta, US$ 0,00034 no turno.
+
+**Decisão.** `server/voice_gateway` implementa os dois endpoints que o OpenDots usa
+(`POST /v1/realtime/calls` e `/hangup`) e os eventos do canal `oai-events`, por turnos: VAD
+local, gpt-audio-mini para ouvir/pensar/falar, gemini-2.5-flash-lite para a legenda da fala do
+usuário, `ask_compute` repassado como chamada de função. No OpenDots, uma mudança mínima
+(`VOICE_REALTIME_URL`, padrão continua a OpenAI) — candidata a PR no projeto oficial.
+
+**Resposta do dono:** "Ponte + gpt-audio-mini (Recomendado)".

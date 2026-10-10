@@ -35,6 +35,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.view: ServerView | None = None
         self._view_profile: str | None = None
+        self._seen_updates: str | None = None
 
         self.toasts = Adw.ToastOverlay()
         self.set_content(self.toasts)
@@ -257,6 +258,19 @@ class MainWindow(Adw.ApplicationWindow):
         elif status == "offline" and (self.view is None or not self.view.failed):
             self._set_banner(_("No connection to {name}. Trying again…").format(
                 name=profile.name), _("Retry Now"), self._retry)
+        elif mon and mon.updates and int(mon.updates.get("behind") or 0) \
+                and self._seen_updates != (mon.updates.get("upstream") or {}).get("short"):
+            behind = int(mon.updates["behind"])
+            upstream = (mon.updates.get("upstream") or {}).get("short")
+
+            def show_updates():
+                self._seen_updates = upstream
+                self.app.edit_server(profile.id)
+                self.refresh_status()
+
+            self._set_banner(ngettext("{n} change in the official OpenDots",
+                                      "{n} changes in the official OpenDots", behind).format(
+                                          n=behind), _("See Updates"), show_updates)
         elif server.is_cleartext_remote(profile.url):
             self._set_banner(_("The connection to {name} is not encrypted.").format(
                 name=profile.name), _("Edit Server"), lambda: self.app.edit_server(profile.id))
