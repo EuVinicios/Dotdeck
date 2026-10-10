@@ -154,6 +154,11 @@
   </screenshots>
 
   <releases>
+    <release version="0.3.1" date="2026-10-10">
+      <description>
+        <p>Fixes the Snap package, which could not open its window.</p>
+      </description>
+    </release>
     <release version="0.3.0" date="2026-10-10">
       <description>
         <p>A redesigned workspace.</p>
