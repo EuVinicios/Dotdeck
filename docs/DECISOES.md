@@ -364,3 +364,7 @@ vazia aparecia como "Não definido", no masculino.
 dots e chaves de api, certo?" e "Quero poder adicionar provedores como Claude além da chave de
 API ... usar o novo modelo Haiku ... Também preciso deixar mais claro qual modelo ele está
 usando para chamadas e como configurar".
+
+**Escolhas do dono (10/10/2026):** modelo das conversas "Haiku 5.5 pelo OpenRouter
+(Recomendado)" e publicação "Sim, direto no stable (Recomendado)" — a 0.3.3 segue edge →
+candidate → stable depois dos testes, como a 0.3.2.
