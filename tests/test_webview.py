@@ -208,6 +208,34 @@ class ServerViewTest(unittest.TestCase):
         self.assertEqual(result, "NotAllowedError")
 
     @unittest.skipUnless(voice.available(), "GStreamer WebRTC plugins are not installed")
+    def test_microphone_switch_survives_garbage_collection(self):
+        # After a garbage collection WebKit hands the page a fresh navigator.mediaDevices
+        # wrapper. A switch kept on the old wrapper was gone, the native getUserMedia()
+        # came back with a track the call cannot carry, and the real OpenDots page (big
+        # enough to collect) failed with "Dotdeck only carries the microphone in calls."
+        self.js("""let kept = 0;
+            for (let i = 0; i < 60; i++) {
+              const junk = [];
+              for (let j = 0; j < 200000; j++) junk.push({ j, s: 'x' + j });
+              kept += junk.length;
+            }
+            return kept;""")
+        run_until(lambda: False, 1)
+        result = self.js("""
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const pc = new RTCPeerConnection();
+            try {
+              stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+              return 'ok';
+            } catch (error) {
+              return error.message;
+            } finally {
+              pc.close();
+              stream.getTracks().forEach((track) => track.stop());
+            }""")
+        self.assertEqual(result, "ok")
+
+    @unittest.skipUnless(voice.available(), "GStreamer WebRTC plugins are not installed")
     def test_voice_call_through_the_polyfill(self):
         self.assertIn("rtc:function", self.log())
         offer = self.js("return await window.__start();")

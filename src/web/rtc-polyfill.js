@@ -84,13 +84,19 @@
   };
   const onlyMicrophone = (constraints) => Boolean(constraints && constraints.audio && !constraints.video);
 
+  // The switches go on MediaDevices.prototype, never on navigator.mediaDevices itself:
+  // after a garbage collection WebKit can hand the page a fresh mediaDevices wrapper,
+  // which would silently bring the native getUserMedia() back (a real track that the
+  // calls cannot carry). Prototypes live as long as the page.
   const mediaDevices = navigator.mediaDevices;
-  if (mediaDevices && typeof mediaDevices.getUserMedia === 'function') {
-    const original = mediaDevices.getUserMedia.bind(mediaDevices);
-    mediaDevices.getUserMedia = async (constraints) =>
-      onlyMicrophone(constraints) ? microphone() : original(constraints);
+  const proto = typeof MediaDevices !== 'undefined' ? MediaDevices.prototype : null;
+  if (mediaDevices && proto && typeof proto.getUserMedia === 'function') {
+    const original = proto.getUserMedia;
+    proto.getUserMedia = function (constraints) {
+      return onlyMicrophone(constraints) ? microphone() : original.call(this, constraints);
+    };
   } else {
-    const devices = mediaDevices || new EventTarget();
+    const devices = mediaDevices ? proto || mediaDevices : new EventTarget();
     devices.getUserMedia = async (constraints) => {
       if (!onlyMicrophone(constraints))
         throw new DOMException('Only the microphone is available here.', 'NotSupportedError');
