@@ -65,7 +65,7 @@ SLIDES = (
           "Doze pets de pelúcia. Escolha na galeria ou deixe o Dotdeck escolher pela função.",
           (Window("pets.png", 276, 238, 0.9),)),
     Slide("3-modelos-de-ia", "Modelos de IA, com o custo à vista",
-          "Saiba qual modelo os seus Dots usam, quanto custa e teste com um clique.",
+          "Se o servidor informa: veja o modelo dos Dots, quanto custa e teste com um clique.",
           (Window("workspace.png", 150, 330, 0.7), Window("settings-model.png", 628, 290))),
     Slide("4-chamadas", "Ligue para os seus Dots",
           "Chamadas de voz com cancelamento de eco, no tema claro ou no escuro.",
