@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import locale
 import unittest
+from unittest import mock
 
 from tests import helpers  # noqa: F401  (isolated config, like every test module)
 from tests.fake_server import MODEL_CONFIG, MODEL_CONFIG_032, FakeModelConfig
@@ -42,6 +43,23 @@ class NumbersTest(unittest.TestCase):
                          "US$ 0.10 / 0.50 per million tokens · fast · new")
         self.assertEqual(models.preset_detail({"speed": "deep"}), "deep thinking")
         self.assertEqual(models.preset_detail({"speed": "warp"}), "")
+
+    def test_server_notes_are_shown_only_in_the_users_language(self):
+        """The server writes notes in English: a translated Dotdeck shows the ones it knows
+        in its language and leaves the others out instead of mixing languages."""
+        item = {"speed": "fast", "note": "Direct with an Anthropic API key."}
+        self.assertEqual(models.preset_detail(item), "fast · Direct with an Anthropic API key.")
+        catalog = {"fast": "rápido",
+                   "Direct with an Anthropic API key.": "Direto, com uma chave de API da "
+                                                         "Anthropic."}
+        with mock.patch.object(models, "_", lambda text: catalog.get(text, text)), \
+                mock.patch.object(models, "translating", lambda: True):
+            self.assertEqual(models.preset_detail(item),
+                             "rápido · Direto, com uma chave de API da Anthropic.")
+            self.assertEqual(models.preset_detail({"speed": "fast", "note": "Brand new."}),
+                             "rápido")
+        self.assertIn("Direct with an Anthropic API key.", models.SERVER_NOTES)
+        self.assertEqual(models.server_text("  "), "")
 
     def test_seconds(self):
         self.assertEqual(models.seconds(1234), "1.2 s")
@@ -96,6 +114,16 @@ class NamesTest(unittest.TestCase):
                                             MODEL_CONFIG), "DeepSeek V4 Flash · OpenRouter")
         self.assertEqual(models.at_a_glance("", "openrouter", MODEL_CONFIG), "")
         self.assertEqual(models.at_a_glance("m/x", ""), "X")
+
+    def test_key_titles_are_one_message_per_provider(self):
+        """Portuguese needs "do OpenRouter" but "da Anthropic": no "{provider} Key" slot."""
+        self.assertEqual(models.key_title("openrouter"), "OpenRouter Key")
+        self.assertEqual(models.key_title("anthropic"), "Anthropic Key")
+        self.assertEqual(models.key_title("claude"), "Anthropic Key")
+        self.assertEqual(models.key_title("openai-compatible"), "OpenAI-compatible Server Key")
+        self.assertEqual(models.key_title(""), "API Key")
+        self.assertEqual(models.key_title("mistral"), "mistral Key")
+        self.assertTrue(set(models.CHOOSABLE) <= set(models.KEY_TITLES))
 
 
 class ProvidersTest(unittest.TestCase):

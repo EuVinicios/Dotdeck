@@ -38,6 +38,11 @@ class TranslationTest(unittest.TestCase):
             catalog = entries(PO / f"{language}.po")
             missing = [m for m in template if not catalog.get(m) or not all(catalog[m])]
             self.assertEqual(missing, [], f"untranslated in {language}")
+            # msgfmt leaves fuzzy translations out of the .mo: they count as untranslated.
+            fuzzy = [block.split("\n")[-2:] for block in
+                     (PO / f"{language}.po").read_text(encoding="utf-8").split("\n\n")
+                     if re.search(r"^#,.*\bfuzzy\b", block, re.M)]
+            self.assertEqual(fuzzy, [], f"fuzzy in {language}")
 
     def test_an_unset_key_has_its_own_message(self):
         """"Not set" is masculine in Portuguese ("Não definido"); a key says it plainly."""
@@ -45,6 +50,18 @@ class TranslationTest(unittest.TestCase):
         self.assertEqual(entries(PO / "es.po")["No key yet"], ["Ninguna clave todavía"])
         model_page = (PO.parent / "src" / "ui" / "settings" / "model.py").read_text()
         self.assertNotIn('_("Not set")', model_page)
+
+    def test_each_provider_key_has_the_right_article(self):
+        """"Chave do OpenRouter" but "Chave da Anthropic" (one message per provider)."""
+        catalog = entries(PO / "pt_BR.po")
+        self.assertEqual(catalog["OpenRouter Key"], ["Chave do OpenRouter"])
+        self.assertEqual(catalog["Anthropic Key"], ["Chave da Anthropic"])
+        self.assertEqual(catalog["OpenAI-compatible Server Key"],
+                         ["Chave do servidor compatível com OpenAI"])
+        for msgid in ("New {provider} Key (optional)", "Set a New {provider} Key",
+                      "Type the {provider} key.", "{provider} Key"):
+            # The name sits after "provedor", so no article has to agree with it.
+            self.assertIn("provedor {provider}", catalog[msgid][0], msgid)
 
 
 if __name__ == "__main__":

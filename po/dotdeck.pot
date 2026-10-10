@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Dotdeck 0.3.3\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 13:15+0000\n"
+"POT-Creation-Date: 2026-10-10 13:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -42,63 +42,125 @@ msgstr ""
 msgid "Anthropic (API key)"
 msgstr ""
 
-#: src/core/models.py:30
-msgid "fast"
-msgstr ""
-
-#: src/core/models.py:30
-msgid "balanced"
-msgstr ""
-
-#: src/core/models.py:30
-msgid "deep thinking"
+#: src/core/models.py:32
+msgid "OpenRouter Key"
 msgstr ""
 
 #: src/core/models.py:32
-msgid "lower cost"
+msgid "Anthropic Key"
 msgstr ""
 
 #: src/core/models.py:33
-msgid "better voice, about 10× the price"
+msgid "OpenAI-compatible Server Key"
 msgstr ""
 
-#: src/core/models.py:73 src/ui/settings/model.py:239
+#: src/core/models.py:34
+msgid "Google Gemini Key"
+msgstr ""
+
+#: src/core/models.py:35
+msgid "fast"
+msgstr ""
+
+#: src/core/models.py:35
+msgid "balanced"
+msgstr ""
+
+#: src/core/models.py:35
+msgid "deep thinking"
+msgstr ""
+
+#: src/core/models.py:38
+msgid "lower cost"
+msgstr ""
+
+#: src/core/models.py:39
+msgid "better voice, many times the price"
+msgstr ""
+
+#: src/core/models.py:42
+msgid "Very low cost. Thinks before answering."
+msgstr ""
+
+#: src/core/models.py:43
+msgid "Open weights, stronger reasoning."
+msgstr ""
+
+#: src/core/models.py:44
+msgid "Anthropic through OpenRouter. Quick and capable with tools."
+msgstr ""
+
+#: src/core/models.py:45
+msgid "Anthropic through OpenRouter. Strong writing and tool use."
+msgstr ""
+
+#: src/core/models.py:46
+msgid "Anthropic through OpenRouter. Most capable, highest cost."
+msgstr ""
+
+#: src/core/models.py:47
+msgid "Google through OpenRouter."
+msgstr ""
+
+#: src/core/models.py:48
+msgid "OpenAI through OpenRouter."
+msgstr ""
+
+#: src/core/models.py:49
+msgid "Meta, open weights."
+msgstr ""
+
+#: src/core/models.py:50
+msgid "Direct with an Anthropic API key."
+msgstr ""
+
+#: src/core/models.py:90 src/ui/settings/model.py:239
 msgid "Unknown"
 msgstr ""
 
-#: src/core/models.py:227
+#: src/core/models.py:99 src/ui/settings/model.py:101
+#: src/ui/settings/model.py:145
+msgid "API Key"
+msgstr ""
+
+#: src/core/models.py:100
+#, python-brace-format
+msgid "{provider} Key"
+msgstr ""
+
+#: src/core/models.py:264
 #, python-brace-format
 msgid "US$ {input} input · US$ {output} output per million tokens"
 msgstr ""
 
-#: src/core/models.py:236
+#: src/core/models.py:273
 #, python-brace-format
 msgid "US$ {input} / {output} per million tokens"
 msgstr ""
 
-#: src/core/models.py:258
+#: src/core/models.py:293
 #, python-brace-format
 msgid "{seconds} s"
 msgstr ""
 
-#: src/core/models.py:287
+#: src/core/models.py:322
 msgid "Type the model ID."
 msgstr ""
 
-#: src/core/models.py:289
+#: src/core/models.py:324
 msgid "A model ID has no spaces and up to 100 characters."
 msgstr ""
 
-#: src/core/models.py:291
+#: src/core/models.py:326
 msgid "OpenRouter model IDs look like vendor/model-name."
 msgstr ""
 
-#: src/core/models.py:293
+#: src/core/models.py:328
 msgid ""
 "Anthropic model IDs have no vendor prefix, for example claude-haiku-5-5."
 msgstr ""
 
-#: src/core/models.py:299
+#: src/core/models.py:334
 msgid "Type an address that starts with https:// or http://."
 msgstr ""
 
@@ -1845,10 +1907,6 @@ msgstr ""
 msgid "Approximate Cost"
 msgstr ""
 
-#: src/ui/settings/model.py:101 src/ui/settings/model.py:145
-msgid "API Key"
-msgstr ""
-
 #: src/ui/settings/model.py:105
 msgid "Test the Model"
 msgstr ""
@@ -1871,8 +1929,8 @@ msgstr ""
 msgid "Provider"
 msgstr ""
 
-#: src/ui/settings/model.py:134 src/ui/settings/model.py:351
-#: src/ui/settings/model.py:353
+#: src/ui/settings/model.py:134 src/ui/settings/model.py:357
+#: src/ui/settings/model.py:359
 msgid "Model ID, for example vendor/model-name"
 msgstr ""
 
@@ -1898,7 +1956,7 @@ msgid ""
 "does not keep it."
 msgstr ""
 
-#: src/ui/settings/model.py:158 src/ui/settings/model.py:511
+#: src/ui/settings/model.py:158 src/ui/settings/model.py:518
 msgid "New API Key"
 msgstr ""
 
@@ -1977,16 +2035,11 @@ msgstr ""
 msgid "Choose one under Change."
 msgstr ""
 
-#: src/ui/settings/model.py:253 src/ui/settings/model.py:369
-#, python-brace-format
-msgid "{provider} Key"
-msgstr ""
-
-#: src/ui/settings/model.py:254 src/ui/settings/model.py:493
+#: src/ui/settings/model.py:254 src/ui/settings/model.py:500
 msgid "Configured"
 msgstr ""
 
-#: src/ui/settings/model.py:254 src/ui/settings/model.py:493
+#: src/ui/settings/model.py:254 src/ui/settings/model.py:500
 msgid "No key yet"
 msgstr ""
 
@@ -1994,134 +2047,134 @@ msgstr ""
 msgid "Sends a tiny message and times the answer."
 msgstr ""
 
-#: src/ui/settings/model.py:327 src/ui/settings/model.py:335
-#: src/ui/settings/model.py:498
+#: src/ui/settings/model.py:333 src/ui/settings/model.py:341
+#: src/ui/settings/model.py:505
 msgid "In use"
 msgstr ""
 
-#: src/ui/settings/model.py:338
+#: src/ui/settings/model.py:344
 msgid "Custom…"
 msgstr ""
 
-#: src/ui/settings/model.py:352
+#: src/ui/settings/model.py:358
 msgid "Model ID, for example claude-haiku-5-5"
 msgstr ""
 
-#: src/ui/settings/model.py:353
+#: src/ui/settings/model.py:359
 msgid "Model ID"
 msgstr ""
 
-#: src/ui/settings/model.py:368
+#: src/ui/settings/model.py:373
 #, python-brace-format
 msgid "New {provider} Key (optional)"
 msgstr ""
 
-#: src/ui/settings/model.py:405
+#: src/ui/settings/model.py:410
 #, python-brace-format
 msgid "Type the {provider} key."
 msgstr ""
 
-#: src/ui/settings/model.py:450
+#: src/ui/settings/model.py:457
 #, python-brace-format
 msgid ""
 "Every Dot on {name} starts using it with its next message, through "
 "{provider}. Chats keep their history."
 msgstr ""
 
-#: src/ui/settings/model.py:454
+#: src/ui/settings/model.py:461
 #, python-brace-format
 msgid ""
 "Every Dot on {name} starts using it with its next message. Chats keep their "
 "history."
 msgstr ""
 
-#: src/ui/settings/model.py:456
+#: src/ui/settings/model.py:463
 #, python-brace-format
 msgid "Switch to {model}?"
 msgstr ""
 
-#: src/ui/settings/model.py:457
+#: src/ui/settings/model.py:464
 msgid "Switch Model"
 msgstr ""
 
-#: src/ui/settings/model.py:470
+#: src/ui/settings/model.py:477
 #, python-brace-format
 msgid "The Dots now use {model}"
 msgstr ""
 
-#: src/ui/settings/model.py:474
+#: src/ui/settings/model.py:481
 #, python-brace-format
 msgid "Could not change the model: {error}"
 msgstr ""
 
-#: src/ui/settings/model.py:500
+#: src/ui/settings/model.py:507
 msgid "Set New Key…"
 msgstr ""
 
-#: src/ui/settings/model.py:507
+#: src/ui/settings/model.py:514
 #, python-brace-format
 msgid "Set a New {provider} Key"
 msgstr ""
 
-#: src/ui/settings/model.py:531
+#: src/ui/settings/model.py:538
 msgid "API key saved on the server"
 msgstr ""
 
-#: src/ui/settings/model.py:535 src/ui/settings/voice_page.py:530
+#: src/ui/settings/model.py:542 src/ui/settings/voice_page.py:530
 #, python-brace-format
 msgid "Could not save the key: {error}"
 msgstr ""
 
-#: src/ui/settings/model.py:546
+#: src/ui/settings/model.py:553
 msgid "Testing…"
 msgstr ""
 
-#: src/ui/settings/model.py:555
+#: src/ui/settings/model.py:562
 msgid "This server cannot test the model yet."
 msgstr ""
 
-#: src/ui/settings/model.py:557
+#: src/ui/settings/model.py:564
 #, python-brace-format
 msgid "Could not test: {error}"
 msgstr ""
 
-#: src/ui/settings/model.py:559
+#: src/ui/settings/model.py:566
 #, python-brace-format
 msgid "Answered in {time}"
 msgstr ""
 
-#: src/ui/settings/model.py:562
+#: src/ui/settings/model.py:569
 #, python-brace-format
 msgid "Did not answer: {error}"
 msgstr ""
 
-#: src/ui/settings/model.py:563
+#: src/ui/settings/model.py:570
 msgid "unknown error"
 msgstr ""
 
-#: src/ui/settings/model.py:573
+#: src/ui/settings/model.py:580
 msgid "Not set up on the server"
 msgstr ""
 
-#: src/ui/settings/model.py:575 src/ui/settings/voice_page.py:413
+#: src/ui/settings/model.py:582 src/ui/settings/voice_page.py:413
 #, python-brace-format
 msgid "{model} · Dotdeck voice gateway"
 msgstr ""
 
-#: src/ui/settings/model.py:577 src/ui/settings/voice_page.py:424
+#: src/ui/settings/model.py:584 src/ui/settings/voice_page.py:424
 #, python-brace-format
 msgid "{model} · OpenAI Realtime"
 msgstr ""
 
-#: src/ui/settings/model.py:582 src/ui/settings/voice_page.py:430
+#: src/ui/settings/model.py:589 src/ui/settings/voice_page.py:430
 msgid "Off, or the voice gateway did not answer"
 msgstr ""
 
-#: src/ui/settings/model.py:584 src/ui/settings/voice_page.py:432
+#: src/ui/settings/model.py:591 src/ui/settings/voice_page.py:432
 msgid "This server does not report it"
 msgstr ""
 
-#: src/ui/settings/model.py:588 src/ui/settings/voice_page.py:439
+#: src/ui/settings/model.py:595 src/ui/settings/voice_page.py:439
 #, python-brace-format
 msgid "{model} · the chat model"
 msgstr ""

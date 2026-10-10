@@ -16,7 +16,7 @@ import locale
 import math
 import re
 
-from ..i18n import N_, _
+from ..i18n import N_, _, translating
 
 # What a server may report, newest ids first; "claude" and "gemini" come from 0.3.2-era
 # servers, which guessed the provider from the API address.
@@ -27,10 +27,27 @@ PROVIDER_NAMES = {"openrouter": "OpenRouter", "anthropic": "Anthropic", "claude"
 CHOOSABLE = ("openrouter", "anthropic", "openai-compatible")
 CHOICE_LABELS = {"openrouter": N_("OpenRouter"), "anthropic": N_("Anthropic (API key)"),
                  "openai-compatible": N_("OpenAI-compatible")}
+# "OpenRouter Key" is one message per provider, not "{provider} Key": Portuguese says
+# "Chave do OpenRouter" but "Chave da Anthropic", and "Compatível com OpenAI" is no noun.
+KEY_TITLES = {"openrouter": N_("OpenRouter Key"), "anthropic": N_("Anthropic Key"),
+              "openai-compatible": N_("OpenAI-compatible Server Key"),
+              "gemini": N_("Google Gemini Key")}
 SPEEDS = {"fast": N_("fast"), "balanced": N_("balanced"), "deep": N_("deep thinking")}
-# The audio models the Dotdeck voice gateway can use through OpenRouter.
+# The audio models the Dotdeck voice gateway can use through OpenRouter. GPT Audio costs
+# about 4× more for text and 25 to 50× more for audio (OpenRouter prices, October 2026).
 VOICE_MODELS = (("openai/gpt-audio-mini", "GPT Audio Mini", N_("lower cost")),
-                ("openai/gpt-audio", "GPT Audio", N_("better voice, about 10× the price")))
+                ("openai/gpt-audio", "GPT Audio", N_("better voice, many times the price")))
+# The notes the OpenDots fork sends with its presets (src/server/fork/providers.ts) are in
+# English; listed here they are translated like the rest of Dotdeck (see server_text).
+SERVER_NOTES = (N_("Very low cost. Thinks before answering."),
+                N_("Open weights, stronger reasoning."),
+                N_("Anthropic through OpenRouter. Quick and capable with tools."),
+                N_("Anthropic through OpenRouter. Strong writing and tool use."),
+                N_("Anthropic through OpenRouter. Most capable, highest cost."),
+                N_("Google through OpenRouter."),
+                N_("OpenAI through OpenRouter."),
+                N_("Meta, open weights."),
+                N_("Direct with an Anthropic API key."))
 
 # Words a model id spells in lower case: "deepseek" reads "DeepSeek".
 _WORDS = {"gpt": "GPT", "deepseek": "DeepSeek", "glm": "GLM", "llama": "Llama",
@@ -71,6 +88,26 @@ def provider_name(provider: str, base_url: str = "") -> str:
     if "openrouter.ai" in base_url:
         return PROVIDER_NAMES["openrouter"]
     return provider or _("Unknown")
+
+
+def key_title(provider: str) -> str:
+    """"OpenRouter Key", the title of a provider's key ("API Key" when it is unknown)."""
+    provider = "anthropic" if provider == "claude" else provider
+    if provider in KEY_TITLES:
+        return _(KEY_TITLES[provider])
+    if not provider:
+        return _("API Key")
+    return _("{provider} Key").format(provider=provider_name(provider))
+
+
+def server_text(text: str) -> str:
+    """English text from the server in the user's language, or "" when Dotdeck has no
+    translation for it: a Portuguese page does not show an English note."""
+    text = (text or "").strip()
+    if not text:
+        return ""
+    shown = _(text)
+    return shown if shown != text or not translating() else ""
 
 
 def providers(data: dict | None) -> list[dict]:
@@ -243,9 +280,7 @@ def preset_detail(item: dict) -> str:
     speed = _text(item.get("speed"))
     if speed in SPEEDS:
         parts.append(_(SPEEDS[speed]))
-    note = _text(item.get("note")).strip()
-    if note:
-        parts.append(note)
+    parts.append(server_text(_text(item.get("note"))))
     return " · ".join(p for p in parts if p)
 
 

@@ -250,7 +250,7 @@ class ModelPage(SettingsPage):
         self.price_row.set_visible(bool(price))
 
         configured = models.has_key(data, provider)
-        self.key_status.set_title(escape(_("{provider} Key").format(provider=name)))
+        self.key_status.set_title(escape(models.key_title(provider)))
         self.key_status.set_subtitle(_("Configured") if configured else _("No key yet"))
         self.key_icon.set_from_icon_name("object-select-symbolic" if configured
                                          else "dialog-warning-symbolic")
@@ -288,8 +288,11 @@ class ModelPage(SettingsPage):
         modern = models.modern(data)
         listed = [p["id"] for p in models.providers(data) if p["id"] in models.CHOOSABLE]
         self._providers = (listed or list(models.CHOOSABLE)) if modern else []
-        self._provider = current if current in self._providers or not modern \
+        provider = current if current in self._providers or not modern \
             else self._providers[0]
+        if provider != self._provider:
+            self.new_key.set_text("")        # it was typed for the provider picked before
+        self._provider = provider
         self._syncing = True
         try:
             self.provider_combo.set_model(string_model(
@@ -306,6 +309,9 @@ class ModelPage(SettingsPage):
             return
         index = self.provider_combo.get_selected()
         if 0 <= index < len(self._providers):
+            if self._providers[index] != self._provider:
+                # A key typed for one provider must never be sent as another one's.
+                self.new_key.set_text("")
             self._provider = self._providers[index]
             self._fill_models(self._data())
 
@@ -363,10 +369,9 @@ class ModelPage(SettingsPage):
             if not known:
                 self.advanced.set_expanded(True)
         switching = modern and target != current
-        name = models.provider_name(target)
         self.new_key.set_title(
-            _("New {provider} Key (optional)").format(provider=name)
-            if models.has_key(data, target) else _("{provider} Key").format(provider=name))
+            _("New {provider} Key (optional)").format(provider=models.provider_name(target))
+            if models.has_key(data, target) else models.key_title(target))
         self.new_key.set_visible(switching)
         self._on_choice()
 
@@ -406,7 +411,9 @@ class ModelPage(SettingsPage):
                     provider=models.provider_name(target))
         if modern and target == "openai-compatible":
             url = self.base_url.get_text().strip()
-            if url and url != data.get("baseUrl"):
+            # Switching to it always takes the address (the server refuses the switch
+            # without one), even one equal to the address in use now.
+            if url and (url != data.get("baseUrl") or target != current):
                 changes["baseUrl"] = url
             if url or target != current:
                 problem = problem or models.base_url_problem(url)

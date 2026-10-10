@@ -25,7 +25,8 @@ from gi.repository import Adw, Gtk  # noqa: E402
 
 from src.core import models, monitor, secrets, store  # noqa: E402
 from src.ui.settings import search  # noqa: E402
-from tests.fake_server import MODEL_CONFIG, MODEL_CONFIG_032, FakeModelConfig  # noqa: E402
+from tests.fake_server import (ANTHROPIC_URL, MODEL_CONFIG, MODEL_CONFIG_032,  # noqa: E402
+                               FakeModelConfig)
 
 TOKEN = "owner-token-for-settings-tests-0123456789"
 DOT_KEYS = {"name", "instructions", "researchAllowed", "memoryAllowed", "learningContainerId",
@@ -1162,6 +1163,46 @@ class ModernModelTests(unittest.TestCase):
             "baseUrl": "http://192.168.0.10:8080/v1", "apiKey": "local-test-key"})
         self.assertTrue(run_until(
             lambda: page.model_row.get_subtitle() == "llama-local · OpenAI-compatible", 5))
+        self.assertEqual(page.key_status.get_title(), "OpenAI-compatible Server Key")
+
+    def test_switching_to_a_compatible_server_always_sends_its_address(self):
+        """Even the address in use now: the server refuses the switch without one."""
+        self.fake.model_config.update(provider="anthropic", baseUrl=ANTHROPIC_URL,
+                                      model="claude-haiku-5-5")
+        self.fake.model_config["keys"]["anthropic"] = True
+        _win, page = self.page()
+        page.select_provider("openai-compatible")
+        page.custom.set_text("claude-haiku-5-5")
+        page.new_key.set_text("local-test-key")
+        page.base_url.set_text(ANTHROPIC_URL)               # Anthropic's compatible API
+        self.assertTrue(page.apply.get_sensitive())
+        self.assertEqual(page._pending()[0], {
+            "model": "claude-haiku-5-5", "provider": "openai-compatible",
+            "baseUrl": ANTHROPIC_URL, "apiKey": "local-test-key"})
+
+    def test_a_key_typed_for_one_provider_never_goes_to_another(self):
+        _win, page = self.page()
+        page.select_provider("anthropic")
+        page.new_key.set_text("sk-ant-test-key")
+        self.assertEqual(page._pending()[0].get("apiKey"), "sk-ant-test-key")
+        # Changed their mind: the Anthropic key must not go to a compatible server.
+        page.select_provider("openai-compatible")
+        self.assertEqual(page.new_key.get_text(), "")
+        self.assertEqual(page.new_key.get_title(), "OpenAI-compatible Server Key")
+        page.custom.set_text("llama-local")
+        page.base_url.set_text("http://192.168.0.10:8080/v1")
+        changes, problem = page._pending()
+        self.assertNotIn("apiKey", changes)
+        self.assertIsNotNone(problem)                       # its own key is still missing
+        self.assertFalse(page.apply.get_sensitive())
+        # Nor back to Anthropic after a refresh of the page.
+        page.select_provider("anthropic")
+        page.new_key.set_text("sk-ant-test-key")
+        page._signature = None
+        page.model_changed()                                # the server answered again
+        self.assertEqual(page._provider, "openrouter")
+        self.assertEqual(page.new_key.get_text(), "")
+        self.assertEqual(self.fake.model.posts, [])
 
     def test_one_key_row_per_provider(self):
         _win, page = self.page()
