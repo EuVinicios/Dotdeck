@@ -163,6 +163,8 @@ class DotdeckApplication(Adw.Application):
             parameter=GLib.VariantType("s"))
         add("open-profile", lambda _a, value: self._open_profile(value.unpack(), None),
             parameter=GLib.VariantType("s"))
+        add("open-updates", lambda _a, value: self.edit_server(value.unpack()),
+            parameter=GLib.VariantType("s"))
         accels = {
             "win.reload": ["F5", "<Control>r"],
             "win.zoom-in": ["<Control>plus", "<Control>equal", "<Control>KP_Add"],
@@ -395,6 +397,7 @@ class DotdeckApplication(Adw.Application):
                     profile, lambda cb, p=profile: self.tokens.lookup(p.id, p.url, cb))
                 mon.connect("changed", lambda *_: self.refresh_status())
                 mon.connect("task-event", self._on_task_event)
+                mon.connect("updates-available", self._on_updates_available)
                 self.monitors[profile_id] = mon
                 mon.start()
             else:
@@ -447,6 +450,30 @@ class DotdeckApplication(Adw.Application):
         notification.set_default_action_and_target_value(
             "app.open-activity", GLib.Variant("s", mon.profile.id))
         self.send_notification(f"task-{mon.profile.id}-{task_id}-{kind}", notification)
+
+    def _on_updates_available(self, mon, behind: int, upstream: str) -> None:
+        if self.window is not None:
+            self.window.refresh_status()
+        if not self.settings.get("notifications"):
+            return
+        notification = Gio.Notification.new(_("News in the official OpenDots"))
+        notification.set_body(ngettext(
+            "{n} change is ready for {name}. Open Dotdeck to update the server.",
+            "{n} changes are ready for {name}. Open Dotdeck to update the server.",
+            behind).format(n=behind, name=mon.profile.name))
+        notification.set_default_action_and_target_value("app.open-updates",
+                                                         GLib.Variant("s", mon.profile.id))
+        self.send_notification(f"updates-{mon.profile.id}", notification)
+
+    def reload_server(self, profile_id: str) -> None:
+        """After an update the server restarted: poll it and reload its page."""
+        mon = self.monitors.get(profile_id)
+        if mon is not None:
+            mon.poll_now()
+        if self.window is not None and self.window.view is not None \
+                and self.window.view.profile.id == profile_id:
+            GLib.timeout_add_seconds(3, lambda: (self.window.view and self.window.view.reload(),
+                                                 False)[1])
 
     def web_notification(self, profile, title: str, body: str) -> None:
         if not self.settings.get("notifications"):

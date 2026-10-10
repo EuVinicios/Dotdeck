@@ -4,6 +4,19 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.2.0] - 2026-10-09
+
+### Adicionado
+
+- Botão **Atualizar** do servidor: Preferências → Servidores mostra a versão instalada, as
+  novidades do OpenDots oficial e os seus commits locais; a atualização mescla, compila,
+  reinicia, confere e volta sozinha se algo falhar. Aviso por notificação e faixa na janela.
+- `server/updater`: o atualizador que roda ao lado do OpenDots (porta 4311, com o token).
+- `server/voice_gateway`: ponte de voz compatível com a API Realtime que usa o
+  `openai/gpt-audio-mini` do OpenRouter, com legenda, interrupção e a ferramenta `ask_compute`.
+- `server/install.sh`: instala os dois serviços (simulação por padrão, `--apply`, `--uninstall`).
+- Status da voz do servidor nas Preferências.
+
 ## [0.1.0] - 2026-10-09
 
 Primeira versão pública.

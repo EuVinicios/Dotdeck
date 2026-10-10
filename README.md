@@ -37,6 +37,11 @@ conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailsca
   começa, mesmo com a janela fechada.
 - **Bandeja e segundo plano**: ícone com status (Dots, tarefas rodando, chamada), "Falar com
   o Chefe", troca de servidor. No GNOME sem bandeja, aparece em *Aplicativos em segundo plano*.
+- **Atualizar o servidor com um botão**: o Dotdeck avisa quando sai novidade no OpenDots
+  oficial e atualiza mantendo as suas mudanças, desfazendo sozinho se algo falhar
+  ([`server/`](server/README.md)).
+- **Voz só com a chave do OpenRouter**: a ponte de voz do servidor usa o `gpt-audio-mini`
+  (~US$ 0,005 por minuto de fala), sem conta na OpenAI.
 - **Atalhos globais** pelo portal do sistema: `Super+Shift+D` mostra/oculta o Dotdeck,
   `Super+Shift+M` silencia o microfone, e um atalho de aperte-para-falar.
 - **Tema claro/escuro** seguindo o sistema (também dentro da página), zoom, tela cheia.
@@ -78,6 +83,7 @@ flatpak install --user flathub org.gnome.Sdk//51 org.flatpak.Builder
 | Teste de fumaça da interface | `make smoke` |
 | Validar .desktop e AppStream | `make validate` |
 | Gerar o ícone de pelúcia | `make icon` |
+| Imagens da Snap Store | `make store-assets` |
 | Flatpak local | `make flatpak` |
 | Pacote .deb | `make deb` |
 | Snap | `make snap` |
