@@ -23,6 +23,20 @@ conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailsca
 
 ## Recursos
 
+- **Barra lateral nativa com todos os Dots**: cada Dot aparece com o seu pet, o nome e a
+  função, no estilo do Grok Bot. Logo abaixo ficam os Espaços, e no rodapé Atividade,
+  Memórias e Configurações. Você pode buscar (`Ctrl+K`), fixar e ocultar Dots, e trocar de
+  Dot com `Ctrl+1…9` ou `Alt+↑/↓`. A página do OpenDots aparece limpa, sem a barra dela.
+- **12 pets de pelúcia**, um diferente para cada Dot, escolhidos pela função. Dá para trocar
+  na galeria, e o mesmo pet aparece na conversa e na chamada.
+- **Configurações avançadas** com seções e busca:
+  - Aparência e densidade
+  - Notificações por evento
+  - Editor completo de cada Dot
+  - Voz e microfone, com teste de nível
+  - Modelo de IA
+  - Servidores, privacidade e diagnóstico
+- **Ligar para um Dot** com um clique (ou `Ctrl+Shift+L`), com o tempo da chamada na barra.
 - **Configuração guiada**: digite `localhost:4310`, um IP da rede ou um nome do Tailscale. O
   Dotdeck testa a conexão, tenta `https`/`http` e a porta 4310 sozinho e explica o que falta
   (token, servidor só local, certificado inválido).
@@ -98,7 +112,9 @@ Publicação: [Central de Aplicativos do Ubuntu](docs/publicar-na-central-de-app
 ## English
 
 Dotdeck is a native GTK 4 / Libadwaita desktop client for [OpenDots](https://github.com/CopilotKit/OpenDots)
-servers: guided setup, several servers, owner tokens in the keyring, native voice calls
+servers: a native sidebar with every Dot (pet, name and job), twelve plush pets, an advanced
+Settings window with search, one-click voice calls with your Dots, guided setup, several
+servers, owner tokens in the keyring, native voice calls
 (GStreamer WebRTC, because WebKitGTK ships without it), notifications, tray icon, background
 mode and global shortcuts. Get it from the Ubuntu App Center (`snap install dotdeck`), as a
 `.deb` or as a Flatpak from the releases page.

@@ -52,21 +52,21 @@ class Slide:
 
 
 SLIDES = (
-    Slide("1-workspace", "Your AI coworkers, native on Linux",
-          "Connect to OpenDots with dedicated workspaces for every Dot.",
-          (Window("workspace.png", 265, 230),)),
-    Slide("2-voice-calls", "Talk to your Dots in real time",
-          "Voice calls powered by WebRTC, native audio pipeline and push-to-talk.",
-          (Window("connected.png", 265, 230),)),
-    Slide("3-setup", "Frictionless setup in seconds",
-          "Guided connection to local instances, LAN, Tailscale or cloud.",
-          (Window("welcome.png", 265, 230),)),
-    Slide("4-dark-mode", "Designed for GNOME with dark style",
-          "Clean Libadwaita interface that matches your desktop theme.",
-          (Window("workspace-dark.png", 265, 230),)),
-    Slide("5-security", "Private, secure and persistent",
-          "Tokens stored safely in the GNOME keyring, tray icon and global shortcuts.",
-          (Window("preferences.png", 265, 230),)),
+    Slide("1-workspace", "Every Dot, one click away",
+          "A native sidebar with all your Dots: their pets, names and jobs, like a real team.",
+          (Window("workspace.png", 260, 230),)),
+    Slide("2-pets", "A pet for every Dot",
+          "Twelve plush pets. Pick one in the gallery, or let Dotdeck choose by the job.",
+          (Window("pets.png", 260, 230),)),
+    Slide("3-settings", "Settings that go deep",
+          "Search every option: Dots, voice and microphone, AI model, notifications, privacy.",
+          (Window("settings-voice.png", 380, 250),)),
+    Slide("4-dark-mode", "Made for GNOME, light and dark",
+          "A clean Libadwaita interface that follows your desktop, with calls one click away.",
+          (Window("workspace-dark.png", 260, 230),)),
+    Slide("5-setup", "Set up in seconds",
+          "Guided connection to this computer, your home network, Tailscale or the cloud.",
+          (Window("welcome.png", 260, 230),)),
 )
 
 
@@ -240,12 +240,22 @@ def build_banner(out: Path) -> None:
     save(canvas, out / "banner.png")
 
 
+def build_icon(out: Path) -> None:
+    if ICON_PNG.exists():
+        img = Image.open(ICON_PNG)
+        q = img.quantize(colors=256, method=Image.Quantize.LIBIMAGEQUANT)
+        out_icon = out / "icon.png"
+        q.save(out_icon, optimize=True)
+        print(f"{out_icon.relative_to(ROOT)}  {q.width}×{q.height}  {out_icon.stat().st_size // 1024} KB")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, default=ROOT / "data" / "store")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
+    build_icon(args.out)
     for slide in SLIDES:
         build_slide(slide, args.out)
     build_banner(args.out)

@@ -20,3 +20,65 @@ statuspage.compact > scrolledwindow > viewport > box {
   margin-top: 12px;
   margin-bottom: 12px;
 }
+
+/* Native sidebar (0.3) */
+
+.dotdeck-sidebar .sidebar-heading {
+  font-size: 0.86em;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  opacity: 0.72;
+}
+
+.dotdeck-sidebar .sidebar-add {
+  min-width: 26px;
+  min-height: 26px;
+  padding: 0;
+  opacity: 0.7;
+}
+
+.dotdeck-sidebar .sidebar-add:hover {
+  opacity: 1;
+}
+
+.dots-list > row.dot-row {
+  min-height: 50px;
+  padding: 5px 8px 5px 6px;
+}
+
+.dots-list > row.dot-row.compact {
+  min-height: 36px;
+  padding: 2px 8px 2px 6px;
+}
+
+.dots-list .dot-name {
+  font-weight: 600;
+}
+
+.dots-list > row.dot-row.compact .dot-job {
+  font-size: 0.8em;
+}
+
+.dotdeck-sidebar .spaces-expander > box > title {
+  padding: 8px 12px 4px 18px;
+}
+
+.dotdeck-sidebar .nav-badge {
+  border-radius: 999px;
+  padding: 1px 8px;
+  min-width: 10px;
+  min-height: 18px;
+  font-size: 0.82em;
+  font-weight: 700;
+  background-color: alpha(currentColor, 0.1);
+}
+
+.dotdeck-sidebar .nav-badge.accent-badge {
+  background-color: var(--accent-bg-color);
+  color: var(--accent-fg-color);
+}
+
+.call-button {
+  padding-left: 12px;
+  padding-right: 14px;
+}

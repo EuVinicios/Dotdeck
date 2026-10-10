@@ -177,3 +177,124 @@ usuário, `ask_compute` repassado como chamada de função. No OpenDots, uma mud
 (`VOICE_REALTIME_URL`, padrão continua a OpenAI) — candidata a PR no projeto oficial.
 
 **Resposta do dono:** "Ponte + gpt-audio-mini (Recomendado)".
+
+## ADR-012 — Barra lateral nativa e a página do OpenDots em "modo foco" (10/10/2026)
+
+**Contexto.** A barra lateral da página do OpenDots mostrava só 3 dos 8 Dots numa caixa com
+rolagem. A causa é uma regra do fork, `.dots-nav { max-height: 200px }` (commit `a576181`); no
+projeto oficial a barra não tem limite, mas tem só 220 px e divide espaço com Espaços, conversas
+e menus. A referência do dono é o Grok Bot: cada bot é uma linha com nome e função.
+
+**Decisão.** O Dotdeck desenha a própria barra lateral em GTK/Libadwaita
+(`src/ui/sidebar.py`): todos os Dots com pet, nome e função, depois os Espaços, e no rodapé
+Atividade, Memórias e Configurações. A função vem da primeira linha das instruções
+(`# Zelador — SRE da casa`), porque o OpenDots não tem um campo para isso. A página roda em
+"modo foco" (`src/web/focus.js`): o script reconhece a página, esconde a barra e o topo dela e
+recebe os cliques da barra nativa. Funciona com qualquer servidor OpenDots. Se a página não for
+reconhecida (uma versão com outro layout), a barra nativa sai de cena e a página volta a mostrar
+a navegação dela, como no 0.2. O modo foco pode ser desligado em Configurações → Aparência.
+
+Os dados vêm de `/api/workspace` e `/api/state`, consultados a cada 4 s com a janela aberta e a
+cada 20 s em segundo plano. O OpenDots não tem um canal de eventos; a própria página consulta a
+cada 3 s.
+
+**Pedido do dono:** "Veja que a barra lateral onde ficam os dots mostra apenas 3, está tudo muito
+apertado e nada profissional como é o GrokBot por exemplo."
+
+## ADR-013 — Pets próprios, um por Dot (10/10/2026)
+
+**Contexto.** A página escolhe o mascote de cada Dot entre só 4 imagens, por um hash do id. Nos
+8 Dots do dono, três eram o mesmo pet verde (Dot, Zelador e Consultor), e o desenho aparecia
+com 30 px, sem rosto legível.
+
+**Decisão.** São 12 pets de pelúcia próprios (`src/core/pets.py`), desenhados fio a fio pelo
+mesmo processo do ícone (`tools/render_pets.py`, 256 px em `src/pets/`). Cada pet tem uma cor e
+uma silhueta diferente (fone, broto, orelhas de raposa, antena, coroa, laço, óculos, urso, gorro,
+coelho, capelo, capacete), para serem reconhecíveis mesmo pequenos. Os pets são atribuídos
+sozinhos pela função do Dot (dinheiro → coroa, homelab → capacete, pesquisa → capelo), sem
+repetir enquanto houver pets livres, e a escolha fica salva para não mudar depois. O dono troca
+o pet na galeria; se escolher um pet que já é de outro Dot, os dois trocam.
+
+As escolhas ficam neste computador (`~/.config/dotdeck/dots/<servidor>.json`), porque o esquema
+dos Dots no OpenDots é estrito e as instruções vão para o prompt do modelo. Dentro da página, as
+imagens dos mascotes são trocadas por CSS com `data:` (a CSP do servidor só permite `self` e
+`data:`), e assim o mesmo pet aparece na conversa e na chamada. O avatar nativo
+(`src/ui/pet.py`) mostra o estado com um anel: trabalhando, em chamada, falando, pausado ou erro,
+com animações que respeitam a configuração e o "reduzir movimento" do sistema.
+
+**Pedido do dono:** "Os pets também não estão perfeitos, preciso de algo realmente mais bonito e
+fácil de usar."
+
+## ADR-014 — Janela de Configurações avançadas (10/10/2026)
+
+**Contexto.** As Preferências eram um diálogo de 4 abas. As configurações do servidor ficavam
+numa janela da página com títulos informais, inglês misturado com português e emoji, e um campo
+de chave da OpenAI que, preenchido, quebraria as chamadas pela ponte de voz.
+
+**Decisão.** Uma janela de Configurações própria (`src/ui/settings/`), com seções na lateral
+(Aplicativo, Seus Dots, Servidor, Sistema) e busca:
+- **Geral, Aparência, Notificações e Atalhos.** As notificações têm uma chave por evento.
+- **Dots.** Editor de cada Dot com nome, função, instruções (contador até 2000 caracteres),
+  permissões, Espaços e pet.
+- **Voz e chamadas.** Escolha de microfone e alto-falante, teste de microfone, eco, ruído e
+  aperte-para-falar.
+- **Modelo de IA.** Só aparece em servidores que permitem trocar o modelo.
+- **Servidores e Privacidade.** Acesso, atualizações, pesquisa e memórias, pausar tudo.
+- **Avançado e Sobre.**
+
+O que mexe no servidor e interrompe trabalho em andamento pede confirmação. Chaves nunca são
+exibidas nem pré-preenchidas.
+
+**Pedido do dono:** "A tela configurações está muito informal. Quero de fato uma tela de
+configuração avançada como app pagos."
+
+## ADR-015 — Ligar para os Dots (10/10/2026)
+
+**Contexto.** O dono perguntou se já dá para usar as chamadas de voz com os bots. Uma chamada
+real foi feita pelo caminho do próprio OpenDots (`POST /api/voice/calls` com o SDP, depois
+`/active` e `/end`) até a ponte de voz e o `gpt-audio-mini`. O Dot respondeu em português com o
+próprio nome 2,7 s depois do fim da fala, a um custo de US$ 0,0005 no turno.
+
+**Decisão.** As chamadas passam a ser um recurso de primeira linha:
+- **Onde ligar.** Botão **Ligar** no topo do Dot aberto, no menu de cada Dot, na bandeja
+  (Ligar para o Chefe) e em `Ctrl+Shift+L`.
+- **Durante a chamada.** O botão vira **Encerrar** com o tempo da chamada, e o Dot em chamada
+  ganha um anel verde na barra.
+- **Motor da chamada.** Continua sendo o da página (WebRTC pela ponte nativa, ADR-003).
+- **Trocar de Dot.** Como trocar de Dot desmonta a chamada da página, o Dotdeck pergunta antes.
+- **Sem conversa.** Se o Dot ainda não tem conversa, ela é criada antes de ligar.
+- **Botão desligado.** Fica desativado com o motivo quando a voz não está configurada no
+  servidor, quando os Dots estão pausados ou quando já há outra chamada.
+
+Os limites são do OpenDots: uma chamada por vez no servidor, até 15 minutos e até 6 pesquisas
+por chamada. O encerramento leva cerca de 40 s para salvar o resumo, por isso a interface libera
+na hora.
+
+**Pedido do dono:** "avalia se já podemos usar chamadas de voz para fazer as chamadas com os
+bots."
+
+## ADR-016 — Publicação direta no canal estável e ficha da loja sem cookies do navegador (10/10/2026)
+
+**Contexto.** O dono pediu para publicar e subir a versão para o canal estável da Snap Store. O
+caminho de publicação já existe: o CI gera o snap para amd64 e arm64, publica cada push na `main`
+em `edge` e cada tag `v*` em `candidate`. Uma sessão anterior, de outro agente, tinha deixado no
+repositório `tools/update_store_listing.py`, que decifrava os cookies do Chrome para editar a
+ficha da loja. O script incluía ainda uma chave de reserva fixa, publicada no repositório
+público.
+
+**Decisão.**
+- **Caminho até o estável.** Mesclar na `main` e marcar a tag `v0.3.0`, o que publica em
+  `candidate`. Depois de conferir o `--self-test` do snap publicado, promover para `stable` com
+  `snapcraft release`.
+- **Ficha da loja.**
+  - Título, resumo, descrição, ícone e links vão pelo próprio pacote, com
+    `snapcraft upload-metadata`.
+  - Capturas e banner são enviados pelo painel do snapcraft.io, na sessão do dono.
+  - O script de cookies saiu do repositório. Ler cookies ou senhas do navegador não é aceitável
+    para publicar.
+- **Capturas.** Saem de um servidor de demonstração (`tools/demo_server.py`, com Dots fictícios
+  na interface real do OpenDots), para nunca mostrar os Dots reais do dono.
+
+**Pedido do dono:** "Ao final, publica as novas versões e suba para versão estável na loja",
+depois reforçado com "finalizar o aplicativo, publicar e deixar ele na versão stable na
+snapcraft".
