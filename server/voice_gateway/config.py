@@ -19,6 +19,7 @@ class Config:
     transcribe_model: str = "google/gemini-2.5-flash-lite"
     vad_stop_ms: int = 700
     max_calls: int = 2
+    greeting: bool = True                        # the Dot answers the call with one sentence
 
     @classmethod
     def from_env(cls, env: dict | None = None) -> Config:
@@ -40,4 +41,6 @@ class Config:
             transcribe_model=env.get("VOICE_GATEWAY_TRANSCRIBE_MODEL", cls.transcribe_model),
             vad_stop_ms=int(env.get("VOICE_GATEWAY_SILENCE_MS", cls.vad_stop_ms)),
             max_calls=int(env.get("VOICE_GATEWAY_MAX_CALLS", cls.max_calls)),
+            greeting=env.get("VOICE_GATEWAY_GREETING", "1").strip().lower()
+            not in ("0", "false", "no", "off"),
         )

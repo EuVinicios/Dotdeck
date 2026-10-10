@@ -2,6 +2,11 @@
 
 An adaptive energy detector is enough here: the caller's audio has already been
 through the browser's (or Dotdeck's) echo cancellation and noise suppression.
+
+The background level is the quietest tenth of the last few seconds, measured all the
+time (also while the caller talks). A real headset with automatic gain hums around
+-40 dB; a floor learnt only between utterances started at -70 dB, took that hum for
+speech from the first frame and never heard the caller stop.
 """
 
 from __future__ import annotations
@@ -30,7 +35,8 @@ class Vad:
     """Feed PCM; get ``(START,)`` and ``(END, utterance_pcm)`` events."""
 
     def __init__(self, stop_ms: int = 700, min_speech_ms: int = 250, preroll_ms: int = 300,
-                 max_ms: int = 30_000, margin_db: float = 10.0, absolute_db: float = -50.0):
+                 max_ms: int = 15_000, margin_db: float = 10.0, absolute_db: float = -50.0,
+                 floor_window_ms: int = 5000, warmup_ms: int = 300):
         self.stop_frames = max(1, stop_ms // FRAME_MS)
         self.min_frames = max(1, min_speech_ms // FRAME_MS)
         self.max_frames = max(1, max_ms // FRAME_MS)
@@ -38,6 +44,8 @@ class Vad:
         self.absolute_db = absolute_db
         self.bias_db = 0.0                    # raised while the bot is talking
         self.floor_db = -70.0
+        self._levels: deque[float] = deque(maxlen=max(10, floor_window_ms // FRAME_MS))
+        self.warmup_frames = max(1, warmup_ms // FRAME_MS)
         self._pending = b""
         self._preroll: deque[bytes] = deque(maxlen=max(1, preroll_ms // FRAME_MS))
         self._loud_run = 0
@@ -61,17 +69,22 @@ class Vad:
                 events.append(event)
         return events
 
+    def _track_floor(self, level: float) -> None:
+        self._levels.append(level)
+        if len(self._levels) >= 5:
+            ordered = sorted(self._levels)
+            # Never above -30 dB: a steady sound that loud is someone talking (or a test
+            # tone), not a room's background.
+            self.floor_db = min(-30.0, max(-90.0, ordered[len(ordered) // 10]))
+
     def _frame(self, frame: bytes):
         level = frame_db(frame)
+        self._track_floor(level)
         loud = level > self.threshold_db
         if not self.speaking:
-            if not loud:
-                # Track the background level, quicker downwards than upwards.
-                weight = 0.3 if level < self.floor_db else 0.02
-                self.floor_db += (level - self.floor_db) * weight
             self._preroll.append(frame)
             self._loud_run = self._loud_run + 1 if loud else 0
-            if self._loud_run >= 3:
+            if self._loud_run >= 3 and len(self._levels) >= self.warmup_frames:
                 self.speaking = True
                 self._utterance = list(self._preroll)
                 self._voiced = self._loud_run

@@ -6,6 +6,19 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 
 ## [Não lançado]
 
+### Corrigido
+
+- **Ligações (gateway de voz)**: com um fone de verdade, o Dot não ouvia nada. O detector de
+  fala aprendia o ruído de fundo só entre uma frase e outra, partindo de −70 dB; o chiado de
+  um fone com fio e ganho automático (por volta de −40 dB) virava "fala" desde o primeiro
+  instante, e o fim da frase nunca chegava. Agora o ruído de fundo é medido o tempo todo (o
+  décimo mais baixo dos últimos 5 s, até −30 dB) e uma frase tem no máximo 15 s.
+
+### Adicionado
+
+- **O Dot atende a ligação**: ao conectar, ele diz uma frase curta (o nome e como pode
+  ajudar), a prova de que a chamada está no ar. `VOICE_GATEWAY_GREETING=0` desliga.
+
 ### Alterado
 
 - Em português, o modelo "Caretaker" do Novo Dot passa a se chamar **Manutenção**.
