@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Build artifacts
+build/
+dist/
+.flatpak-builder/
+repo/
+*.flatpak
+*.deb
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Local runtime data used by tests/tools
+.test-data/
+
+# Compiled translations (built by make locale / make install)
+src/locale/
