@@ -3,7 +3,7 @@
 # This file is distributed under the same license as the Dotdeck package.
 msgid ""
 msgstr ""
-"Project-Id-Version: Dotdeck 0.3.0\n"
+"Project-Id-Version: Dotdeck 0.3.1\n"
 "Report-Msgid-Bugs-To: https://github.com/EuVinicios/Dotdeck/issues\n"
 "PO-Revision-Date: 2026-10-10 00:30-0300\n"
 "Last-Translator: EuVinicios <EuVinicios@users.noreply.github.com>\n"

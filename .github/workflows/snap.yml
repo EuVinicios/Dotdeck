@@ -105,6 +105,17 @@ jobs:
           grep -q '"voice_engine": "ready"' self-test.json
           grep -q '"sandbox": "snap"' self-test.json
 
+      # --version and --self-test exit before the app registers on D-Bus, and CI runners
+      # cannot start snap apps under a private bus. So check what confinement allows: the
+      # AppArmor profile must let the app own its id, or it stops at "Failed to register".
+      - name: Confinamento permite o nome no D-Bus
+        run: |
+          profile=/var/lib/snapd/apparmor/profiles/snap.dotdeck.dotdeck
+          # snapd writes the rule over lines ("dbus (bind)" / "bus=session" / "name=…,").
+          sudo grep -q "name=io.github.euvinicios.Dotdeck," "$profile" \
+            || { echo "O perfil AppArmor não deixa o app registrar io.github.euvinicios.Dotdeck."; exit 1; }
+          echo "ok: o perfil permite io.github.euvinicios.Dotdeck"
+
       - uses: actions/upload-artifact@v7
         with:
           name: dotdeck-snap-${{ matrix.arch }}

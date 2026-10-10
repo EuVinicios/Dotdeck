@@ -4,6 +4,16 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.1] - 2026-10-10
+
+### Corrigido
+
+- **Snap:** o app parava em "Failed to register" e não abria a janela, porque o
+  confinamento não deixava o Dotdeck usar o próprio nome no D-Bus. O snap agora declara
+  esse nome (slot `dbus`). O problema vinha desde a 0.1.0 e não aparecia na CI, que só
+  rodava `--version` e `--self-test`; a CI agora abre a janela do snap instalado.
+- Teste de modo foco que às vezes lia o estilo antes de a página desenhar.
+
 ## [0.3.0] - 2026-10-10
 
 ### Adicionado
