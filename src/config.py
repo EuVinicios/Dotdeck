@@ -9,11 +9,11 @@ from gi.repository import GLib
 
 APP_ID = "io.github.euvinicios.Dotdeck"
 APP_NAME = "Dotdeck"
-VERSION = "0.3.4"
+VERSION = "0.3.5"
 GETTEXT_DOMAIN = "dotdeck"
 DEVELOPER = "EuVinicios"
 REPOSITORY = "https://github.com/EuVinicios/Dotdeck"
-WEBSITE = REPOSITORY
+WEBSITE = "https://euvinicios.github.io/Dotdeck/"
 ISSUE_URL = f"{REPOSITORY}/issues"
 OPENDOTS_URL = "https://github.com/CopilotKit/OpenDots"
 

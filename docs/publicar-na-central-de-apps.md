@@ -90,11 +90,53 @@ com a chave entregue pelo portal Secret.
 
 Em <https://snapcraft.io/dotdeck/listing>:
 
-- **Capturas de tela e banner:** gerados com `make store-assets` em `data/store/`
-  (banner 1800×600 e 5 capturas 1760×1100 emolduradas com gradiente, título e subtítulo).
+- **Capturas de tela e banner:** os de `data/store/`, gerados com `make store-assets`
+  (banner 1800×600 e 5 capturas 1760×1100 em português, emolduradas com gradiente, título e
+  subtítulo). Envie as capturas na ordem do nome do arquivo (`screenshot-1-dots.png` primeiro).
 - **Categorias:** "Produtividade" (principal) e "Social".
 - **Ícone, título, resumo, descrição, licença e links** já vêm do `snapcraft.yaml` e do
-  metainfo.
+  metainfo. O site (`https://euvinicios.github.io/Dotdeck/`) é o `website` do snap e o
+  `homepage` do metainfo.
+
+## 5. Atualizar as capturas, a ficha e o site
+
+Sempre que a interface mudar de um jeito visível, refaça as imagens na ordem abaixo. Elas
+mostram só Dots fictícios: nunca use um servidor de verdade para isso.
+
+1. **Capturas do app.** Com um build do cliente web do OpenDots (`npm run build` gera
+   `dist/client`) e a SDK do GNOME 51:
+
+   ```bash
+   make screenshots OPENDOTS_CLIENT=<OpenDots>/dist/client
+   ```
+
+   O `tools/demo_server.py` sobe sozinho numa porta livre, com Dots fictícios e o modelo
+   Claude Haiku 5.5 pelo OpenRouter. Saem as capturas em inglês em `data/screenshots/` (as do
+   AppStream, que o GNOME Software e a Flathub mostram) e em português, claro e escuro, em
+   `data/screenshots/pt_BR/` (as do site e da loja). Abra cada uma antes de seguir.
+2. **Imagens da loja e do site:**
+
+   ```bash
+   make store-assets
+   ```
+
+   Gera em `data/store/` o ícone, o banner, os cinco slides e `social-card.png` (1200×630, a
+   prévia que aparece quando alguém compartilha o link do site).
+3. **Lista do AppStream.** As capturas do metainfo apontam para a `main` no GitHub. Se entrar
+   uma captura nova, acrescente um `<screenshot>` com a legenda em inglês e em `pt-BR` e rode
+   `make validate`.
+4. **Conferir o site:** `make site` monta tudo em `build/website/`. Para ver no navegador:
+
+   ```bash
+   python3 -m http.server --directory build/website 8000
+   ```
+
+5. **Publicar.** Depois do merge na `main`, o workflow **Site**
+   ([`.github/workflows/pages.yml`](../.github/workflows/pages.yml)) passa a busca de
+   privacidade no site e o publica no GitHub Pages. Na primeira vez, ligue o Pages em
+   **Settings → Pages → Build and deployment → Source: GitHub Actions**. As imagens da loja
+   são enviadas pelo painel da página da loja (seção 4), na sessão do dono, e o texto da
+   ficha com `snapcraft upload-metadata` (ADR-016).
 
 ## Verificação local
 

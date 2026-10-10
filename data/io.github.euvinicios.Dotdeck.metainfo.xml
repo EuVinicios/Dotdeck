@@ -86,7 +86,7 @@
   </provides>
   <translation type="gettext">dotdeck</translation>
 
-  <url type="homepage">https://github.com/EuVinicios/Dotdeck</url>
+  <url type="homepage">https://euvinicios.github.io/Dotdeck/</url>
   <url type="bugtracker">https://github.com/EuVinicios/Dotdeck/issues</url>
   <url type="vcs-browser">https://github.com/EuVinicios/Dotdeck</url>
   <url type="contribute">https://github.com/EuVinicios/Dotdeck/blob/main/CONTRIBUTING.md</url>
@@ -132,9 +132,14 @@
       <caption xml:lang="pt-BR">Doze pets de pelúcia: cada Dot tem o seu</caption>
     </screenshot>
     <screenshot>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/settings-model.png</image>
+      <caption>AI Models: the model your Dots use, its approximate cost and a one-click test</caption>
+      <caption xml:lang="pt-BR">Modelos de IA: o modelo dos seus Dots, o custo aproximado e um teste com um clique</caption>
+    </screenshot>
+    <screenshot>
       <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/settings-voice.png</image>
-      <caption>Advanced settings with search, including voice and microphone</caption>
-      <caption xml:lang="pt-BR">Configurações avançadas com busca, incluindo voz e microfone</caption>
+      <caption>Voice calls: the three models of a call, the voice, microphone and speaker</caption>
+      <caption xml:lang="pt-BR">Chamadas de voz: os três modelos da chamada, a voz, o microfone e o alto-falante</caption>
     </screenshot>
     <screenshot>
       <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/settings-dots.png</image>
@@ -154,6 +159,16 @@
   </screenshots>
 
   <releases>
+    <release version="0.3.5" date="2026-10-10">
+      <description>
+        <p>An official website and new screenshots.</p>
+        <ul>
+          <li>Dotdeck has an official website, linked from its page in the software center</li>
+          <li>New screenshots, including the AI Models and Voice Calls pages</li>
+          <li>Portuguese labels that the default GNOME font cut short now fit</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.4" date="2026-10-10">
       <description>
         <p>Voice calls fixed.</p>

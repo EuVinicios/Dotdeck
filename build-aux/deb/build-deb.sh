@@ -39,7 +39,7 @@ Depends: python3 (>= 3.11), python3-gi (>= 3.50), python3-gi-cairo, python3-cair
 Recommends: gir1.2-secret-1, gstreamer1.0-pipewire | gstreamer1.0-pulseaudio, xdg-desktop-portal-gnome | xdg-desktop-portal-kde
 Section: net
 Priority: optional
-Homepage: https://github.com/EuVinicios/Dotdeck
+Homepage: https://euvinicios.github.io/Dotdeck/
 Description: native desktop client for OpenDots AI coworkers
  Dotdeck connects to an OpenDots server (the self-hosted workspace of
  always-on AI coworkers called Dots) on this computer, the local network,
