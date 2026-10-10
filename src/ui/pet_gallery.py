@@ -1,7 +1,7 @@
 """The pet gallery: which plush pet a Dot wears, with a live preview and safe swaps.
 
 ``choose_pet(app, profile, dot, parent, done)`` shows every pet as a tile. A pet that
-already belongs to another Dot says so ("With Chefe"); choosing it asks first and then
+already belongs to another Dot says so ("With Assistente"); choosing it asks first and then
 swaps the two pets, so no two Dots ever look the same. The choice is kept on this
 computer by ``dotprefs`` (OpenDots has no field for it).
 """
@@ -245,7 +245,7 @@ def automatic_pet(dot: Dot, owners: dict[str, Dot]) -> str:
 
 
 def tile_label(pet: pets.Pet, owner: Dot | None) -> str:
-    """What a screen reader says for a tile: "Sky, pet of Chefe" or "Sky, available"."""
+    """What a screen reader says for a tile: "Sky, pet of Assistente" or "Sky, available"."""
     if owner is not None:
         return _("{pet}, pet of {dot}").format(pet=_(pet.name), dot=owner.name)
     return _("{pet}, available").format(pet=_(pet.name))
@@ -274,7 +274,7 @@ class PetTile(Gtk.FlowBoxChild):
         box.append(self.avatar)
         box.append(self.name_label)
         box.append(self.caption)
-        # The tile speaks for itself ("Sky, pet of Chefe"); its parts would only repeat it.
+        # The tile speaks for itself ("Sky, pet of Assistente"); its parts would only repeat it.
         box.update_state([Gtk.AccessibleState.HIDDEN], [True])
         self.set_child(box)
         self.set_tooltip_text(_(TAGLINES.get(pet.id, "")) or None)

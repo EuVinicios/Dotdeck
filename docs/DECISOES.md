@@ -188,11 +188,12 @@ e menus. A referência do dono é o Grok Bot: cada bot é uma linha com nome e f
 **Decisão.** O Dotdeck desenha a própria barra lateral em GTK/Libadwaita
 (`src/ui/sidebar.py`): todos os Dots com pet, nome e função, depois os Espaços, e no rodapé
 Atividade, Memórias e Configurações. A função vem da primeira linha das instruções
-(`# Zelador — SRE da casa`), porque o OpenDots não tem um campo para isso. A página roda em
-"modo foco" (`src/web/focus.js`): o script reconhece a página, esconde a barra e o topo dela e
-recebe os cliques da barra nativa. Funciona com qualquer servidor OpenDots. Se a página não for
-reconhecida (uma versão com outro layout), a barra nativa sai de cena e a página volta a mostrar
-a navegação dela, como no 0.2. O modo foco pode ser desligado em Configurações → Aparência.
+(`# Manutenção — backups e o servidor de casa`), porque o OpenDots não tem um campo para isso.
+A página roda em "modo foco" (`src/web/focus.js`): o script reconhece a página, esconde a barra
+e o topo dela e recebe os cliques da barra nativa. Funciona com qualquer servidor OpenDots. Se a
+página não for reconhecida (uma versão com outro layout), a barra nativa sai de cena e a página
+volta a mostrar a navegação dela, como no 0.2. O modo foco pode ser desligado em Configurações
+→ Aparência.
 
 Os dados vêm de `/api/workspace` e `/api/state`, consultados a cada 4 s com a janela aberta e a
 cada 20 s em segundo plano. O OpenDots não tem um canal de eventos; a própria página consulta a
@@ -201,17 +202,20 @@ cada 3 s.
 **Pedido do dono:** "Veja que a barra lateral onde ficam os dots mostra apenas 3, está tudo muito
 apertado e nada profissional como é o GrokBot por exemplo."
 
+> Nota (10/10/2026): o exemplo de primeira linha foi anonimizado e usa um dos Dots fictícios
+> das capturas (ADR-019).
+
 ## ADR-013 — Pets próprios, um por Dot (10/10/2026)
 
 **Contexto.** A página escolhe o mascote de cada Dot entre só 4 imagens, por um hash do id. Nos
-8 Dots do dono, três eram o mesmo pet verde (Dot, Zelador e Consultor), e o desenho aparecia
-com 30 px, sem rosto legível.
+8 Dots do dono, três eram o mesmo pet verde (por exemplo, Dot, Manutenção e Estratégia), e o
+desenho aparecia com 30 px, sem rosto legível.
 
 **Decisão.** São 12 pets de pelúcia próprios (`src/core/pets.py`), desenhados fio a fio pelo
 mesmo processo do ícone (`tools/render_pets.py`, 256 px em `src/pets/`). Cada pet tem uma cor e
 uma silhueta diferente (fone, broto, orelhas de raposa, antena, coroa, laço, óculos, urso, gorro,
 coelho, capelo, capacete), para serem reconhecíveis mesmo pequenos. Os pets são atribuídos
-sozinhos pela função do Dot (dinheiro → coroa, homelab → capacete, pesquisa → capelo), sem
+sozinhos pela função do Dot (dinheiro → coroa, servidor → capacete, pesquisa → capelo), sem
 repetir enquanto houver pets livres, e a escolha fica salva para não mudar depois. O dono troca
 o pet na galeria; se escolher um pet que já é de outro Dot, os dois trocam.
 
@@ -224,6 +228,9 @@ com animações que respeitam a configuração e o "reduzir movimento" do sistem
 
 **Pedido do dono:** "Os pets também não estão perfeitos, preciso de algo realmente mais bonito e
 fácil de usar."
+
+> Nota (10/10/2026): os nomes dos Dots nesta ADR foram anonimizados e são os Dots fictícios das
+> capturas (ADR-019); o fato registrado (três dos 8 Dots com o mesmo pet) não mudou.
 
 ## ADR-014 — Janela de Configurações avançadas (10/10/2026)
 
@@ -419,3 +426,30 @@ O site só fica no ar depois do merge e de uma configuração única no GitHub: 
 **Pedido do dono:** "Depois de promover a versão para estável, temos que fazer o mesmo que
 fizemos com o PodFlow e colocar os prints do app no site oficial do linux, criar um site no
 git como temos do Podflow e deixar tudo com a cara mais profissional possível".
+
+## ADR-019 — Exemplos anonimizados no repositório público (10/10/2026)
+
+**Contexto.** A revisão do site (PR #9) achou dados do dono no repositório público: as ADR-012
+e ADR-013 citavam nomes e funções dos Dots reais do servidor dele, a tradução em português do
+modelo "Caretaker" do Novo Dot tinha o nome de um desses Dots, e os testes repetiam o conjunto
+inteiro, com a função de cada um. Também havia um arquivo de trabalho esquecido no git,
+`data/icons/hicolor/1024.tmp.png`, que nada usa.
+
+**Decisão.**
+- **Um só conjunto de exemplos.** Documentos, testes e traduções usam os Dots fictícios das
+  capturas (`tools/demo_server.py`): Assistente, Pesquisa, Redação, Finanças, Manutenção,
+  Laboratório, Estratégia e Estudos, os mesmos em inglês, e o servidor Aurora. As ADR-012 e
+  ADR-013 mantêm o sentido e ganham uma nota de que os exemplos foram anonimizados.
+- **O que fica.** O vocabulário de que o app precisa para funcionar: os nomes que
+  `chief_dot` reconhece como o Dot chefe (`src/core/monitor.py`, entre eles "Chefe"), as
+  palavras que escolhem o pet (`src/core/pets.py`) e "Chefe" como nome do papel na interface
+  ("Falar com o Chefe"). São palavras comuns, não dados de alguém, e os testes que conferem
+  esse palpite continuam usando "Chefe".
+- **Modelo do Novo Dot.** Em português, "Caretaker" passa a ser "Manutenção"; o pet continua o
+  capacete, pela palavra "manuten".
+- **Sem lista de nomes na busca de privacidade.** `tools/privacy_scan.py` só procura formatos
+  genéricos; uma lista com os nomes reais publicaria justamente os nomes. A conferência fica
+  na revisão.
+- **Arquivo esquecido.** `1024.tmp.png` sai do git e `*.tmp.png` entra no `.gitignore`.
+- **Histórico.** Os commits antigos continuam com os nomes. Reescrever o histórico do
+  repositório público só se o dono pedir.

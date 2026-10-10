@@ -13,7 +13,8 @@ from dataclasses import dataclass, field
 ACTIVE_CALL = ("connecting", "active")
 JOB_LIMIT = 60
 
-# "# Zelador — SRE da casa" (the convention the owner's Dots follow), with -, – or —.
+# "# Manutenção — backups e o servidor de casa" (the first line Dotdeck reads the job from),
+# with -, – or —.
 _JOB_HEADER = re.compile(r"^#*\s*(?P<name>.+?)\s+[—–-]\s+(?P<job>.+)$")
 
 

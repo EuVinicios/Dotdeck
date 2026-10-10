@@ -302,7 +302,7 @@ class GatewayCallTest(unittest.TestCase):
         self.assertTrue(run_until(lambda: "local" in box, 10))
 
         session = {"type": "realtime", "model": "gpt-4o-realtime-preview",
-                   "instructions": "You are Chefe.", "audio": {"output": {"voice": "marin"}},
+                   "instructions": "You are Assistente.", "audio": {"output": {"voice": "marin"}},
                    "tools": [{"type": "function", "name": "ask_compute", "description": "d",
                               "parameters": {"type": "object", "properties": {
                                   "request": {"type": "string"}}}}]}
@@ -335,7 +335,7 @@ class GatewayCallTest(unittest.TestCase):
         first = next(r for r in self.fake.requests if r.get("stream"))
         self.assertEqual(first["model"], "openai/gpt-audio-mini")
         self.assertEqual(first["audio"], {"voice": "marin", "format": "pcm16"})
-        self.assertEqual(first["messages"][0], {"role": "system", "content": "You are Chefe."})
+        self.assertEqual(first["messages"][0], {"role": "system", "content": "You are Assistente."})
         self.assertEqual(first["messages"][-1]["content"][0]["type"], "input_audio")
         self.assertEqual(first["tools"][0]["function"]["name"], "ask_compute")
         self.assertTrue(run_until(lambda: got(
@@ -523,7 +523,7 @@ class CallLogicTest(unittest.TestCase):
         settings = Config(token=TOKEN, api_key=SECRET_KEY, base_url=self.fake.url, port=0,
                           **config)
         session = {"type": "realtime", "model": "gpt-4o-realtime-preview",
-                   "instructions": "You are Chefe.", "audio": {"output": {"voice": "marin"}},
+                   "instructions": "You are Assistente.", "audio": {"output": {"voice": "marin"}},
                    "tools": [ASK_COMPUTE]}
         call = RecordingCall("rtc_test", session, settings,
                              OpenRouter(SECRET_KEY, self.fake.url), lambda _id: None)
@@ -652,7 +652,7 @@ class CallLogicTest(unittest.TestCase):
         call._on_message(json.dumps({"type": "session.update", "session": {
             "audio": {"output": {"voice": "robot"}}, "instructions": "Be someone else."}}))
         self.assertEqual(call.last("session.updated")["session"]["voice"], "coral")
-        self.assertEqual(call.messages[0], {"role": "system", "content": "You are Chefe."})
+        self.assertEqual(call.messages[0], {"role": "system", "content": "You are Assistente."})
         call._on_message(json.dumps({"type": "session.update", "session": {"voice": 7}}))
         self.assertEqual(call.voice, "coral")
 

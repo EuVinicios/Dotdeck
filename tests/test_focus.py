@@ -27,10 +27,12 @@ from tests.fake_server import FakeOpenDots  # noqa: E402
 from tests.test_webview import FakeHost  # noqa: E402
 
 TOKEN = "owner-token-for-focus-tests"
-DOTS = ["Chefe", "Zelador", "Dot", "Negócios", "Dinheiro", "Oficina", "Acadêmico", "Consultor"]
-PETS = {"Chefe": "rosy", "Zelador": "bolt", "Dot": "sprout", "Negócios": "ember",
-        "Dinheiro": "sunny", "Oficina": "plum", "Acadêmico": "sage", "Consultor": "graphite"}
-LONG = "# Chefe — chefe de gabinete da Ana\n\n" + "Organiza a agenda e cobra prazos. " * 60
+DOTS = ["Assistente", "Manutenção", "Dot", "Estratégia", "Finanças", "Laboratório", "Estudos",
+        "Pesquisa"]
+PETS = {"Assistente": "rosy", "Manutenção": "bolt", "Dot": "sprout", "Estratégia": "ember",
+        "Finanças": "sunny", "Laboratório": "plum", "Estudos": "sage", "Pesquisa": "graphite"}
+LONG = "# Assistente — organiza o dia e os outros Dots\n\n" + \
+    "Organiza a agenda e cobra prazos. " * 60
 NEW = {"id": "c9", "dotId": "d5", "title": "Voice call", "createdAt": 9}
 # Newest first, as GET /api/workspace lists them.
 CONVERSATIONS = [
@@ -59,7 +61,7 @@ class FocusModeTest(unittest.TestCase):
         from src.web.webview import ServerView
         cls.ServerView = ServerView
         cls.fake = FakeOpenDots(token=TOKEN, opendots=True, dots=DOTS,
-                                instructions={"Chefe": LONG},
+                                instructions={"Assistente": LONG},
                                 conversations=CONVERSATIONS,
                                 spaces=[{"id": "s0", "name": "Casa", "description": "",
                                          "createdAt": 1}]).start()
@@ -193,15 +195,15 @@ class FocusModeTest(unittest.TestCase):
                                   "height": hidden["inner"], "inner": hidden["inner"],
                                   "clamp": "3", "collapsed": "false"})
 
-        # The home card shows the job from "# Chefe — job" instead of the instructions.
+        # The home card shows the job from "# Assistente — job" instead of the instructions.
         self.assertEqual(self.js("""return document.querySelector('.empty-chat-persona p')
-            .getAttribute('data-dotdeck-summary');"""), "chefe de gabinete da Ana")
-        self.assertTrue(self.command(view.open_dot, 0, "Chefe"))
+            .getAttribute('data-dotdeck-summary');"""), "organiza o dia e os outros Dots")
+        self.assertTrue(self.command(view.open_dot, 0, "Assistente"))
         self.assertEqual(self.js("""const p = document.querySelector('.chat-welcome > p');
             return [getComputedStyle(p).display, getComputedStyle(
             document.querySelector('.chat-welcome > p.muted')).display];"""),
             ["none", "-webkit-box"])
-        self.assertTrue(self.command(view.new_chat, 0, "Chefe"))
+        self.assertTrue(self.command(view.new_chat, 0, "Assistente"))
 
         view.set_focus_mode(False)
         self.assertTrue(run_until(lambda: len(self.focus_events) == 2, 5))
@@ -227,7 +229,7 @@ class FocusModeTest(unittest.TestCase):
             'data-dotdeck-focus'), document.querySelector('h1').textContent,
             getComputedStyle(document.querySelector('h1')).display];"""),
             [False, "OpenDots", "block"])
-        self.assertFalse(self.command(view.open_dot, 0, "Chefe"))
+        self.assertFalse(self.command(view.open_dot, 0, "Assistente"))
 
     def test_the_unlock_screen_is_opendots_and_focus_follows_the_page(self):
         # Without a token the page shows its unlock form: OpenDots, with nothing to hide,
@@ -287,17 +289,17 @@ class FocusModeTest(unittest.TestCase):
 
     def test_open_dot_by_index_checks_the_name(self):
         view = self.open_app()
-        self.assertTrue(self.command(view.open_dot, 1, "Zelador"))
-        self.assertTrue(self.selection_is("Zelador", "chat"))
+        self.assertTrue(self.command(view.open_dot, 1, "Manutenção"))
+        self.assertTrue(self.selection_is("Manutenção", "chat"))
         self.assertEqual(self.js("""return [window.__fake.selectedThread,
             document.querySelector('.chat-persona strong').textContent,
             getComputedStyle(document.querySelector('.chat-persona')).display];"""),
-            ["c5", "Zelador", "none"])
+            ["c5", "Manutenção", "none"])
         # The page's list changed under the native one: the name wins over the index.
-        self.assertTrue(self.command(view.open_dot, 3, "Oficina"))
-        self.assertTrue(self.selection_is("Oficina", "home"))
+        self.assertTrue(self.command(view.open_dot, 3, "Laboratório"))
+        self.assertTrue(self.selection_is("Laboratório", "home"))
         self.assertFalse(self.command(view.open_dot, 0, "Nobody"))
-        self.assertEqual(view.page_selection, ("Oficina", "home"))
+        self.assertEqual(view.page_selection, ("Laboratório", "home"))
 
     def test_open_dot_expands_a_collapsed_dots_list(self):
         view = self.open_app()
@@ -305,40 +307,40 @@ class FocusModeTest(unittest.TestCase):
                 "return true;")
         self.assertTrue(run_until(lambda: self.js(
             "return !document.querySelector('nav[aria-label=\"Dots\"]');"), 5))
-        self.assertTrue(self.command(view.open_dot, 4, "Dinheiro"))
-        self.assertTrue(self.selection_is("Dinheiro", "chat"))
+        self.assertTrue(self.command(view.open_dot, 4, "Finanças"))
+        self.assertTrue(self.selection_is("Finanças", "chat"))
 
     def test_new_chat_shows_an_empty_composer(self):
         view = self.open_app()
-        self.assertTrue(self.command(view.new_chat, 0, "Chefe"))
-        self.assertTrue(self.selection_is("Chefe", "home"))
+        self.assertTrue(self.command(view.new_chat, 0, "Assistente"))
+        self.assertTrue(self.selection_is("Assistente", "home"))
         self.assertEqual(self.js("""return [window.__fake.selectedThread === undefined,
             document.activeElement.getAttribute('aria-label')];"""),
             [True, "Start a conversation"])
         # From a conversation of the open Dot: straight home, without reopening the Dot.
-        self.assertTrue(self.command(view.open_conversation, "c2", 0, "Chefe"))
+        self.assertTrue(self.command(view.open_conversation, "c2", 0, "Assistente"))
         chosen = self.js("return window.__fake.chosen;")
-        self.assertTrue(self.command(view.new_chat, 0, "Chefe"))
-        self.assertTrue(self.selection_is("Chefe", "home"))
+        self.assertTrue(self.command(view.new_chat, 0, "Assistente"))
+        self.assertTrue(self.selection_is("Assistente", "home"))
         self.assertEqual(self.js("return window.__fake.chosen;"), chosen)
         # Another Dot is opened first.
-        self.assertTrue(self.command(view.new_chat, 1, "Zelador"))
-        self.assertTrue(self.selection_is("Zelador", "home"))
+        self.assertTrue(self.command(view.new_chat, 1, "Manutenção"))
+        self.assertTrue(self.selection_is("Manutenção", "home"))
 
     def test_open_conversation_through_react(self):
         view = self.open_app()
-        self.assertTrue(self.command(view.open_conversation, "c2", 0, "Chefe"))
-        self.assertTrue(self.selection_is("Chefe", "chat"))
+        self.assertTrue(self.command(view.open_conversation, "c2", 0, "Assistente"))
+        self.assertTrue(self.selection_is("Assistente", "chat"))
         self.assertEqual(self.js("return window.__fake.selectedThread;"), "c2")
         # Another Dot's conversation opens directly (not its Dot's latest one first).
-        self.assertTrue(self.command(view.open_conversation, "c1", 4, "Dinheiro"))
+        self.assertTrue(self.command(view.open_conversation, "c1", 4, "Finanças"))
         self.assertEqual(self.js("return [window.__fake.selectedThread, window.__fake.chosen];"),
                          ["c1", 0])
         # One the server does not have fails at once; the page shows the Dot instead.
         started = GLib.get_monotonic_time()
-        self.assertFalse(self.command(view.open_conversation, "missing", 1, "Zelador"))
+        self.assertFalse(self.command(view.open_conversation, "missing", 1, "Manutenção"))
         self.assertLess(GLib.get_monotonic_time() - started, 4_000_000)
-        self.assertTrue(self.selection_is("Zelador", "chat"))
+        self.assertTrue(self.selection_is("Manutenção", "chat"))
 
     def test_open_conversation_waits_for_a_new_one(self):
         # Dotdeck creates a conversation through the API, then opens it at once: the
@@ -348,14 +350,14 @@ class FocusModeTest(unittest.TestCase):
             "return window.__fake.workspace.conversations.length;") == len(CONVERSATIONS), 5))
         self.fake.conversations.insert(0, NEW)
         self.addCleanup(self.fake.conversations.remove, NEW)
-        self.assertTrue(self.command(view.open_conversation, "c9", 5, "Oficina"))
-        self.assertTrue(self.selection_is("Oficina", "chat"))
+        self.assertTrue(self.command(view.open_conversation, "c9", 5, "Laboratório"))
+        self.assertTrue(self.selection_is("Laboratório", "chat"))
         self.assertEqual(self.js("return window.__fake.selectedThread;"), "c9")
 
     def test_open_conversation_without_react_internals(self):
         view = self.open_app(path="/?nofiber=1")
-        self.assertTrue(self.command(view.open_conversation, "c2", 0, "Chefe"))
-        self.assertTrue(self.selection_is("Chefe", "chat"))
+        self.assertTrue(self.command(view.open_conversation, "c2", 0, "Assistente"))
+        self.assertTrue(self.selection_is("Assistente", "chat"))
         self.assertEqual(self.js("return window.__fake.selectedThread;"), "c2")
         self.assertTrue(self.command(view.open_conversation, "c3", 2, "Dot"))
         self.assertEqual(self.js("return window.__fake.selectedThread;"), "c3")
@@ -374,12 +376,12 @@ class FocusModeTest(unittest.TestCase):
         self.assertTrue(self.selection_is("", "memories"))
         self.assertTrue(self.command(view.open_web_settings))
         self.js("document.querySelector('.modal-close').click(); return true;")
-        self.assertTrue(self.command(view.edit_dot_in_page, "Zelador"))
+        self.assertTrue(self.command(view.edit_dot_in_page, "Manutenção"))
         self.assertEqual(self.js("return document.querySelector('#dialog-title').textContent;"),
-                         "Edit Zelador")
+                         "Edit Manutenção")
         self.js("document.querySelector('.modal-close').click(); return true;")
         self.assertFalse(self.command(view.edit_dot_in_page, "Nobody"))
-        self.assertTrue(self.command(view.open_dot, 0, "Chefe"))
+        self.assertTrue(self.command(view.open_dot, 0, "Assistente"))
         self.assertTrue(self.command(view.toggle_computer))
         self.assertEqual(self.js("""return document.querySelector(
             'button[aria-label="Hide computer"]').getAttribute('aria-expanded');"""), "true")
@@ -387,23 +389,23 @@ class FocusModeTest(unittest.TestCase):
     def test_calls_start_once_the_button_is_ready_and_end(self):
         view = self.open_app()
         self.assertFalse(self.command(view.end_call))
-        self.assertTrue(self.command(view.start_call, None, 1, "Zelador"))
+        self.assertTrue(self.command(view.start_call, None, 1, "Manutenção"))
         self.assertEqual(self.js("return [!!document.querySelector('section.call-view'), "
                                  "window.__fake.voice !== 'idle'];"), [True, True])
         self.assertTrue(self.command(view.end_call))
         self.assertTrue(run_until(lambda: self.js(
             "return !document.querySelector('section.call-view');"), 5))
         # A conversation given by id; a Dot without any conversation cannot be called.
-        self.assertTrue(self.command(view.start_call, "c2", 0, "Chefe"))
+        self.assertTrue(self.command(view.start_call, "c2", 0, "Assistente"))
         self.assertEqual(self.js("return window.__fake.selectedThread;"), "c2")
         # Opening the Dot of the call keeps the call (pressing its row again would switch
         # to its latest conversation and end the call); calling it again is a no-op.
-        self.assertTrue(self.command(view.open_dot, 0, "Chefe"))
-        self.assertTrue(self.command(view.start_call, None, 0, "Chefe"))
+        self.assertTrue(self.command(view.open_dot, 0, "Assistente"))
+        self.assertTrue(self.command(view.start_call, None, 0, "Assistente"))
         self.assertEqual(self.js("return [window.__fake.selectedThread, "
                                  "window.__fake.voice !== 'idle'];"), ["c2", True])
         self.assertTrue(self.command(view.end_call))
-        self.assertFalse(self.command(view.start_call, None, 5, "Oficina"))
+        self.assertFalse(self.command(view.start_call, None, 5, "Laboratório"))
 
     def test_commands_wait_for_the_page_to_load(self):
         profile = Profile(f"focus{next(_ids)}", "Casa", self.fake.url)
@@ -430,7 +432,7 @@ class FocusModeTest(unittest.TestCase):
         for width in (1200, 900):
             with self.subTest(width=width):
                 view = self.open_app(width=width)
-                self.assertTrue(self.command(view.open_dot, 0, "Chefe"))
+                self.assertTrue(self.command(view.open_dot, 0, "Assistente"))
                 self.assertTrue(run_until(lambda: self.js(bottoms) is not None, 5))
                 self.assertEqual(self.js(bottoms), [True, True, True, True])
                 self.assertTrue(self.command(view.toggle_computer))   # The split view.
@@ -440,7 +442,7 @@ class FocusModeTest(unittest.TestCase):
 
     def test_the_page_reports_what_it_shows(self):
         view = self.open_app()
-        self.assertTrue(self.selection_is("Chefe", "home"))
+        self.assertTrue(self.selection_is("Assistente", "home"))
         # The owner clicks in the page itself (with focus mode off, its sidebar shows).
         self.js("""document.querySelectorAll('nav[aria-label="Dots"] button.dot-nav')[2].click();
                    return true;""")
@@ -454,7 +456,7 @@ class FocusModeTest(unittest.TestCase):
         for _ in range(3):
             self.js("window.__fakeRender(); return true;")
         run_until(lambda: False, 0.5)
-        self.assertEqual(self.selections, [("Chefe", "home"), ("Dot", "chat")])
+        self.assertEqual(self.selections, [("Assistente", "home"), ("Dot", "chat")])
         self.assertEqual([s for s in self.states if s[0] == "Dot"],
                          [("Dot", "idle"), ("Dot", "working"), ("Dot", "idle")])
 
@@ -564,7 +566,7 @@ class FocusModeTest(unittest.TestCase):
 
     def test_prompt_and_alert_are_native_dialogs(self):
         view = self.open_app()
-        self.assertTrue(self.command(view.open_conversation, "c4", 0, "Chefe"))
+        self.assertTrue(self.command(view.open_conversation, "c4", 0, "Assistente"))
         save = """setTimeout(() => document.querySelector(
             'button[aria-label="Save conversation as page"]').click(), 200); return true;"""
         self.js(save)
@@ -587,7 +589,7 @@ class FocusModeTest(unittest.TestCase):
 
     def test_the_hidden_chat_header_actions_can_still_be_pressed(self):
         view = self.open_app()
-        self.assertTrue(self.command(view.open_conversation, "c4", 0, "Chefe"))
+        self.assertTrue(self.command(view.open_conversation, "c4", 0, "Assistente"))
 
         def action(name: str, dialog: str | None = None) -> bool:
             box = []

@@ -225,11 +225,11 @@ class NewDotHelpersTest(unittest.TestCase):
 
     def test_names_dot(self):
         from src.ui.new_dot import names_dot
-        self.assertTrue(names_dot("# Chefe — chefe de gabinete", "Chefe"))
-        self.assertTrue(names_dot("## chefe - x", "Chefe"))
-        self.assertFalse(names_dot("# Chefe", "Chefe"))
-        self.assertFalse(names_dot("Chefe — chefe", "Chefe"))
-        self.assertFalse(names_dot("# Chefão — x", "Chefe"))
+        self.assertTrue(names_dot("# Assistente — organiza o dia", "Assistente"))
+        self.assertTrue(names_dot("## assistente - x", "Assistente"))
+        self.assertFalse(names_dot("# Assistente", "Assistente"))
+        self.assertFalse(names_dot("Assistente — organiza", "Assistente"))
+        self.assertFalse(names_dot("# Assistentes — x", "Assistente"))
         self.assertFalse(names_dot("# Tone - be kind", "Ana"))
 
     def test_lengths_are_counted_like_the_server(self):
@@ -240,9 +240,9 @@ class NewDotHelpersTest(unittest.TestCase):
 
     def test_problems(self):
         from src.ui.new_dot import problems
-        self.assertEqual(problems("Ana", "Does things.", "s1", {"Chefe"}), {})
+        self.assertEqual(problems("Ana", "Does things.", "s1", {"Assistente"}), {})
         self.assertIn("name", problems("  ", "Does things.", "s1"))
-        self.assertIn("name", problems("chefe", "Does things.", "s1", {"Chefe"}))
+        self.assertIn("name", problems("assistente", "Does things.", "s1", {"Assistente"}))
         self.assertIn("name", problems("🐶" * 21, "Does things.", "s1"))
         self.assertIn("instructions", problems("Ana", " a ", "s1"))
         self.assertIn("instructions", problems("Ana", "x" * 2001, "s1"))
@@ -252,8 +252,8 @@ class NewDotHelpersTest(unittest.TestCase):
     def test_tile_labels_and_automatic_pick(self):
         from src.core.workspace import Dot
         from src.ui import pet_gallery
-        chief, other = Dot("a", "Chefe"), Dot("b", "Zelador")
-        self.assertEqual(pet_gallery.tile_label(pets.get("bolt"), other), "Bolt, pet of Zelador")
+        chief, other = Dot("a", "Assistente"), Dot("b", "Manutenção")
+        self.assertEqual(pet_gallery.tile_label(pets.get("bolt"), other), "Bolt, pet of Manutenção")
         self.assertEqual(pet_gallery.tile_label(pets.get("sky"), None), "Sky, available")
         # The Dot's own current pick is ignored; other Dots' pets are not offered.
         self.assertEqual(pet_gallery.automatic_pet(chief, {"cocoa": chief, "bolt": other}),
@@ -267,7 +267,7 @@ class NewDotHelpersTest(unittest.TestCase):
 class PetGalleryTest(unittest.TestCase):
     def setUp(self):
         Adw.init()
-        self.server = FakeOpenDots(token=TOKEN, dots=["Chief", "Researcher", "Zelador"]).start()
+        self.server = FakeOpenDots(token=TOKEN, dots=["Chief", "Researcher", "Manutenção"]).start()
         self.addCleanup(self.server.stop)
         self.profile = Profile(f"gallery-{uuid.uuid4().hex[:8]}", "Home", self.server.url)
         self.monitor = monitor.ServerMonitor(self.profile, lambda cb: cb(TOKEN))
@@ -307,7 +307,7 @@ class PetGalleryTest(unittest.TestCase):
         researcher_pet = self.prefs.pet("d1")
         self.assertEqual(researcher_pet, "sage")
         self.assertEqual(gallery.tiles["sage"].caption.get_label(), "With Researcher")
-        self.assertEqual(gallery.tiles["bolt"].caption.get_label(), "With Zelador")
+        self.assertEqual(gallery.tiles["bolt"].caption.get_label(), "With Manutenção")
         self.assertEqual(gallery.tiles["cocoa"].owner, None)
         self.assertEqual(gallery.preview.get_property("pet"), "sky")
         self.assertEqual(gallery.get_title(), "Chief")
@@ -426,7 +426,7 @@ class PetGalleryTest(unittest.TestCase):
         self.assertEqual(self.prefs.pet("d2"), "sky")
         self.assertEqual(window.toasts, [])
         toast, = window.overlay_toasts
-        self.assertEqual(toast.get_title(), "Chief and Zelador swapped pets")
+        self.assertEqual(toast.get_title(), "Chief and Manutenção swapped pets")
         self.assertEqual(toast.get_button_label(), "Undo")
         toast.emit("button-clicked")
         self.assertEqual(self.prefs.pet("d0"), "sky")
@@ -434,19 +434,19 @@ class PetGalleryTest(unittest.TestCase):
 
     def test_closes_when_the_dot_is_deleted(self):
         from src.ui.pet_gallery import choose_pet
-        static = StaticMonitor({"dots": [{"id": "a", "name": "Chefe"},
-                                         {"id": "b", "name": "Zelador"}]})
+        static = StaticMonitor({"dots": [{"id": "a", "name": "Assistente"},
+                                         {"id": "b", "name": "Manutenção"}]})
         app = FakeApp(self.profile, static)
         gallery = choose_pet(app, self.profile, "b", self.window, self.done.append)
         _close_at_cleanup(self, gallery)
         closed = _closed(gallery)
         gallery.select("cocoa")
-        static.workspace = Workspace.from_json({"dots": [{"id": "a", "name": "Chefe"}]})
+        static.workspace = Workspace.from_json({"dots": [{"id": "a", "name": "Assistente"}]})
         static.emit("workspace-changed")
         self.assertTrue(run_until(lambda: closed))
         self.assertEqual(self.done, [None])
         self.assertNotEqual(self.prefs.pet("b"), "cocoa")  # the selection was never applied
-        self.assertEqual(self.window.toasts[-1][0], "Zelador was deleted on the server")
+        self.assertEqual(self.window.toasts[-1][0], "Manutenção was deleted on the server")
         gallery.choose()  # a late Enter does nothing
         self.assertEqual(self.done, [None])
 
@@ -476,8 +476,8 @@ class NewDotTest(unittest.TestCase):
         self.server = FakeDotsServer(
             spaces=[{"id": "s1", "name": "Everyday", "description": "A little space."},
                     {"id": "s2", "name": "Money", "description": "Bills and budgets."}],
-            dots=[{"id": "d0", "name": "Chefe", "spaceId": "s1",
-                   "instructions": "# Chefe — chefe de gabinete\n\nCoordena."}])
+            dots=[{"id": "d0", "name": "Assistente", "spaceId": "s1",
+                   "instructions": "# Assistente — organiza o dia\n\nCoordena."}])
         self.addCleanup(self.server.stop)
         self.profile = Profile(f"newdot-{uuid.uuid4().hex[:8]}", "Home", self.server.url)
         self.monitor = monitor.ServerMonitor(self.profile, lambda cb: cb(TOKEN))
@@ -530,12 +530,13 @@ class NewDotTest(unittest.TestCase):
         dialog.buffer.set_text("ab")
         self.assertFalse(dialog.create_button.get_sensitive())
         self.assertIn("instructions", dialog.issues)
-        dialog.buffer.set_text("Follows the regional market.")
+        dialog.buffer.set_text("Follows market news.")
         self.assertTrue(dialog.create_button.get_sensitive())
-        dialog.name_row.set_text("chefe")
+        dialog.name_row.set_text("assistente")
         self.assertFalse(dialog.create_button.get_sensitive())
         self.assertTrue(dialog.name_hint.get_visible())
-        self.assertEqual(dialog.name_hint.get_label(), "Another Dot is already called “chefe”.")
+        self.assertEqual(dialog.name_hint.get_label(),
+                         "Another Dot is already called “assistente”.")
         self.assertTrue(dialog.name_row.has_css_class("error"))
         dialog.name_row.set_text("Ana")
         self.assertFalse(dialog.name_row.has_css_class("error"))
