@@ -238,12 +238,17 @@ def place_icon(canvas: Image.Image, size: int, pos: tuple[int, int]) -> Image.Im
     return layer(canvas, icon, pos)
 
 
+def shown(path: Path) -> Path:
+    """The path relative to the repository when it is inside it (``--out`` may be elsewhere)."""
+    return path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
+
+
 def save(image: Image.Image, path: Path) -> None:
     image.convert("RGB").save(path, optimize=True)
     size = path.stat().st_size
     if size > MAX_BYTES:
         raise SystemExit(f"{path.name} has {size} bytes, over the store limit of {MAX_BYTES}")
-    print(f"{path.relative_to(ROOT)}  {image.width}×{image.height}  {size // 1024} KB")
+    print(f"{shown(path)}  {image.width}×{image.height}  {size // 1024} KB")
 
 
 def build_slide(slide: Slide, out: Path) -> None:
@@ -280,10 +285,12 @@ def build_social_card(out: Path) -> None:
     )
     canvas = render_svg(backdrop(CARD_SIZE, content), CARD_SIZE)
     canvas = place_icon(canvas, 132, (80, 106))
-    canvas = place(canvas, Window("workspace.png", 650, 172, 0.56))
+    # The window bleeds off the right edge only: its bottom, with the model in the sidebar
+    # footer, stays inside the card (842 × 0.56 ≈ 472 px tall, from y 140 to 612).
+    canvas = place(canvas, Window("workspace.png", 650, 140, 0.56))
     path = out / "social-card.png"
     canvas.convert("RGB").save(path, optimize=True)
-    print(f"{path.relative_to(ROOT)}  {canvas.width}×{canvas.height}  "
+    print(f"{shown(path)}  {canvas.width}×{canvas.height}  "
           f"{path.stat().st_size // 1024} KB")
 
 
@@ -293,7 +300,7 @@ def build_icon(out: Path) -> None:
         q = img.quantize(colors=256, method=Image.Quantize.LIBIMAGEQUANT)
         out_icon = out / "icon.png"
         q.save(out_icon, optimize=True)
-        print(f"{out_icon.relative_to(ROOT)}  {q.width}×{q.height}  {out_icon.stat().st_size // 1024} KB")
+        print(f"{shown(out_icon)}  {q.width}×{q.height}  {out_icon.stat().st_size // 1024} KB")
 
 
 def main() -> None:
