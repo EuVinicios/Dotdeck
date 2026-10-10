@@ -146,7 +146,10 @@ class Call:
             "You are a helpful voice assistant. Keep answers short."
         self.messages: list[dict] = [{"role": "system", "content": str(instructions)}]
 
-        self.vad = vadmod.Vad(stop_ms=config.vad_stop_ms)
+        # 800 ms of warm-up: Dotdeck plays a short "connected" chime when the call goes live,
+        # and on open speakers the microphone hears it; it must not pass for the caller
+        # talking (that would skip or cut the Dot's greeting).
+        self.vad = vadmod.Vad(stop_ms=config.vad_stop_ms, warmup_ms=800)
         self._channel = None
         self._announced_session = False
         self._turn_cancel: threading.Event | None = None

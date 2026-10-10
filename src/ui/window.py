@@ -19,6 +19,7 @@ from gi.repository import Adw, Gio, GLib, GObject, Gtk, Pango
 
 from .. import config
 from ..core import api, dotprefs, models, monitor, pets, server, voice
+from ..core.call_sounds import CallSounds
 from ..core.store import MIC_ALLOW, MIC_DENY, Profile
 from ..core.workspace import Dot, Workspace
 from ..i18n import _, ngettext
@@ -99,6 +100,10 @@ class MainWindow(Adw.ApplicationWindow):
         self.connect("notify::is-active", lambda *_: (app.refresh_status(), self._sync_fast()))
         self.connect("notify::visible", lambda *_: self._sync_fast())
         settings.connect("changed", self._on_setting_changed)
+        # Ringing while a call connects, a chime when it is live, a tone when it ends (on
+        # the call's speaker). Silenced on quit before the app hangs up its calls.
+        self.call_sounds = CallSounds.for_settings(settings)
+        app.connect("shutdown", lambda *_: self.call_sounds.close())
 
         if app.profiles.active:
             self.show_profile(app.profiles.active)
@@ -370,6 +375,7 @@ class MainWindow(Adw.ApplicationWindow):
                 return
             view = ServerView(profile, token, self, self.app.settings.get("zoom"))
             view.voice.connect("calls-changed", lambda *_: self._on_calls_changed())
+            self.call_sounds.watch(view.voice)
             if GObject.signal_lookup("call-phase", type(view.voice)):
                 view.voice.connect("call-phase", self._on_call_phase)
                 view.voice.connect("call-error", lambda _v, message: self.toast(message))

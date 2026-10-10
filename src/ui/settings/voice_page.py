@@ -100,6 +100,9 @@ class VoicePage(SettingsPage):
         self.speaker_row.set_activatable_widget(self.play_button)
         self.speaker_row.set_visible(hasattr(voice, "SpeakerTest"))
         self.add(devices, self.speaker_row, ("test", "sound", "chime", "speakers", "hear"))
+        self.switch(devices, "call-sounds", _("Call Sounds"),
+                    _("A ring while calling, and a tone when the call connects and when it ends"),
+                    ("ring", "ringback", "ringtone", "tone", "chime", "beep", "hang up"))
 
         processing = self.group(_("Sound Processing"))
         self.switch(processing, "echo-cancellation", _("Echo Cancellation"),

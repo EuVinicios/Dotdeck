@@ -4,7 +4,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [0.3.6] - 2026-10-10
 
 ### Corrigido
 
@@ -12,12 +12,24 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
   fala aprendia o ruído de fundo só entre uma frase e outra, partindo de −70 dB; o chiado de
   um fone com fio e ganho automático (por volta de −40 dB) virava "fala" desde o primeiro
   instante, e o fim da frase nunca chegava. Agora o ruído de fundo é medido o tempo todo (o
-  décimo mais baixo dos últimos 5 s, até −30 dB) e uma frase tem no máximo 15 s.
+  décimo mais baixo dos últimos 5 s, até −30 dB) e uma frase tem no máximo 15 s. Os
+  primeiros 800 ms da ligação não contam como fala, para o aviso de conexão não cortar a
+  saudação do Dot quando o som sai pela caixa.
+- **Servidor**: o gateway de voz e o atualizador voltam sozinhos se forem encerrados
+  (`Restart=always`); antes, um encerramento da sessão os deixava desligados.
 
 ### Adicionado
 
 - **O Dot atende a ligação**: ao conectar, ele diz uma frase curta (o nome e como pode
   ajudar), a prova de que a chamada está no ar. `VOICE_GATEWAY_GREETING=0` desliga.
+- **Sons da chamada**, como num app de ligação: enquanto a chamada conecta, o Dotdeck toca
+  (dois toques suaves e uma pausa, por no máximo 45 s); quando ela fica no ar, um aviso curto
+  de duas notas que sobem; e ao desligar (por você, pelo Dot ou pelo servidor), duas notas
+  que descem, mais graves se a chamada caiu com erro. Os sons são gerados no próprio código,
+  sem arquivos de áudio, tocam no alto-falante escolhido para as chamadas e nunca entram na
+  ligação; o aviso de conexão é curto (0,14 s) e baixinho. Liga e desliga em Configurações ›
+  Chamadas de voz › Sons da chamada (ligado por padrão); desligado no meio do toque, ele para
+  na hora.
 
 ### Alterado
 

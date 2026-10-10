@@ -159,6 +159,16 @@
   </screenshots>
 
   <releases>
+    <release version="0.3.6" date="2026-10-10">
+      <description>
+        <p>Calls that sound like calls.</p>
+        <ul>
+          <li>A soft ring while the call connects, a short chime when it is live and a falling tone when it ends; turn them off in Voice Calls › Call Sounds</li>
+          <li>The Dot answers the call with one short sentence</li>
+          <li>The voice gateway now hears the end of what you say on real headsets, even with background hum</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.5" date="2026-10-10">
       <description>
         <p>An official website and new screenshots.</p>
