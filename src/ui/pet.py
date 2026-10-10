@@ -9,6 +9,7 @@ entirely when off, so idle rows cost nothing.
 from __future__ import annotations
 
 import math
+import weakref
 
 import cairo
 import gi
@@ -27,11 +28,15 @@ GREYED = {"paused", "offline"}
 
 _textures: dict[tuple[str, int], Gdk.Texture] = {}
 _animations = {"value": "full"}
+_avatars: weakref.WeakSet = weakref.WeakSet()
 
 
 def set_animations(value: str) -> None:
-    """"full", "subtle" or "off" (the Appearance setting), for every avatar."""
+    """"full", "subtle" or "off" (the Appearance setting), for every avatar, at once."""
     _animations["value"] = value
+    for avatar in list(_avatars):
+        avatar._sync_animation()
+        avatar.queue_draw()
 
 
 def texture(pet_id: str, pixels: int) -> Gdk.Texture | None:
@@ -114,6 +119,7 @@ class PetAvatar(Gtk.Widget):
         self.set_accessible_role(Gtk.AccessibleRole.IMG) if hasattr(
             self, "set_accessible_role") else None
         self._style_handler = 0
+        _avatars.add(self)
         self.connect("map", self._on_map)
         self.connect("unmap", self._on_unmap)
 
@@ -196,6 +202,10 @@ class PetAvatar(Gtk.Widget):
             self.queue_draw()
 
     def _on_tick(self, _widget, clock: Gdk.FrameClock) -> bool:
+        if not self._wants_animation():
+            self._tick = 0
+            self.queue_draw()
+            return GLib.SOURCE_REMOVE
         now = clock.get_frame_time()
         if not self._start:
             self._start = now

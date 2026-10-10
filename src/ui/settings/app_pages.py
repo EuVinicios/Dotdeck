@@ -35,7 +35,7 @@ DEFAULT_ACCELS = {
     "win.search": "<Control>k", "win.dot-1": "<Control>1", "win.new-chat": "<Control>n",
     "win.new-dot": "<Control><Shift>n", "win.talk-to-chief": "<Control><Shift>c",
     "win.call": "<Control><Shift>l", "win.toggle-mute": "<Control><Shift>m",
-    "win.toggle-sidebar": "<Control>b", "app.preferences": "<Control>comma",
+    "win.toggle-sidebar": "F9", "app.preferences": "<Control>comma",
     "app.shortcuts": "<Control>question",
 }
 
