@@ -17,8 +17,8 @@ import io
 import json
 import logging
 import math
-import random
 import os
+import random
 import shutil
 import socket
 import subprocess
