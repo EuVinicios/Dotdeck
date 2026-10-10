@@ -28,8 +28,8 @@ class ServerForm(Gtk.Box):
 
         where = Adw.PreferencesGroup(
             title=_("Server"),
-            description=_("For example http://localhost:4310, http://192.168.0.10:4310 or "
-                          "https://homelab.tail1234.ts.net"))
+            # One line: a longer list broke in the middle of an address.
+            description=_("For example http://localhost:4310 or http://192.168.0.10:4310"))
         self.address = Adw.EntryRow(title=_("Server address"), input_purpose=Gtk.InputPurpose.URL)
         self.address.set_activates_default(True)
         self.name = Adw.EntryRow(title=_("Name (optional)"))

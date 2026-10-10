@@ -417,7 +417,17 @@ class SettingsWindowTests(unittest.TestCase):
             self.assertEqual(win.visible_page, name)
             self.assertEqual(win.title_widget.get_title(), win.pages[name].title)
             self.assertEqual(self.app.settings.get("settings-page"), name)
-        self.assertEqual(first.get_default_size(), (980, 680))
+        self.assertEqual(first.get_default_size(), (980, 760))
+
+    def test_a_narrow_window_shows_the_page_asked_for(self):
+        """Edit Dot, Microphone… or a link to another page: the page, not the list."""
+        win = self.open("general")
+        win.set_default_size(360, 720)
+        self.assertTrue(run_until(win.split.get_collapsed, 5))
+        win.split.set_show_content(False)
+        win.show_page("voice")
+        self.assertTrue(win.split.get_show_content())
+        self.assertEqual(win.visible_page, "voice")
 
     def test_reopens_on_the_last_page(self):
         self.app.settings.set("settings-page", "privacy")
@@ -1230,6 +1240,11 @@ class ModernModelTests(unittest.TestCase):
                          ["OpenRouter", "Anthropic", "OpenAI-compatible"])
         self.assertEqual([r.get_subtitle() for r in page._key_rows],
                          ["Configured", "No key yet", "No key yet"])
+        # No warning for providers the owner does not use: they are just not set up.
+        icons = [next(w.get_icon_name() for w in descendants(r) if isinstance(w, Gtk.Image)
+                      and w.get_visible() and w.get_icon_name()) for r in page._key_rows]
+        self.assertEqual(icons, ["object-select-symbolic", "dialog-password-symbolic",
+                                 "dialog-password-symbolic"])
         self.assertEqual(page.key_row.get_title(), "Set a New OpenRouter Key")
         page.key_row.set_text("sk-or-test-key")
         page.key_row.emit("apply")

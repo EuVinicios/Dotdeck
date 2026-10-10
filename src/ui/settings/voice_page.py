@@ -60,9 +60,12 @@ class VoicePage(SettingsPage):
         missing = voice.missing_elements()
         engine = Adw.ActionRow(
             title=_("Voice Engine"), subtitle_lines=3,
-            subtitle=_("Ready: GStreamer with WebRTC, through PipeWire or PulseAudio")
+            subtitle=_("Ready on this computer")
             if not missing else _("Missing GStreamer plugins: {names}").format(
                 names=", ".join(missing)))
+        if not missing:   # the parts, for whoever looks for them
+            engine.set_tooltip_text(_("Ready: GStreamer with WebRTC, through PipeWire or "
+                                      "PulseAudio"))
         engine.add_prefix(status_icon("object-select-symbolic" if not missing
                                       else "dialog-warning-symbolic",
                                       "success" if not missing else "warning"))

@@ -28,6 +28,9 @@ SERVER_PAGES = ("dots", "voice", "model", "privacy")
 HIGHLIGHT_MS = 1800
 # A server's model and voice settings are asked again when shown after this many seconds.
 MODEL_MAX_AGE = 60
+# Tall enough for the whole list of sections (at 680 px "Advanced" was cut and "About" hidden)
+# and for the Privacy page, and shorter than the main window's 820 px.
+DEFAULT_SIZE = (980, 760)
 
 _instance: SettingsWindow | None = None
 _css: Gtk.CssProvider | None = None
@@ -42,6 +45,18 @@ def _load_css() -> None:
     _css.load_from_path(str(Path(__file__).with_name("settings.css")))
     Gtk.StyleContext.add_provider_for_display(display, _css,
                                               Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
+
+def _fit_screen(parent, height: int) -> int:
+    """``height``, or less on a short screen (the one the main window is on)."""
+    surface = parent.get_surface() if isinstance(parent, Gtk.Window) else None
+    display = Gdk.Display.get_default()
+    monitor = display.get_monitor_at_surface(surface) \
+        if surface is not None and display is not None else None
+    if monitor is None:
+        return height
+    # Room for the top bar and the window's own shadow.
+    return max(420, min(height, monitor.get_geometry().height - 96))
 
 
 def current() -> SettingsWindow | None:
@@ -69,8 +84,6 @@ def present(app, page: str | None = "general", *, add_server: bool = False,
         win.pages["dots"].open_dot(dot)
     elif page in PAGES:
         win.show_page(page)
-        if win.split.get_collapsed():
-            win.split.set_show_content(True)     # narrow: the page asked for, not the list
     win.present()
     return win
 
@@ -79,14 +92,15 @@ class SettingsWindow(Adw.Window):
     __gtype_name__ = "DotdeckSettingsWindow"
 
     def __init__(self, app, page: str | None = None):
-        super().__init__(title=_("Settings"), default_width=980, default_height=680,
-                         icon_name=config.APP_ID)
+        parent = getattr(app, "window", None)
+        width, height = DEFAULT_SIZE
+        super().__init__(title=_("Settings"), default_width=width,
+                         default_height=_fit_screen(parent, height), icon_name=config.APP_ID)
         _load_css()
         self.app = app
         self.set_size_request(360, 420)
         if isinstance(app, Gtk.Application):
             self.set_application(app)
-        parent = getattr(app, "window", None)
         if isinstance(parent, Gtk.Window):
             self.set_transient_for(parent)
         if config.DEVEL:
@@ -240,6 +254,8 @@ class SettingsWindow(Adw.Window):
             name = "general"
         self.pop_to_root()
         self.stack.set_visible_child_name(name)
+        if self.split.get_collapsed():
+            self.split.set_show_content(True)     # narrow: the page asked for, not the list
 
     @property
     def visible_page(self) -> str:
