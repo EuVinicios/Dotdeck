@@ -4,7 +4,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [0.3.6] - 2026-10-10
 
 ### Corrigido
 
@@ -12,7 +12,11 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
   fala aprendia o ruído de fundo só entre uma frase e outra, partindo de −70 dB; o chiado de
   um fone com fio e ganho automático (por volta de −40 dB) virava "fala" desde o primeiro
   instante, e o fim da frase nunca chegava. Agora o ruído de fundo é medido o tempo todo (o
-  décimo mais baixo dos últimos 5 s, até −30 dB) e uma frase tem no máximo 15 s.
+  décimo mais baixo dos últimos 5 s, até −30 dB) e uma frase tem no máximo 15 s. Os
+  primeiros 800 ms da ligação não contam como fala, para o aviso de conexão não cortar a
+  saudação do Dot quando o som sai pela caixa.
+- **Servidor**: o gateway de voz e o atualizador voltam sozinhos se forem encerrados
+  (`Restart=always`); antes, um encerramento da sessão os deixava desligados.
 
 ### Adicionado
 
