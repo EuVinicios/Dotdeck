@@ -1,0 +1,112 @@
+/* Dotdeck focus mode for the OpenDots page.
+ *
+ * Dotdeck lists the Dots, Spaces and conversations in its own sidebar and shows the
+ * open Dot in its header, so the page drops its rail, sidebar and top bar. Every rule
+ * waits for <html data-dotdeck-focus>, which focus.js sets only after it recognized the
+ * OpenDots web client: any other page is left exactly as it is.
+ *
+ * The page's own rules are author rules; these are user rules, so each one needs
+ * !important to win.
+ *
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+/* The page's own navigation: rail, sidebar, mobile drawer and the top bar. */
+html[data-dotdeck-focus] .template-app > nav.icon-rail,
+html[data-dotdeck-focus] .template-app > #workspace-sidebar,
+html[data-dotdeck-focus] .template-app > .mobile-menu,
+html[data-dotdeck-focus] .template-app > .nav-scrim,
+html[data-dotdeck-focus] .template-app .desktop-nav-toggle,
+html[data-dotdeck-focus] .template-app > .workspace > header.topbar {
+  display: none !important;
+}
+
+/* Without the rail and the sidebar the content starts at the left edge. */
+html[data-dotdeck-focus] .template-app.app .workspace,
+html[data-dotdeck-focus] .template-app.app.nav-collapsed .workspace {
+  margin-left: 0 !important;
+}
+
+/* Without the 64 px top bar the chat fills the window. */
+html[data-dotdeck-focus] .template-app .chat-workspace {
+  height: 100dvh !important;
+}
+/* The page's banners (all Dots paused, errors) sit above the chat: they take their room
+ * from the chat instead of pushing the composer below the window. */
+html[data-dotdeck-focus] .template-app.app > .workspace:has(> .chat-workspace) {
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100dvh !important;
+}
+html[data-dotdeck-focus] .template-app.app > .workspace:has(> .chat-workspace) > .chat-workspace {
+  flex: 1 1 0 !important;
+  height: auto !important;
+  min-height: 0 !important;
+}
+html[data-dotdeck-focus] .template-app.app > .workspace:has(> .chat-workspace) > :not(.chat-workspace) {
+  flex: none !important;
+}
+@media (max-width: 1100px) {
+  /* Narrow windows show the computer over the chat, which keeps the whole height. */
+  html[data-dotdeck-focus] .template-app .chat-workspace.split {
+    display: flex !important;
+  }
+  html[data-dotdeck-focus] .template-app .chat-workspace.split .live-chat {
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+}
+html[data-dotdeck-focus] .template-app .computer-overlay,
+html[data-dotdeck-focus] .template-app .chat-workspace.split > .result-pane {
+  top: 0 !important;
+}
+
+/* The call sheet left room for the 290 px sidebar. */
+@media (min-width: 761px) {
+  html[data-dotdeck-focus] .template-app .call-view:not(.minimized) {
+    left: max(20px, calc((100vw - 1040px) / 2)) !important;
+  }
+}
+
+/* The native header shows the open Dot (name, state, call button), so the chat drops
+ * its own persona header. It stays in the page: Dotdeck still presses its buttons. */
+html[data-dotdeck-focus] .template-app .chat-workspace .chat-persona {
+  display: none !important;
+}
+html[data-dotdeck-focus] .template-app .chat-workspace .live-chat {
+  padding-top: 8px !important;
+}
+
+/* A Dot's instructions can run to 2,000 characters: three lines are enough here. */
+html[data-dotdeck-focus] .template-app .empty-chat-persona p,
+html[data-dotdeck-focus] .template-app .chat-welcome p {
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 3 !important;
+  overflow: hidden !important;
+}
+html[data-dotdeck-focus] .template-app .chat-welcome {
+  margin-top: 40px !important;
+}
+
+/* The native header already says who the Dot is and what it does. */
+html[data-dotdeck-focus] .template-app .chat-workspace .chat-welcome > p:not(.muted) {
+  display: none !important;
+}
+
+/* Instructions that start with "# Name — job": the home card shows just the job
+ * (focus.js copies it to data-dotdeck-summary). */
+html[data-dotdeck-focus] .template-app .empty-chat-persona > p[data-dotdeck-summary] {
+  display: block !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+}
+html[data-dotdeck-focus] .template-app .empty-chat-persona > p[data-dotdeck-summary]::before {
+  content: attr(data-dotdeck-summary) !important;
+  display: block !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}

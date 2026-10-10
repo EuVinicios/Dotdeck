@@ -5,12 +5,15 @@
 #
 # Default is a dry run that only prints what would change. Run with --apply to do it,
 # and with --uninstall to undo it (the OpenDots .env is restored from the backup).
+# --update refreshes only the voice gateway (code and unit) and restarts it: OpenDots,
+# its .env and the updater are left alone (dry run too, unless --apply is also given).
 #
-#   server/install.sh [--apply | --uninstall] [--opendots DIR] [--no-voice] [--no-updater]
-#                     [--voice NAME] [--model MODEL]
+#   server/install.sh [--apply | --uninstall | --update [--apply]] [--opendots DIR]
+#                     [--no-voice] [--no-updater] [--voice NAME] [--model MODEL]
 set -euo pipefail
 
 MODE=dry-run
+UPDATE=0
 OPENDOTS="$HOME/github/OpenDots"
 WITH_VOICE=1
 WITH_UPDATER=1
@@ -18,14 +21,19 @@ VOICE_NAME=""
 MODEL="openai/gpt-audio-mini"
 while [ $# -gt 0 ]; do
   case "$1" in
+    --opendots|--voice|--model)
+      [ $# -ge 2 ] && [ -n "$2" ] || { echo "Falta o valor de $1." >&2; exit 2; } ;;
+  esac
+  case "$1" in
     --apply) MODE=apply ;;
     --uninstall) MODE=uninstall ;;
+    --update) UPDATE=1 ;;
     --opendots) OPENDOTS="$2"; shift ;;
     --no-voice) WITH_VOICE=0 ;;
     --no-updater) WITH_UPDATER=0 ;;
     --voice) VOICE_NAME="$2"; shift ;;
     --model) MODEL="$2"; shift ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"; exit 0 ;;
     *) echo "Opção desconhecida: $1" >&2; exit 2 ;;
   esac
   shift
@@ -42,6 +50,24 @@ VOICE_KEYS="VOICE_REALTIME_URL VOICE_API_KEY VOICE_MODEL VOICE_NAME"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP="$HOME/work/backups/dotdeck-server-$STAMP"
 RUNTIME="org.gnome.Platform//51"
+GATEWAY_UNIT_FILE="$UNITS/opendots-voice-gateway.service"
+GATEWAY_UNIT="[Unit]
+Description=OpenDots voice gateway (Dotdeck): Realtime-compatible voice calls on OpenRouter
+After=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=$GATEWAY_ENV
+# flatpak moves the sandbox into its own scope, out of this service: --die-with-parent makes
+# stopping the service stop the gateway too, and SyslogIdentifier keeps the logs findable
+# with journalctl --user -t opendots-voice-gateway
+ExecStart=/usr/bin/flatpak run --die-with-parent --no-documents-portal --share=network --filesystem=$SHARE:ro --cwd=$SHARE --command=python3 $RUNTIME -m voice_gateway
+SyslogIdentifier=opendots-voice-gateway
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target"
 
 say() { printf '%s\n' "$*"; }
 act() {  # act "description" command...
@@ -56,11 +82,78 @@ env_set() {  # env_set KEY VALUE  (replaces or appends; the value is never print
   chmod --reference="$ENV_FILE" "$tmp" 2>/dev/null || chmod 600 "$tmp"
   mv "$tmp" "$ENV_FILE"
 }
+write_gateway_unit() { mkdir -p "$UNITS" && printf '%s\n' "$GATEWAY_UNIT" > "$GATEWAY_UNIT_FILE"; }
+copy_gateway_code() {  # swap in the new code in one step; the running gateway keeps its copy
+  mkdir -p "$SHARE"
+  rm -rf "$SHARE/voice_gateway.new"
+  cp -R "$SRC/voice_gateway" "$SHARE/voice_gateway.new"
+  find "$SHARE/voice_gateway.new" -name __pycache__ -prune -exec rm -rf {} +
+  rm -rf "$SHARE/voice_gateway"
+  mv "$SHARE/voice_gateway.new" "$SHARE/voice_gateway"
+}
+stop_stray_gateways() {  # units from Dotdeck 0.2 left the gateway running outside the service
+  local pid scope
+  for pid in $(pgrep -u "$(id -u)" -f '^python3 -m voice_gateway$' || true); do
+    scope="$(sed -n 's|^0::.*/\(app-flatpak-[^/]*\.scope\)$|\1|p' "${PROC_ROOT:-/proc}/$pid/cgroup" 2>/dev/null || true)"
+    if [ -n "$scope" ]; then
+      systemctl --user stop "$scope" || say "Atenção: não consegui parar $scope (pid $pid)."
+    else
+      say "Atenção: uma ponte antiga (pid $pid) segue rodando fora do serviço; pare com: kill $pid"
+    fi
+  done
+}
+restart_gateway() {  # stop, clear strays, start: the new code is the one answering on :4320
+  systemctl --user stop opendots-voice-gateway.service
+  stop_stray_gateways
+  systemctl --user start opendots-voice-gateway.service
+}
+backup_gateway() {  # the unit and the code running now, for a rollback (see server/README.md)
+  mkdir -p "$BACKUP" && chmod 700 "$BACKUP"
+  cp -p "$GATEWAY_UNIT_FILE" "$BACKUP/opendots-voice-gateway.service.before"
+  if [ -d "$SHARE/voice_gateway" ]; then
+    cp -R "$SHARE/voice_gateway" "$BACKUP/voice_gateway.before"
+    find "$BACKUP/voice_gateway.before" -name __pycache__ -prune -exec rm -rf {} +
+  fi
+}
+wait_for_gateway() {  # wait_for_gateway → prints the /health HTTP status
+  local code=000
+  for i in $(seq 1 15); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4320/health || true)"
+    [ "$code" = 200 ] && break; sleep 2
+  done
+  printf '%s' "$code"
+}
+
+# -- update: only the voice gateway, never OpenDots ------------------------------------
+if [ "$UPDATE" = 1 ]; then
+  [ "$MODE" = uninstall ] && { say "Use --update ou --uninstall, não os dois."; exit 2; }
+  for tool in systemctl curl python3 pgrep; do
+    command -v "$tool" >/dev/null || { say "Falta o comando $tool."; exit 1; }
+  done
+  [ -f "$GATEWAY_UNIT_FILE" ] && [ -f "$GATEWAY_ENV" ] || {
+    say "A ponte de voz não está instalada aqui (falta $GATEWAY_UNIT_FILE ou $GATEWAY_ENV)."
+    say "Instale com: $0 --apply"; exit 1; }
+  say "Atualizar a ponte de voz (o OpenDots e o .env dele não são tocados)   modo: $MODE"
+  calls="$(curl -s --max-time 3 http://127.0.0.1:4320/health 2>/dev/null | python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("calls", 0)))' 2>/dev/null || echo 0)"
+  [ "$calls" = 0 ] || { say "Há $calls chamada(s) em andamento; atualize quando terminarem."; exit 1; }
+  act "guardar o serviço e o código atuais em $BACKUP" backup_gateway
+  act "copiar o código novo para $SHARE/voice_gateway" copy_gateway_code
+  act "reescrever opendots-voice-gateway.service (logs em opendots-voice-gateway)" write_gateway_unit
+  act "recarregar o systemd" systemctl --user daemon-reload
+  act "reiniciar opendots-voice-gateway.service" restart_gateway
+  [ "$MODE" = apply ] || { say; say "Nada foi alterado. Para aplicar: $0 --update --apply"; exit 0; }
+  say; say "Conferindo…"
+  code="$(wait_for_gateway)"
+  [ "$code" = 200 ] || { say "✘ Ponte de voz não respondeu (HTTP $code). Veja: journalctl --user -t opendots-voice-gateway -n 50"; exit 1; }
+  say "✔ Ponte de voz respondendo em 127.0.0.1:4320"
+  say "Logs: journalctl --user -t opendots-voice-gateway -f"
+  exit 0
+fi
 
 # -- checks ----------------------------------------------------------------------------
 test -d "$OPENDOTS/.git" || { say "OpenDots não encontrado em $OPENDOTS (use --opendots)."; exit 1; }
 test -f "$ENV_FILE" || { say "Falta $ENV_FILE."; exit 1; }
-for tool in git npm node systemctl python3; do
+for tool in git npm node systemctl python3 pgrep; do
   command -v "$tool" >/dev/null || { say "Falta o comando $tool."; exit 1; }
 done
 OWNER_TOKEN="$(env_get OWNER_TOKEN)"
@@ -74,6 +167,7 @@ if [ "$MODE" = uninstall ]; then
       act "apagar $UNITS/$unit" rm -f "$UNITS/$unit"
     fi
   done
+  act "parar cópias da ponte de voz que ficaram fora do serviço" stop_stray_gateways
   act "recarregar o systemd" systemctl --user daemon-reload
   restore_voice() {
     while IFS='=' read -r key value; do
@@ -151,20 +245,7 @@ if [ "$WITH_VOICE" = 1 ]; then
     } > "$GATEWAY_ENV"
   }
   act "escrever $GATEWAY_ENV (permissão 600; chave copiada, não exibida)" write_gateway_env
-  GATEWAY_UNIT="[Unit]
-Description=OpenDots voice gateway (Dotdeck): Realtime-compatible voice calls on OpenRouter
-After=network-online.target
-
-[Service]
-Type=simple
-EnvironmentFile=$GATEWAY_ENV
-ExecStart=/usr/bin/flatpak run --no-documents-portal --share=network --filesystem=$SHARE:ro --cwd=$SHARE --command=python3 $RUNTIME -m voice_gateway
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=default.target"
-  act "escrever opendots-voice-gateway.service" sh -c "printf '%s\n' \"\$1\" > '$UNITS/opendots-voice-gateway.service'" _ "$GATEWAY_UNIT"
+  act "escrever opendots-voice-gateway.service" write_gateway_unit
   configure_opendots() {
     # Remember the original voice settings once, so --uninstall can put them back.
     if [ ! -f "$ORIGINAL" ]; then
@@ -190,7 +271,8 @@ fi
 # -- services --------------------------------------------------------------------------
 act "recarregar o systemd" systemctl --user daemon-reload
 [ "$WITH_UPDATER" = 1 ] && act "ativar opendots-updater.service" systemctl --user enable --now opendots-updater.service
-[ "$WITH_VOICE" = 1 ] && act "ativar opendots-voice-gateway.service" systemctl --user enable --now opendots-voice-gateway.service
+[ "$WITH_VOICE" = 1 ] && act "ativar opendots-voice-gateway.service" systemctl --user enable opendots-voice-gateway.service
+[ "$WITH_VOICE" = 1 ] && act "(re)iniciar opendots-voice-gateway.service" restart_gateway
 [ "$WITH_VOICE" = 1 ] && act "reiniciar o OpenDots" systemctl --user restart opendots.service
 
 [ "$MODE" = apply ] || { say; say "Nada foi alterado. Para aplicar: $0 --apply"; exit 0; }
@@ -209,11 +291,8 @@ if [ "$WITH_UPDATER" = 1 ]; then
   [ "$code" = 200 ] && say "✔ Atualizador respondendo na porta 4311" || { say "✘ Atualizador não respondeu (HTTP $code)"; ok=0; }
 fi
 if [ "$WITH_VOICE" = 1 ]; then
-  for i in $(seq 1 15); do
-    code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4320/health || true)"
-    [ "$code" = 200 ] && break; sleep 2
-  done
-  [ "$code" = 200 ] && say "✔ Ponte de voz respondendo em 127.0.0.1:4320" || { say "✘ Ponte de voz não respondeu"; ok=0; }
+  code="$(wait_for_gateway)"
+  [ "$code" = 200 ] && say "✔ Ponte de voz respondendo em 127.0.0.1:4320 (logs: journalctl --user -t opendots-voice-gateway -f)" || { say "✘ Ponte de voz não respondeu"; ok=0; }
   voice="$(curl -s -H "Authorization: Bearer $OWNER_TOKEN" "http://127.0.0.1:$PORT/api/workspace" | python3 -c 'import json,sys; print(json.load(sys.stdin)["setup"]["voice"])' 2>/dev/null || echo "?")"
   [ "$voice" = True ] && say "✔ OpenDots com voz configurada" || { say "✘ OpenDots ainda sem voz (setup.voice=$voice)"; ok=0; }
 fi

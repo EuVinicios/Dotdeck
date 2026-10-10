@@ -12,6 +12,8 @@ for _name in ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME"):
     os.environ[_name] = os.path.join(_ROOT, _name.lower())
 os.environ.setdefault("DOTDECK_SECRETS", "memory")
 os.environ.setdefault("DOTDECK_TEST_AUDIO", "1")
+# The IBus input method can answer after a test window is gone and crash the run.
+os.environ.setdefault("GTK_IM_MODULE", "gtk-im-context-simple")
 
 from gi.repository import GLib  # noqa: E402
 

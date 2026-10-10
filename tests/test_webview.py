@@ -12,7 +12,8 @@ from tests.helpers import run_until
 import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
-from gi.repository import GLib, Gtk  # noqa: E402
+gi.require_version("WebKit", "6.0")
+from gi.repository import GLib, Gtk, WebKit  # noqa: E402
 
 from src.core import voice  # noqa: E402
 if voice.available():
@@ -155,6 +156,50 @@ class ServerViewTest(unittest.TestCase):
         self.assertTrue(run_until(lambda: self.host.notifications, 5))
         self.assertEqual(self.host.notifications, [("Task finished", "Weekly report")])
 
+    def reload_with_script(self, source: str) -> None:
+        """Reload with ``source`` running before Dotdeck's own scripts."""
+        finished = []
+        handler = self.view.webview.connect("load-changed", lambda _v, e: finished.append(e))
+        self.view.content.remove_all_scripts()
+        self.view.content.add_script(WebKit.UserScript.new(
+            source, WebKit.UserContentInjectedFrames.TOP_FRAME,
+            WebKit.UserScriptInjectionTime.START, None, None))
+        self.view._install_scripts()
+        self.view.reload()
+        self.assertTrue(run_until(lambda: WebKit.LoadEvent.FINISHED in finished, 15))
+        self.view.webview.disconnect(handler)
+
+    @unittest.skipUnless(voice.available(), "GStreamer WebRTC plugins are not installed")
+    def test_microphone_without_media_devices(self):
+        # WebKit leaves navigator.mediaDevices out on insecure origins (plain http on a
+        # LAN or Tailscale address); calls must still get the microphone from Dotdeck.
+        self.reload_with_script("delete Navigator.prototype.mediaDevices;")
+        result = self.js("""
+            const devices = navigator.mediaDevices;
+            const stream = await devices.getUserMedia({ audio: true });
+            let video;
+            try { await devices.getUserMedia({ video: true }); video = 'allowed'; }
+            catch (error) { video = error.name; }
+            const listed = await devices.enumerateDevices();
+            return { tracks: stream.getAudioTracks().length, video,
+                     kinds: listed.map((device) => device.kind),
+                     echo: devices.getSupportedConstraints().echoCancellation };""")
+        self.assertEqual(result, {"tracks": 1, "video": "NotSupportedError",
+                                  "kinds": ["audioinput"], "echo": True})
+        self.assertEqual(self.host.mic_requests, 1)
+        self.host.microphone = False
+        self.assertEqual(self.js("""
+            try { await navigator.mediaDevices.getUserMedia({ audio: true }); return 'allowed'; }
+            catch (error) { return error.name; }"""), "NotAllowedError")
+
+    @unittest.skipUnless(voice.available(), "GStreamer WebRTC plugins are not installed")
+    def test_calls_go_through_dotdeck_even_when_webkit_has_webrtc(self):
+        # Dotdeck's call controls only see calls that run in its own WebRTC.
+        self.reload_with_script("window.RTCPeerConnection = function NativePeer() {};")
+        self.assertEqual(self.js("return [RTCPeerConnection.name, "
+                                 "typeof window.__dotdeckVoiceEvent];"),
+                         ["DotdeckPeerConnection", "function"])
+
     def test_microphone_denied(self):
         self.host.microphone = False
         result = self.js("""
@@ -202,6 +247,16 @@ class ServerViewTest(unittest.TestCase):
         self.js("window.__audio.muted = true; return true;")
         peer = next(iter(self.view.voice._peers.values()))
         self.assertTrue(run_until(lambda: peer.speaker_muted, 5))
+        self.js("window.__audio.muted = false; return true;")
+        self.assertTrue(run_until(lambda: not peer.speaker_muted, 5))
+        # Pausing the call's audio silences the speakers; playing brings them back.
+        self.js("window.__audio.pause(); return true;")
+        self.assertTrue(run_until(lambda: peer.speaker_muted, 5))
+        self.js("window.__audio.muted = false; return true;")
+        run_until(lambda: False, 0.3)
+        self.assertTrue(peer.speaker_muted)
+        self.js("await window.__audio.play(); return true;")
+        self.assertTrue(run_until(lambda: not peer.speaker_muted, 5))
         self.js("window.__channel.close(); window.__pc.close(); return true;")
         self.assertTrue(run_until(lambda: not self.view.voice.in_call, 5))
 

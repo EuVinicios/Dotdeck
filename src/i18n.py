@@ -16,3 +16,8 @@ _translation = gettext.translation(
 
 _ = _translation.gettext
 ngettext = _translation.ngettext
+
+
+def N_(message: str) -> str:
+    """Mark a string for translation without translating it yet (translate with _ later)."""
+    return message

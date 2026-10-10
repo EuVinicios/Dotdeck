@@ -5,6 +5,14 @@ us exactly as it would to OpenAI: Opus audio both ways and Realtime events on th
 ``oai-events`` data channel. Underneath, every turn is one streaming chat completion with
 an audio-capable model on OpenRouter: we detect when the caller stops talking, send the
 utterance, play the spoken reply as it streams and relay ``ask_compute`` tool calls.
+
+Two details keep the call receipt (built by the caller from our events) faithful:
+
+* the caller's words (``conversation.item.input_audio_transcription.completed``) are
+  transcribed in parallel with the reply, and a reply waits a moment for them before its
+  ``response.output_audio_transcript.done``, so the receipt reads "You" before "Dot";
+* what the caller says while an ``ask_compute`` request is pending is queued (up to
+  ``queue_limit`` utterances) and answered together with the compute result.
 """
 
 from __future__ import annotations
@@ -17,7 +25,8 @@ import re
 import secrets
 import threading
 import time
-from typing import Callable
+from collections import deque
+from typing import Any, Callable
 
 import gi
 
@@ -43,6 +52,22 @@ def _id(prefix: str) -> str:
     return f"{prefix}_{secrets.token_hex(8)}"
 
 
+def _dig(data: Any, *keys: str) -> Any:
+    """``data[k1][k2]…`` for nested dicts, or None as soon as something is missing."""
+    for key in keys:
+        if not isinstance(data, dict):
+            return None
+        data = data.get(key)
+    return data
+
+
+def session_voice(session: Any) -> Any:
+    """The output voice a Realtime session asks for (GA ``audio.output.voice`` or beta
+    ``voice``), or None when it does not mention one."""
+    voice = _dig(session, "audio", "output", "voice")
+    return voice if voice is not None else _dig(session, "voice")
+
+
 def opus_payload_type(sdp: str) -> int:
     match = re.search(r"^a=rtpmap:(\d+) opus/48000", sdp, re.M | re.I)
     return int(match.group(1)) if match else 111
@@ -59,7 +84,35 @@ def chat_tools(session: dict) -> list[dict]:
     return tools
 
 
+def _plural(count: int, one: str, many: str) -> str:
+    return f"{count} {one if count == 1 else many}"
+
+
+def _duration(seconds: float) -> str:
+    seconds = max(0, round(seconds))
+    if seconds < 60:
+        return f"{seconds} s"
+    return f"{seconds // 60} min {seconds % 60:02d} s"
+
+
 class Call:
+    # How long a finished reply waits for the caller's transcript before its
+    # ``response.output_audio_transcript.done`` (keeps "You" before "Dot" in the receipt).
+    transcript_wait = 1.5
+    # Utterances kept while an ask_compute request is pending (the oldest goes first).
+    queue_limit = 3
+    # After a compute result, answer the queued utterances ourselves if the caller does not
+    # send ``response.create`` within this many seconds.
+    follow_up_delay = 0.8
+    # A compute result that has not come back after this long (OpenDots gives up after
+    # 90 s) no longer holds the call: the next utterance is answered without it.
+    tool_timeout = 150.0
+    # A caller that vanished must not hold a call slot (and its pipeline) forever: a call
+    # that has not connected after ``connect_timeout`` (OpenDots gives up after 30 s) or
+    # that outlives ``max_duration`` (OpenDots ends calls at 15 min) is closed here.
+    connect_timeout = 60.0
+    max_duration = 20 * 60.0
+
     def __init__(self, call_id: str, session: dict, config: Config, provider: OpenRouter,
                  on_closed: Callable[[str], None]):
         self.id = call_id
@@ -67,23 +120,37 @@ class Call:
         self.provider = provider
         self._on_closed = on_closed
         self.closed = False
+        self.close_reason = ""
+        self.connected = False
         self.started = time.monotonic()
         self.cost = 0.0
+        self.replies = 0
+        self.compute_requests = 0
         self._lock = threading.RLock()
 
         model = str(session.get("model") or "")
         self.model = model if "/" in model else config.model
-        voice = str(((session.get("audio") or {}).get("output") or {}).get("voice") or "")
+        voice = session_voice(session)
         self.voice = config.voice_override or (voice if voice in VOICES else config.voice)
         self.tools = chat_tools(session)
-        self.messages: list[dict] = [{"role": "system", "content": str(
-            session.get("instructions") or "You are a helpful voice assistant. Keep answers short.")}]
+        instructions = session.get("instructions") or \
+            "You are a helpful voice assistant. Keep answers short."
+        self.messages: list[dict] = [{"role": "system", "content": str(instructions)}]
 
         self.vad = vadmod.Vad(stop_ms=config.vad_stop_ms)
         self._channel = None
+        self._announced_session = False
         self._turn_cancel: threading.Event | None = None
         self._responding = False
-        self._waiting_tool = False
+        self._turns_started = 0
+        self._turn_basis = 0                    # len(messages) when the current turn started
+        self._pending_tools: list[str] = []     # tool call ids still waiting for their output
+        self._tools_since = 0.0
+        self._queued: deque[dict] = deque()     # caller messages held back meanwhile
+        self._respond_after_tools = False
+        self._unheard: list[threading.Event] = []  # caller transcriptions still running
+        self._timers: list[threading.Timer] = []   # cancelled when the call closes
+        self._handlers: list[tuple[Any, int]] = []  # signal handlers, disconnected then
         self._speaker: queue.Queue = queue.Queue()
         self._generation = 0
         self._speaker_stop = threading.Event()
@@ -96,11 +163,25 @@ class Call:
         self.webrtc = Gst.ElementFactory.make("webrtcbin", "webrtc")
         self.webrtc.set_property("bundle-policy", GstWebRTC.WebRTCBundlePolicy.MAX_BUNDLE)
         self.pipeline.add(self.webrtc)
-        self.webrtc.connect("pad-added", self._on_pad_added)
-        self.webrtc.connect("on-data-channel", self._on_data_channel)
-        self.webrtc.connect("notify::connection-state", self._on_state)
-        self.webrtc.connect("notify::ice-gathering-state", self._on_gathering)
+        self._connect(self.webrtc, "pad-added", self._on_pad_added)
+        self._connect(self.webrtc, "on-data-channel", self._on_data_channel)
+        self._connect(self.webrtc, "notify::connection-state", self._on_state)
+        self._connect(self.webrtc, "notify::ice-gathering-state", self._on_gathering)
         self._feeder = threading.Thread(target=self._feed_speaker, daemon=True)
+
+    def _connect(self, obj: Any, signal: str, callback: Callable[..., Any]) -> bool:
+        """``obj.connect`` that ``close()`` undoes. A handler holds the call and the call
+        holds the pipeline: without the disconnect, no call would ever be freed."""
+        with self._lock:
+            if self.closed:
+                return False
+            self._handlers.append((obj, obj.connect(signal, callback)))
+        return True
+
+    @property
+    def waiting_tool(self) -> bool:
+        """True while an ask_compute (or other tool) result is pending."""
+        return bool(self._pending_tools)
 
     # -- negotiation -----------------------------------------------------------------------
 
@@ -158,7 +239,27 @@ class Call:
         self._answer_ready.wait(timeout)          # ICE gathering complete
         description = self.webrtc.props.local_description
         self._feeder.start()
+        self._start_watchdogs()
         return description.sdp.as_text()
+
+    def _start_watchdogs(self) -> None:
+        self._later(self.connect_timeout, self._check_connected)
+        self._later(self.max_duration, self.close, "time limit")
+
+    def _later(self, seconds: float, action: Callable[..., None], *args: Any) -> None:
+        """Run ``action(*args)`` after ``seconds`` unless the call has closed by then."""
+        timer = threading.Timer(seconds, action, args=args)
+        timer.daemon = True
+        with self._lock:
+            if self.closed:
+                return
+            self._timers = [t for t in self._timers if t.is_alive()]
+            self._timers.append(timer)
+        timer.start()
+
+    def _check_connected(self) -> None:
+        if not self.connected:
+            self.close("never connected")
 
     def _on_gathering(self, webrtc, _pspec) -> None:
         if webrtc.props.ice_gathering_state == GstWebRTC.WebRTCICEGatheringState.COMPLETE:
@@ -166,10 +267,12 @@ class Call:
 
     def _on_state(self, webrtc, _pspec) -> None:
         state = webrtc.props.connection_state
+        if state == GstWebRTC.WebRTCPeerConnectionState.CONNECTED:
+            self.connected = True
         if state in (GstWebRTC.WebRTCPeerConnectionState.FAILED,
                      GstWebRTC.WebRTCPeerConnectionState.CLOSED):
-            log.info("Call %s: connection %s", self.id, state.value_nick)
-            threading.Thread(target=self.close, daemon=True).start()
+            reason = f"connection {state.value_nick}"
+            threading.Thread(target=self.close, args=(reason,), daemon=True).start()
 
     # -- caller audio ----------------------------------------------------------------------
 
@@ -181,7 +284,8 @@ class Call:
             f"audio/x-raw,format=S16LE,rate={vadmod.RATE},channels=1,layout=interleaved ! "
             "appsink name=ear emit-signals=true sync=false max-buffers=50 drop=false", True)
         self.pipeline.add(listen)
-        listen.get_by_name("ear").connect("new-sample", self._on_sample)
+        if not self._connect(listen.get_by_name("ear"), "new-sample", self._on_sample):
+            return
         if pad.link(listen.get_static_pad("sink")) != Gst.PadLinkReturn.OK:
             log.warning("Call %s: could not link the caller's audio", self.id)
             return
@@ -217,31 +321,83 @@ class Call:
     def _caller_finished(self, pcm: bytes) -> None:
         item = _id("item")
         self.send({"type": "input_audio_buffer.speech_stopped", "item_id": item})
-        if self._waiting_tool:
-            return  # the Dot is busy with a compute request; the caller can repeat after
         audio = base64.b64encode(wav_bytes(pcm, vadmod.RATE)).decode()
         message = {"role": "user", "content": [
             {"type": "input_audio", "input_audio": {"data": audio, "format": "wav"}}]}
+        heard = threading.Event() if self.config.transcribe_model else None
         with self._lock:
-            self.messages.append(message)
-        if self.config.transcribe_model:
-            threading.Thread(target=self._transcribe, args=(message, item, pcm),
+            if self.closed:
+                return
+            if heard is not None:
+                self._unheard.append(heard)
+            queued = self._add_message(message)
+        if heard is not None:
+            threading.Thread(target=self._transcribe, args=(message, item, pcm, heard),
                              daemon=True).start()
-        self._respond()
+        if not queued:
+            self._respond()
 
-    def _transcribe(self, message: dict, item: str, pcm: bytes) -> None:
+    def _add_message(self, message: dict) -> bool:
+        """Add a caller message to the conversation, or hold it back while a tool result is
+        pending (the chat history must go tool call → tool result → next message).
+        Returns True when it was queued. Call with the lock held."""
+        if self._pending_tools and time.monotonic() - self._tools_since > self.tool_timeout:
+            log.info("Call %s: no compute result after %.0f s; carrying on without it",
+                     self.id, time.monotonic() - self._tools_since)
+            for call_id in self._pending_tools:
+                self.messages.append({"role": "tool", "tool_call_id": call_id,
+                                      "content": "No result: the request timed out."})
+            self._pending_tools.clear()
+            self.messages.extend(self._queued)
+            self._queued.clear()
+            self._respond_after_tools = False
+        if not self._pending_tools:
+            self.messages.append(message)
+            return False
+        if len(self._queued) >= self.queue_limit:
+            self._queued.popleft()
+            log.info("Call %s: more than %d utterances during a compute request; "
+                     "dropped the oldest", self.id, self.queue_limit)
+        self._queued.append(message)
+        log.debug("Call %s: caller spoke during a compute request; queued (%d)",
+                  self.id, len(self._queued))
+        return True
+
+    def _transcribe(self, message: dict, item: str, pcm: bytes,
+                    heard: threading.Event) -> None:
         try:
-            text = self.provider.transcribe(self.config.transcribe_model, pcm, vadmod.RATE)
-        except ProviderError as error:
-            log.info("Call %s: transcription failed: %s", self.id, error)
-            return
-        if not text:
-            return
-        with self._lock:
-            # Later turns carry the words, not the audio again.
-            message["content"] = text
-        self.send({"type": "conversation.item.input_audio_transcription.completed",
-                   "item_id": item, "content_index": 0, "transcript": text})
+            try:
+                result = self.provider.transcribe(self.config.transcribe_model, pcm,
+                                                  vadmod.RATE)
+            except ProviderError as error:
+                log.warning("Call %s: transcription failed: %s", self.id, error)
+                return
+            except Exception:  # a bug must not cost the call: log it, carry on
+                log.exception("Call %s: transcription failed unexpectedly", self.id)
+                return
+            with self._lock:
+                self.cost += result.cost
+                if result.text:
+                    # Later turns carry the words, not the audio again.
+                    message["content"] = result.text
+            if result.text:
+                self.send({"type": "conversation.item.input_audio_transcription.completed",
+                           "item_id": item, "content_index": 0, "transcript": result.text})
+        finally:
+            with self._lock:
+                if heard in self._unheard:
+                    self._unheard.remove(heard)
+            heard.set()
+
+    def _await_caller_words(self, heard: list[threading.Event]) -> None:
+        """Give the caller's transcripts (running in parallel) up to ``transcript_wait``
+        seconds to be sent first; a late one is still sent the moment it arrives."""
+        deadline = time.monotonic() + self.transcript_wait
+        for event in heard:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not event.wait(remaining):
+                log.debug("Call %s: reply sent before the caller's transcript", self.id)
+                return
 
     # -- replies ---------------------------------------------------------------------------
 
@@ -254,10 +410,16 @@ class Call:
             cancel = threading.Event()
             self._turn_cancel = cancel
             self._responding = True
+            self._turns_started += 1
+            self._turn_basis = len(self.messages)
             messages = [dict(m) for m in self.messages]
-        threading.Thread(target=self._run_turn, args=(messages, cancel), daemon=True).start()
+            heard = list(self._unheard)
+            voice = self.voice
+        threading.Thread(target=self._run_turn, args=(messages, voice, heard, cancel),
+                         daemon=True).start()
 
-    def _run_turn(self, messages: list[dict], cancel: threading.Event) -> None:
+    def _run_turn(self, messages: list[dict], voice: str, heard: list[threading.Event],
+                  cancel: threading.Event) -> None:
         response_id, item = _id("resp"), _id("item")
         self.send({"type": "response.created", "response": {"id": response_id,
                                                              "status": "in_progress"}})
@@ -273,23 +435,38 @@ class Call:
             if not cancel.is_set():
                 self._speaker.put((generation, pcm))
 
+        began = time.monotonic()
         try:
-            result = self.provider.stream_turn(self.model, messages, self.voice, self.tools,
+            result = self.provider.stream_turn(self.model, messages, voice, self.tools,
                                                transcript, audio, cancel)
-        except ProviderError as error:
-            log.warning("Call %s: %s", self.id, error)
-            self.send({"type": "error", "error": {"type": "provider_error",
-                                                  "message": str(error)}})
+        except Exception as error:  # ProviderError, or a bug: the call must not get stuck
             with self._lock:
-                self._responding = False
-            return
-        self.cost += result.cost
-        if result.cancelled or cancel.is_set():
+                current = self._turn_cancel is cancel and not cancel.is_set()
+                if current:
+                    self._responding = False
+            if not current:
+                return
+            if isinstance(error, ProviderError):
+                log.warning("Call %s: %s", self.id, error)
+                message = str(error)
+            else:
+                log.exception("Call %s: the reply failed unexpectedly", self.id)
+                message = "The voice gateway could not produce a reply."
+            self.send({"type": "error", "error": {"type": "provider_error",
+                                                  "message": message}})
             return
         with self._lock:
+            self.cost += result.cost
+            if result.cancelled or cancel.is_set():
+                return
             self._responding = False
+            self.replies += 1
+            for call in result.tool_calls:
+                call["id"] = call["id"] or _id("call")
             if result.tool_calls:
-                self._waiting_tool = True
+                self._pending_tools.extend(call["id"] for call in result.tool_calls)
+                self._tools_since = time.monotonic()
+                self.compute_requests += len(result.tool_calls)
                 self.messages.append({"role": "assistant", "content": result.transcript or None,
                                       "tool_calls": [{"id": c["id"], "type": "function",
                                                       "function": {"name": c["name"],
@@ -297,6 +474,10 @@ class Call:
                                                      for c in result.tool_calls]})
             elif result.transcript:
                 self.messages.append({"role": "assistant", "content": result.transcript})
+        log.debug("Call %s: reply in %.2f s (%d chars, %d tool calls, US$ %.5f)", self.id,
+                  time.monotonic() - began, len(result.transcript), len(result.tool_calls),
+                  result.cost)
+        self._await_caller_words(heard)
         if result.transcript:
             self.send({"type": "response.output_audio_transcript.done",
                        "response_id": response_id, "item_id": item,
@@ -321,42 +502,105 @@ class Call:
 
     def _on_data_channel(self, _webrtc, channel) -> None:
         self._channel = channel
-        channel.connect("on-message-string", lambda _c, text: self._on_message(text))
-        channel.connect("on-open", lambda _c: self._session_created())
+        self._connect(channel, "on-message-string", lambda _c, text: self._on_message(text))
+        self._connect(channel, "on-open", lambda _c: self._session_created())
         if channel.props.ready_state == GstWebRTC.WebRTCDataChannelState.OPEN:
             self._session_created()
 
+    def _session_view(self) -> dict:
+        return {"id": self.id, "object": "realtime.session", "model": self.model,
+                "voice": self.voice, "output_modalities": ["audio"],
+                "audio": {"output": {"voice": self.voice}}}
+
     def _session_created(self) -> None:
-        if getattr(self, "_announced_session", False):
-            return
-        self._announced_session = True
-        self.send({"type": "session.created", "session": {
-            "id": self.id, "object": "realtime.session", "model": self.model,
-            "voice": self.voice, "output_modalities": ["audio"]}})
+        with self._lock:                      # "on-open" and the ready check can race
+            if self._announced_session:
+                return
+            self._announced_session = True
+        self.send({"type": "session.created", "session": self._session_view()})
 
     def _on_message(self, text: str) -> None:
         try:
             event = json.loads(text)
         except ValueError:
             return
+        if not isinstance(event, dict):
+            return
         kind = event.get("type")
         if kind == "conversation.item.create":
-            item = event.get("item") or {}
+            item = event.get("item")
+            if not isinstance(item, dict):
+                return
             if item.get("type") == "function_call_output":
-                with self._lock:
-                    self.messages.append({"role": "tool", "tool_call_id": item.get("call_id"),
-                                          "content": str(item.get("output", ""))})
-                    self._waiting_tool = False
+                self._tool_output(item)
             elif item.get("type") == "message":
-                parts = [c.get("text", "") for c in item.get("content") or []
+                parts = [str(c.get("text") or "") for c in item.get("content") or []
                          if isinstance(c, dict)]
                 with self._lock:
-                    self.messages.append({"role": item.get("role", "user"),
-                                          "content": " ".join(p for p in parts if p)})
+                    self._add_message({"role": str(item.get("role") or "user"),
+                                       "content": " ".join(p for p in parts if p)})
         elif kind == "response.create":
+            with self._lock:
+                if self._pending_tools:
+                    # Answer once every tool result is in (the history needs them all).
+                    self._respond_after_tools = True
+                    return
+                if self._responding and len(self.messages) == self._turn_basis:
+                    return  # already answering exactly this conversation
             self._respond()
         elif kind == "response.cancel":
             self._interrupt()
+        elif kind == "session.update":
+            self._update_session(event.get("session"))
+
+    def _tool_output(self, item: dict) -> None:
+        call_id = item.get("call_id")
+        with self._lock:
+            if call_id not in self._pending_tools:
+                log.debug("Call %s: ignored a result for an unknown tool call", self.id)
+                return
+            self.messages.append({"role": "tool", "tool_call_id": call_id,
+                                  "content": str(item.get("output", ""))})
+            self._pending_tools.remove(call_id)
+            if self._pending_tools:
+                return
+            queued = list(self._queued)
+            self._queued.clear()
+            self.messages.extend(queued)
+            respond = self._respond_after_tools
+            self._respond_after_tools = False
+            marker = self._turns_started
+        if respond:
+            self._respond()
+        elif queued:
+            # The caller normally sends response.create right after the result; if it does
+            # not, still answer what was said meanwhile.
+            self._later(self.follow_up_delay, self._follow_up, marker)
+
+    def _follow_up(self, marker: int) -> None:
+        with self._lock:
+            if self.closed or self._pending_tools or self._turns_started != marker:
+                return
+        log.debug("Call %s: answering speech queued during a compute request", self.id)
+        self._respond()
+
+    def _update_session(self, session: Any) -> None:
+        """``session.update`` from the caller: only the output voice can change; it applies
+        from the next reply on. Always answered with ``session.updated``."""
+        voice = session_voice(session)
+        if voice is not None:
+            wanted = voice.strip().lower() if isinstance(voice, str) else ""
+            if self.config.voice_override:
+                log.info("Call %s: voice stays %s (forced by VOICE_GATEWAY_FORCE_VOICE)",
+                         self.id, self.voice)
+            elif wanted in VOICES:
+                with self._lock:
+                    changed, self.voice = wanted != self.voice, wanted
+                if changed:
+                    log.info("Call %s: voice changed to %s", self.id, wanted)
+            else:
+                log.info("Call %s: ignored unknown voice %r", self.id, str(voice)[:40])
+        self.send({"type": "session.updated", "session": self._session_view()})
 
     def send(self, event: dict) -> None:
         channel = self._channel
@@ -443,15 +687,29 @@ class Call:
 
     # -- teardown --------------------------------------------------------------------------
 
-    def close(self) -> None:
+    def close(self, reason: str = "hangup") -> None:
+        """End the call; logs one line with how long it lasted and what it cost."""
         with self._lock:
             if self.closed:
                 return
+            self.close_reason = reason        # first: readers check ``closed`` without the lock
             self.closed = True
             if self._turn_cancel is not None:
                 self._turn_cancel.set()
+            cost, replies, computes = self.cost, self.replies, self.compute_requests
+            timers, self._timers = self._timers, []
+        for timer in timers:
+            timer.cancel()
         self._speaker_stop.set()
         self.pipeline.set_state(Gst.State.NULL)
-        log.info("Call %s closed after %.0f s, cost US$ %.5f", self.id,
-                 time.monotonic() - self.started, self.cost)
+        with self._lock:
+            handlers, self._handlers = self._handlers, []
+        for obj, handler in handlers:
+            if obj.handler_is_connected(handler):
+                obj.disconnect(handler)
+        self._channel = None
+        log.info("Call %s ended (%s): %s, %s, %s, US$ %.5f", self.id, reason,
+                 _duration(time.monotonic() - self.started),
+                 _plural(replies, "reply", "replies"),
+                 _plural(computes, "compute request", "compute requests"), cost)
         self._on_closed(self.id)
