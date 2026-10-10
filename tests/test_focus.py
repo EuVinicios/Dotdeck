@@ -30,7 +30,7 @@ TOKEN = "owner-token-for-focus-tests"
 DOTS = ["Chefe", "Zelador", "Dot", "Negócios", "Dinheiro", "Oficina", "Acadêmico", "Consultor"]
 PETS = {"Chefe": "rosy", "Zelador": "bolt", "Dot": "sprout", "Negócios": "ember",
         "Dinheiro": "sunny", "Oficina": "plum", "Acadêmico": "sage", "Consultor": "graphite"}
-LONG = "# Chefe — chefe de gabinete do Vinicios\n\n" + "Organiza a agenda e cobra prazos. " * 60
+LONG = "# Chefe — chefe de gabinete da Ana\n\n" + "Organiza a agenda e cobra prazos. " * 60
 NEW = {"id": "c9", "dotId": "d5", "title": "Voice call", "createdAt": 9}
 # Newest first, as GET /api/workspace lists them.
 CONVERSATIONS = [
@@ -195,7 +195,7 @@ class FocusModeTest(unittest.TestCase):
 
         # The home card shows the job from "# Chefe — job" instead of the instructions.
         self.assertEqual(self.js("""return document.querySelector('.empty-chat-persona p')
-            .getAttribute('data-dotdeck-summary');"""), "chefe de gabinete do Vinicios")
+            .getAttribute('data-dotdeck-summary');"""), "chefe de gabinete da Ana")
         self.assertTrue(self.command(view.open_dot, 0, "Chefe"))
         self.assertEqual(self.js("""const p = document.querySelector('.chat-welcome > p');
             return [getComputedStyle(p).display, getComputedStyle(

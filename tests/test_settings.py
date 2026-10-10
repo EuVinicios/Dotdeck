@@ -55,7 +55,7 @@ def owner_dots() -> list[dict]:
                 "learningContainerId": None, "skillDeliveryEnabled": True}
     return [
         dot(0, "Dot", "", "Be thoughtful, practical, and concise. Help with everyday tasks."),
-        dot(1, "Chefe", "chefe de gabinete do Vinicios",
+        dot(1, "Chefe", "chefe de gabinete da Ana",
             "Coordinate the other Dots and keep the week on track.", ("s1", "s2")),
         dot(2, "Zelador", "SRE da casa", "Keep the homelab healthy: backups, updates, disks.",
             ("s3",)),
@@ -797,9 +797,9 @@ class SettingsWindowTests(unittest.TestCase):
         profile = self.app.profiles.get(self.profile.id)
         profile.name = "R&D <Lab>"
         self.app.profiles.update(profile)
-        self.fake.dots[2]["instructions"] = "# Zelador — Vinicios's SRE\n\nKeep it healthy."
+        self.fake.dots[2]["instructions"] = "# Zelador — Ana's SRE\n\nKeep it healthy."
         self.mon.poll_now()
-        self.assertTrue(run_until(lambda: "Vinicios's" in self.mon.workspace.dot("d2").job, 5))
+        self.assertTrue(run_until(lambda: "Ana's" in self.mon.workspace.dot("d2").job, 5))
         errors = self.collect_errors()
         win = self.open("voice")
         self.assertTrue(run_until(lambda: "R&amp;D" in win.pages["voice"].status.get_title(), 3))
@@ -807,11 +807,11 @@ class SettingsWindowTests(unittest.TestCase):
         win.search_entry.set_text("noise")
         self.assertTrue(run_until(lambda: win.search_results(), 3))
         self.assertEqual(win.search_results()[0].title, "Noise Suppression")
-        win.search_entry.set_text("vinicios's sre")
+        win.search_entry.set_text("ana's sre")
         self.assertTrue(run_until(lambda: any(e.title == "Zelador"
                                               for e in win.search_results()), 3))
         found = next(e for e in win.search_results() if e.title == "Zelador")
-        self.assertEqual(found.subtitle, "Vinicios's SRE")
+        self.assertEqual(found.subtitle, "Ana's SRE")
         self.assertEqual(errors, [])
 
     def collect_errors(self) -> list[str]:

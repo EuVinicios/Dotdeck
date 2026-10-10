@@ -12,8 +12,10 @@ class NormalizeUrlTest(unittest.TestCase):
     def test_local_addresses_default_to_http(self):
         self.assertEqual(server.normalize_url("localhost:4310"), "http://localhost:4310")
         self.assertEqual(server.normalize_url("127.0.0.1:4310/"), "http://127.0.0.1:4310")
-        self.assertEqual(server.normalize_url("192.168.1.20:4310"), "http://192.168.1.20:4310")
-        self.assertEqual(server.normalize_url("100.101.102.103:4310"), "http://100.101.102.103:4310")
+        self.assertEqual(server.normalize_url("192.168.1.20:4310"),  # privacy: example
+                         "http://192.168.1.20:4310")  # privacy: example
+        self.assertEqual(server.normalize_url("100.101.102.103:4310"),  # privacy: example
+                         "http://100.101.102.103:4310")  # privacy: example
         self.assertEqual(server.normalize_url("homelab:4310"), "http://homelab:4310")
         self.assertEqual(server.normalize_url("[::1]:4310"), "http://[::1]:4310")
 
@@ -45,8 +47,10 @@ class NormalizeUrlTest(unittest.TestCase):
         self.assertTrue(server.is_cleartext_remote("http://dots.example.com"))
         self.assertFalse(server.is_cleartext_remote("https://dots.example.com"))
         self.assertFalse(server.is_cleartext_remote("http://192.168.0.10:4310"))
-        self.assertFalse(server.is_cleartext_remote("http://100.101.102.103:4310"))
-        self.assertFalse(server.is_cleartext_remote("http://homelab.tail0000.ts.net:4310"))
+        self.assertFalse(server.is_cleartext_remote(
+            "http://100.101.102.103:4310"))  # privacy: example
+        self.assertFalse(server.is_cleartext_remote(
+            "http://homelab.tail0000.ts.net:4310"))  # privacy: example
 
     def test_origin_of(self):
         self.assertEqual(server.origin_of("http://127.0.0.1:4310/#/spaces/1"),

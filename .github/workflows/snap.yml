@@ -105,6 +105,16 @@ jobs:
           grep -q '"voice_engine": "ready"' self-test.json
           grep -q '"sandbox": "snap"' self-test.json
 
+      # What the store hands to a stranger: the same scan as the source tree (make privacy),
+      # on every file of the built snap.
+      - name: Privacidade do snap (nenhum segredo nem endereço privado no pacote)
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/dotdeck-snap"
+          sudo unsquashfs -q -f -d "$root" "${{ steps.build.outputs.snap }}"
+          sudo chmod -R a+rX "$root"
+          python3 tools/privacy_scan.py "$root"
+
       # Inside the snap the app must not try to own its id on D-Bus (that needs a dbus
       # slot and a manual store review): it runs non-unique (src/core/instance.py).
       - name: O snap não depende de nome no D-Bus

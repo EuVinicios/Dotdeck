@@ -39,7 +39,7 @@ def shorten(text: str, limit: int = JOB_LIMIT) -> str:
 def job_of(name: str, instructions: str) -> str:
     """A short "what this Dot does" line, from the first line of its instructions.
 
-    ``# Chefe — chefe de gabinete do Vinicios`` gives ``chefe de gabinete do Vinicios``;
+    ``# Atlas — chief of staff for the team`` gives ``chief of staff for the team``;
     plain prose gives its first sentence. There is no job field in OpenDots.
     """
     for line in instructions.splitlines():

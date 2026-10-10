@@ -32,6 +32,10 @@ jobs:
 
       - uses: actions/checkout@v7
 
+      # Dotdeck is public: no keys, bot tokens, home folders or private addresses in it.
+      - name: Privacidade (nenhum segredo nem endereço privado no código)
+        run: make privacy
+
       - name: Testes (núcleo, WebKit, chamada de voz em loopback e bandeja)
         run: make test
 
