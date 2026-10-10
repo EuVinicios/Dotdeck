@@ -177,6 +177,7 @@ class SidebarTests(unittest.TestCase):
         # Hide From Sidebar: the Dot is gone, the list keeps the focus.
         self.fill(pinned={"b"}, hidden={"b"})
         self.assertIs(self.window.get_focus(), self.sidebar.dots)
+        self.assertEqual(self.opened, [])          # the focus alone opens no Dot
 
     def test_a_long_press_is_for_touch_screens(self):
         press = next(c for c in self.sidebar.dots.observe_controllers()
