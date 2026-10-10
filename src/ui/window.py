@@ -100,6 +100,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._call_connected = False            # the call reached the Dot at least once
         self._call_pending: str | None = None   # a call being set up with this Dot
         self._call_pending_timer = 0
+        self._call_focus_back = False           # Call had the keyboard focus when it dimmed
         self._very_narrow = False               # phone width: fewer buttons in the header
         self._prefs: dotprefs.DotPrefs | None = None
         self._prefs_handler = 0
@@ -1062,6 +1063,13 @@ class MainWindow(Adw.ApplicationWindow):
             self._call_pending_timer = GLib.timeout_add_seconds(CALL_PENDING_SECONDS,
                                                                 self._call_pending_expired)
         self._refresh_header()
+        if dot_id is None and self._call_focus_back:
+            # Enter on Call: the focus comes back to it (now End, or Call again after a
+            # failure) unless it went somewhere else meanwhile.
+            self._call_focus_back = False
+            if self.get_focus() is None and self.call_button.get_visible() \
+                    and self.call_button.get_sensitive():
+                self.call_button.grab_focus()
 
     def _call_pending_expired(self) -> bool:
         self._call_pending_timer = 0
@@ -1246,6 +1254,8 @@ class MainWindow(Adw.ApplicationWindow):
             self.call_button.set_visible(show_dot and self.workspace.voice_ready)
             self.call_button.remove_css_class("destructive-action")
             self.call_button.add_css_class("suggested-action")
+            if self.call_button.has_focus():   # dimmed, it drops the keyboard focus
+                self._call_focus_back = True
             self.call_button.set_sensitive(False)
             self.call_button.set_tooltip_text(_("Calling…"))
         else:
