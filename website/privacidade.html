@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacidade · Dotdeck</title>
+  <meta name="description" content="Como o Dotdeck trata os seus dados: sem conta, sem anúncios, sem estatísticas de uso e sem nada dos outros no app da loja.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f8faff" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0a0f1d" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://euvinicios.github.io/Dotdeck/privacidade.html">
+  <link rel="icon" href="assets/icon-64.png" type="image/png" sizes="64x64">
+  <link rel="apple-touch-icon" href="assets/icon-256.png">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Dotdeck">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:url" content="https://euvinicios.github.io/Dotdeck/privacidade.html">
+  <meta property="og:title" content="Privacidade · Dotdeck">
+  <meta property="og:description" content="Sem conta, sem anúncios e sem estatísticas de uso. Os seus Dots e as suas chaves ficam no seu servidor.">
+  <meta property="og:image" content="https://euvinicios.github.io/Dotdeck/assets/social-card.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <a class="skip" href="#conteudo">Pular para o conteúdo</a>
+
+  <header class="topbar">
+    <nav class="wrap nav" aria-label="Principal">
+      <a class="brand" href="./" aria-label="Dotdeck, página inicial">
+        <img src="assets/icon-64.png" alt="" width="34" height="34">
+        <span>Dotdeck</span>
+      </a>
+      <ul class="links">
+        <li><a href="./#recursos">Recursos</a></li>
+        <li><a href="./#perguntas">Perguntas</a></li>
+        <li><a class="button small" href="./#instalar">Instalar</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main id="conteudo" class="article">
+    <div class="narrow">
+      <h1>Política de privacidade</h1>
+      <p class="updated">Última atualização: 10 de outubro de 2026.</p>
+
+      <div class="summary">
+        <p>
+          <strong>Em resumo:</strong> o Dotdeck não tem conta, anúncios nem estatísticas de uso
+          e não envia nada ao desenvolvedor. Ele conversa com os servidores OpenDots que você
+          adicionar e, durante uma chamada de voz, com o serviço de voz que o servidor indicar.
+          Os seus Dots, conversas e chaves de API ficam nesses servidores.
+        </p>
+      </div>
+
+      <h2>O que fica no seu computador</h2>
+      <ul>
+        <li>Os servidores que você adicionou (nome e endereço) e as preferências do app: <code>~/.config/dotdeck/</code>, num arquivo que só o seu usuário pode ler.</li>
+        <li>O pet escolhido para cada Dot: <code>~/.config/dotdeck/dots/</code>.</li>
+        <li>Os cookies e os dados da página de cada servidor, separados por servidor: <code>~/.local/share/dotdeck/profiles/</code>.</li>
+        <li>Arquivos temporários: <code>~/.cache/dotdeck/</code>.</li>
+        <li>O token de acesso de cada servidor, no chaveiro do sistema (GNOME Keyring ou o portal Secret), nunca em texto puro.</li>
+      </ul>
+      <p>
+        No snap, essas pastas ficam dentro de <code>~/snap/dotdeck/</code>; no Flatpak, em
+        <code>~/.var/app/io.github.euvinicios.Dotdeck/</code>. Para apagar tudo de um servidor, use
+        <em>Configurações › Servidores › Remover servidor</em>; para apagar tudo, remova essas pastas.
+      </p>
+
+      <h2>Com quem o app conversa</h2>
+      <ul>
+        <li><strong>Os servidores OpenDots que você adicionar</strong>, e o atualizador que roda ao lado de cada um deles, se você o instalou. A janela só abre páginas desses servidores; qualquer outro link abre no seu navegador.</li>
+        <li><strong>O serviço de voz de uma chamada</strong>, só enquanto ela dura: o endereço que o seu servidor indicar ao abrir a chamada. No OpenDots oficial, é a API Realtime da OpenAI; com a ponte de voz do Dotdeck, é o próprio servidor.</li>
+        <li><strong>O seu sistema</strong>, pelos portais do desktop: notificações, atalhos globais, chaveiro e início com a sessão.</li>
+      </ul>
+      <p>
+        É o seu servidor OpenDots, e não o Dotdeck, que conversa com o provedor de IA que você
+        configurou (por exemplo, o OpenRouter ou a Anthropic). O que vai para o provedor segue a
+        política de privacidade dele.
+      </p>
+
+      <h2>Microfone e chamadas de voz</h2>
+      <p>
+        O microfone é usado em dois momentos: numa chamada de voz com um Dot, depois que você
+        permitir (o Dotdeck pergunta uma vez para cada servidor, e a resposta pode ser mudada em
+        <em>Configurações › Chamadas de voz</em>), e no medidor de teste dessa mesma página,
+        enquanto ela está aberta. O áudio das chamadas vai para o serviço de voz que o seu
+        servidor indicar (veja acima); o do teste não sai do seu computador. No snap, o microfone também depende de conectar a
+        interface <code>audio-record</code>.
+      </p>
+
+      <h2>O app da loja vem vazio</h2>
+      <p>
+        O Dotdeck publicado na Snap Store, no Flatpak e no pacote <code>.deb</code> não traz Dots,
+        endereços de servidor, tokens nem chaves de ninguém: quem instala começa pela configuração
+        guiada. A cada versão, uma verificação automática procura chaves, tokens, pastas pessoais
+        e endereços privados no código e no pacote gerado.
+      </p>
+
+      <h2>Contato</h2>
+      <p>Dúvidas ou sugestões: abra um relato em <a href="https://github.com/EuVinicios/Dotdeck/issues">GitHub Issues</a>.</p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="wrap footer-grid">
+      <a class="brand" href="./">
+        <img src="assets/icon-64.png" alt="" width="28" height="28">
+        <span>Dotdeck</span>
+      </a>
+      <nav aria-label="Rodapé">
+        <a href="https://github.com/EuVinicios/Dotdeck">GitHub</a>
+        <a href="https://snapcraft.io/dotdeck">Snap Store</a>
+        <a href="https://github.com/EuVinicios/Dotdeck/issues">Relatar um problema</a>
+      </nav>
+      <p class="small">© 2026 EuVinicios · GPL-3.0-or-later · Projeto independente, sem vínculo com a CopilotKit.</p>
+    </div>
+  </footer>
+</body>
+</html>

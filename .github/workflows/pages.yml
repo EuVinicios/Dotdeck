@@ -1,0 +1,51 @@
+name: Site
+
+# Publishes website/ on GitHub Pages (free for public repositories).
+# One-time setup: Settings → Pages → Build and deployment → Source: GitHub Actions.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "data/icons/**"
+      - "data/screenshots/**"
+      - "data/store/social-card.png"
+      - "src/pets/**"
+      - "build-aux/website.sh"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Gerar o site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: build-aux/website.sh _site
+      # The site is public: no keys, tokens, home folders or private addresses in it.
+      - name: Privacidade (nada pessoal no site)
+        run: python3 tools/privacy_scan.py _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    name: Publicar
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

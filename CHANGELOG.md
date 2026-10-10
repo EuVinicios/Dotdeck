@@ -4,6 +4,37 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.5] - 2026-10-10
+
+Site oficial e capturas novas.
+
+### Adicionado
+
+- **Site oficial** em <https://euvinicios.github.io/Dotdeck/>, em português, claro e escuro:
+  recursos, Dots e pets, chamadas de voz, modelos de IA e custos, privacidade, perguntas
+  frequentes e como instalar. Fica em `website/`, sem nenhum recurso externo (fontes,
+  scripts ou rastreadores), e o GitHub Pages publica a cada mudança na `main`
+  (`.github/workflows/pages.yml`, com a busca de privacidade no site gerado). `make site` monta
+  o site em `build/website`, copiando o ícone, os pets e as capturas do próprio app.
+- **Capturas novas** da interface real com Dots fictícios, em inglês (`data/screenshots`, para
+  o AppStream) e em português (`data/screenshots/pt_BR`, para o site e a loja), no claro e no
+  escuro, incluindo Modelos de IA e Chamadas de voz. O rodapé da barra mostra "Claude Haiku 5.5
+  · OpenRouter".
+- **Imagens da loja** em português (`data/store`): banner, ícone e cinco slides, um deles de
+  Modelos de IA, e o cartão de prévia do site (`social-card.png`, 1200×630).
+
+### Alterado
+
+- O endereço do Dotdeck no AppStream, no snap, no `.deb` e na janela Sobre passa a ser o site.
+- `tools/demo_server.py` responde `GET /api/model-config` e informa o modelo em uso, com Dots
+  fictícios também em português (`--lang pt`). `make screenshots OPENDOTS_CLIENT=…` gera as
+  duas línguas, claro e escuro, com a fonte do GNOME (Adwaita Sans) e microfones fictícios.
+
+### Corrigido
+
+- Textos em português que a fonte padrão do GNOME cortava: a busca das Configurações agora é
+  "Pesquisar configurações", e os estados do pet são Livre, Ocupado, Falando e Pausado.
+
 ## [0.3.4] - 2026-10-10
 
 ### Corrigido

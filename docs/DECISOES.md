@@ -368,3 +368,54 @@ usando para chamadas e como configurar".
 **Escolhas do dono (10/10/2026):** modelo das conversas "Haiku 5.5 pelo OpenRouter
 (Recomendado)" e publicação "Sim, direto no stable (Recomendado)" — a 0.3.3 segue edge →
 candidate → stable depois dos testes, como a 0.3.2.
+
+## ADR-018 — Site oficial no GitHub Pages e capturas novas (10/10/2026)
+
+**Contexto.** Com a 0.3.4 indo para o canal estável, a ficha da loja e o README ainda mostravam
+as capturas da 0.3.0: sem a página Modelos de IA, sem o modelo no rodapé da barra e só em
+inglês. O endereço do Dotdeck na loja, no AppStream e no `.deb` era o repositório. O PodFlow
+já tem um site no GitHub Pages (`website/`, `build-aux/website.sh` e
+`.github/workflows/pages.yml`), e o dono pediu o mesmo para o Dotdeck.
+
+**Decisão.**
+- **Site.** `website/` com a mesma estrutura do PodFlow e identidade própria: o azul do pet
+  de pelúcia, o azul-marinho das imagens da loja e o lema "Seus Dots na área de trabalho".
+  Seções: recursos, Dots e pets (os 12 pets), chamadas de voz, modelos de IA e custos,
+  privacidade (nada vai para o desenvolvedor, e o app da loja vem vazio), perguntas
+  frequentes e instalação em três passos (loja, `snap connect` das duas interfaces e
+  conexão ao OpenDots, com o link do projeto). Claro e escuro pelo sistema, a partir de
+  360 px de largura, sem fontes, scripts ou rastreadores de fora; o único script é o botão
+  Copiar dos comandos. `build-aux/website.sh` copia o ícone, os pets, as capturas em
+  português e o cartão de prévia, e o workflow Site publica a cada mudança na `main` depois
+  de passar o site gerado pelo `tools/privacy_scan.py`.
+- **Endereço.** `https://euvinicios.github.io/Dotdeck/` passa a ser o endereço do Dotdeck no
+  metainfo (`homepage`), no `snapcraft.yaml` (`website`), no `.deb` (`Homepage`) e na janela
+  Sobre. Código-fonte, relatos e contribuição continuam apontando para o GitHub.
+- **Capturas.** Saem da interface real com Dots fictícios (`tools/demo_server.py`), agora com
+  `GET /api/model-config` (Claude Haiku 5.5 pelo OpenRouter) e o modelo em uso no
+  `/api/workspace`. Os Dots têm nomes genéricos, escolhidos para não lembrar os de ninguém
+  (Assistente, Pesquisa, Redação, Finanças, Manutenção, Laboratório, Estratégia, Estudos, e
+  os mesmos em inglês), o servidor se chama Aurora e os microfones são fictícios. `make screenshots` gera inglês
+  (`data/screenshots`, usado pelo AppStream) e português (`data/screenshots/pt_BR`, usado
+  pelo site e pela loja), claro e escuro, com a fonte do GNOME (Adwaita Sans 11) em vez da
+  DejaVu Sans de um servidor X sem configuração.
+- **Loja.** `make store-assets` gera, em português, o banner, o ícone, cinco slides
+  (Dots, pets, Modelos de IA, chamadas de voz no escuro e configuração guiada) e o cartão
+  de prévia do site. O envio continua pelo painel do snapcraft.io, na sessão do dono
+  (ADR-016).
+- **Textos cortados.** Na fonte padrão do GNOME, "Pesquisar nas configurações" e os estados
+  "Em repouso" e "Trabalhando" do pet não cabiam. Viraram "Pesquisar configurações",
+  "Livre" e "Ocupado".
+- **Só promete o que funciona para quem instala.** Modelos de IA (o modelo no rodapé, os
+  preços, a troca e o teste) dependem de `GET /api/model-config`, e a voz só com a chave do
+  OpenRouter depende da ponte de voz e de o OpenDots aceitar outro endereço de voz
+  (`VOICE_REALTIME_URL`). O OpenDots oficial ainda não tem nenhum dos dois, e nele o áudio de
+  uma chamada vai do Dotdeck direto para a API Realtime da OpenAI. O site diz isso nas seções
+  de modelos, de voz e de privacidade, e a frase de abertura fala de pets, chamadas e avisos.
+
+O site só fica no ar depois do merge e de uma configuração única no GitHub: Settings → Pages
+→ Build and deployment → Source: GitHub Actions (como no PodFlow).
+
+**Pedido do dono:** "Depois de promover a versão para estável, temos que fazer o mesmo que
+fizemos com o PodFlow e colocar os prints do app no site oficial do linux, criar um site no
+git como temos do Podflow e deixar tudo com a cara mais profissional possível".

@@ -36,6 +36,11 @@ jobs:
       - name: Privacidade (nenhum segredo nem endereço privado no código)
         run: make privacy
 
+      - name: Site (montagem e privacidade)
+        run: |
+          make site
+          python3 tools/privacy_scan.py build/website
+
       - name: Testes (núcleo, WebKit, chamada de voz em loopback e bandeja)
         run: make test
 

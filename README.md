@@ -9,15 +9,19 @@
 Cliente nativo (GTK 4 + Libadwaita) para servidores [OpenDots](https://github.com/CopilotKit/OpenDots):
 conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailscale ou na nuvem.
 
+**[Site oficial](https://euvinicios.github.io/Dotdeck/)** ·
+**[Snap Store](https://snapcraft.io/dotdeck)** ·
 **[Baixar](https://github.com/EuVinicios/Dotdeck/releases/latest)** ·
 **[Relatar um problema](https://github.com/EuVinicios/Dotdeck/issues)** ·
 **[English](#english)**
 
+[![Site](https://img.shields.io/badge/site-euvinicios.github.io%2FDotdeck-2459e0)](https://euvinicios.github.io/Dotdeck/)
+[![Snap Store](https://snapcraft.io/dotdeck/badge.svg)](https://snapcraft.io/dotdeck)
 [![CI](https://github.com/EuVinicios/Dotdeck/actions/workflows/ci.yml/badge.svg)](https://github.com/EuVinicios/Dotdeck/actions/workflows/ci.yml)
 [![Snap](https://github.com/EuVinicios/Dotdeck/actions/workflows/snap.yml/badge.svg)](https://github.com/EuVinicios/Dotdeck/actions/workflows/snap.yml)
 [![Licença: GPL v3+](https://img.shields.io/badge/licen%C3%A7a-GPL--3.0--or--later-blue)](LICENSE)
 
-<img src="data/screenshots/workspace.png" alt="O espaço de trabalho do OpenDots numa janela do Dotdeck" width="860">
+<img src="data/screenshots/pt_BR/workspace.png" alt="A janela do Dotdeck com oito Dots fictícios na barra lateral, cada um com o seu pet" width="860">
 
 </div>
 
@@ -100,7 +104,9 @@ flatpak install --user flathub org.gnome.Sdk//51 org.flatpak.Builder
 | Teste de fumaça da interface | `make smoke` |
 | Validar .desktop e AppStream | `make validate` |
 | Gerar o ícone de pelúcia | `make icon` |
-| Imagens da Snap Store | `make store-assets` |
+| Capturas de tela (Dots fictícios, pt_BR e inglês) | `make screenshots OPENDOTS_CLIENT=<OpenDots>/dist/client` |
+| Imagens da Snap Store e do site | `make store-assets` |
+| Site oficial (`website/`) | `make site` |
 | Flatpak local | `make flatpak` |
 | Pacote .deb | `make deb` |
 | Snap | `make snap` |
@@ -109,8 +115,8 @@ flatpak install --user flathub org.gnome.Sdk//51 org.flatpak.Builder
 Diagnóstico rápido do sistema: `dotdeck --self-test` (versões, motor de voz, chaveiro, sandbox).
 
 Arquitetura, decisões e o porquê de cada escolha estão em [`docs/DECISOES.md`](docs/DECISOES.md).
-Publicação: [Central de Aplicativos do Ubuntu](docs/publicar-na-central-de-apps.md) e
-[Flathub](docs/publicar-na-flathub.md).
+Publicação: [Central de Aplicativos do Ubuntu](docs/publicar-na-central-de-apps.md) (inclui como
+atualizar as capturas, a ficha da loja e o site) e [Flathub](docs/publicar-na-flathub.md).
 
 ## English
 
@@ -120,7 +126,8 @@ Settings window with search, one-click voice calls with your Dots, guided setup,
 servers, owner tokens in the keyring, native voice calls
 (GStreamer WebRTC, because WebKitGTK ships without it), notifications, tray icon, background
 mode and global shortcuts. Get it from the Ubuntu App Center (`snap install dotdeck`), as a
-`.deb` or as a Flatpak from the releases page.
+`.deb` or as a Flatpak from the releases page. Website (Portuguese):
+<https://euvinicios.github.io/Dotdeck/>.
 
 ## Licença
 
