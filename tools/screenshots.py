@@ -35,7 +35,7 @@ gi.require_version("Graphene", "1.0")
 from gi.repository import GLib, Graphene, Gtk  # noqa: E402
 
 from src import main as dotdeck  # noqa: E402
-from tests.fake_server import FakeOpenDots  # noqa: E402
+from tests.fake_server import MODEL_CONFIG, FakeOpenDots  # noqa: E402
 
 DEMO_JOBS = {
     "Chief": "chief of staff, keeps everyone in sync",
@@ -93,7 +93,8 @@ def run(args) -> int:
     if not url:
         fake = FakeOpenDots(name="OpenDots Demo", dots=list(DEMO_JOBS), opendots=True,
                             instructions={n: f"# {n} — {j}\n\nHelps the owner."
-                                          for n, j in DEMO_JOBS.items()}).start()
+                                          for n, j in DEMO_JOBS.items()},
+                            model_config=MODEL_CONFIG).start()
         fake.tasks = [{"id": "t1", "prompt": "Weekly market summary", "status": "running"}]
         url = fake.url
 
@@ -156,7 +157,7 @@ def run(args) -> int:
             else:
                 settings.set_default_size(min(args.width, 1000), min(args.height, 700))
                 pump(0.6)
-                for page in ("appearance", "dots", "voice", "servers"):
+                for page in ("appearance", "dots", "voice", "model", "servers"):
                     settings.show_page(page)
                     pump(0.8)
                     capture(settings, out / f"settings-{page}{suffix}.png")

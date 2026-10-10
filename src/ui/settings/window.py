@@ -673,6 +673,9 @@ class SettingsWindow(Adw.Window):
                                        "data": data if isinstance(data, dict) else None,
                                        "error": error or "", "at": time.monotonic()}
             self._model_changed()
+            mon = self.app.monitors.get(profile_id)
+            if state == "ok" and hasattr(mon, "set_model_config"):
+                mon.set_model_config(data)       # the sidebar names the same model
 
         self.with_api(lambda client: client.model_config(got), profile)
 
@@ -690,12 +693,25 @@ class SettingsWindow(Adw.Window):
             if error is None:
                 cached = self._model.get(profile_id) or {"state": "ok", "data": {}, "error": ""}
                 merged = dict(cached.get("data") or {})
+                if "model" in changes:
+                    # The old name and price belong to the old model (asked again below).
+                    merged.pop("modelName", None)
+                    merged.pop("price", None)
                 if isinstance(data, dict):
-                    merged.update({k: v for k, v in data.items() if k != "ok"})
-                for key in ("model", "voiceName", "voiceModel", "baseUrl"):
+                    merged.update({k: v for k, v in data.items() if k not in ("ok", "persisted")})
+                    if data.get("persisted") is False:
+                        self.toast(_("Changed, but the server could not save it in its .env "
+                                     "file: it lasts until OpenDots restarts."))
+                for key in ("provider", "model", "voiceName", "voiceModel", "baseUrl"):
                     if key in changes and key not in (data or {}):
                         merged[key] = changes[key]
                 if changes.get("apiKey"):
+                    keyed = changes.get("provider") or merged.get("provider")
+                    keys = dict(merged.get("keys")) if isinstance(merged.get("keys"), dict) \
+                        else None
+                    if keys is not None and keyed:
+                        keys[keyed] = True
+                        merged["keys"] = keys
                     merged["hasApiKey"] = True
                 if changes.get("voiceKey"):
                     merged["hasVoiceKey"] = True
@@ -705,9 +721,25 @@ class SettingsWindow(Adw.Window):
                 mon = self.app.monitors.get(profile_id)
                 if mon is not None:
                     mon.poll_now()
+                # Names, prices, keys and the call models follow from the change: ask again.
+                if profile_id == self.profile_id:
+                    self.request_model_config(force=True)
             done(error is None, error)
 
         self.with_api(lambda client: client.set_model_config(got, **changes), profile)
+
+    def try_model(self, done: Callable[[dict | None, str | None], None], **body) -> None:
+        """POST /api/model-config/test: ``done({"ok", "ms", "error"?} | None, error)``."""
+        profile = self.profile
+        if profile is None:
+            done(None, _("No server"))
+            return
+
+        def got(data, error) -> None:
+            if not self._closing:
+                done(data, error)
+
+        self.with_api(lambda client: client.try_model(got, **body), profile)
 
     def _model_changed(self) -> None:
         for name in ("voice", "model"):

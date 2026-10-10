@@ -1,4 +1,4 @@
-"""YOUR DOTS › Voice Calls: readiness, devices, sound processing and the Dots' voice."""
+"""YOUR DOTS › Voice Calls: readiness, the models and voice of a call, devices and sound."""
 
 from __future__ import annotations
 
@@ -9,9 +9,9 @@ from typing import Callable
 
 from gi.repository import Adw, GLib, Gtk
 
-from ...core import store, voice
+from ...core import models, store, voice
 from ...i18n import _
-from .common import SettingsPage, escape, status_icon, string_model, suffix_label
+from .common import SettingsPage, escape, status_icon, string_model
 
 log = logging.getLogger(__name__)
 
@@ -74,6 +74,9 @@ class VoicePage(SettingsPage):
         self.snap_row.add_prefix(status_icon("dialog-warning-symbolic", "warning"))
         self.add(self.status, self.snap_row, ("snap", "audio-record", "permission"))
 
+        # Which models a call uses, right under the status (needs /api/model-config).
+        self.voice_group = self.group(_("Voice Call Model"))
+
         devices = self.group(_("Microphone and Speaker"),
                              _("Changes apply to the next call."))
         self.mic_combo = self._device_row(devices, "source", "microphone-device",
@@ -122,7 +125,6 @@ class VoicePage(SettingsPage):
         self.permission.connect("notify::selected", self._on_permission)
         self.add(mic, self.permission, ("permission", "allow", "deny", "ask", "microphone"))
 
-        self.voice_group = self.group(_("The Dots' Voice"))
         if hasattr(Gtk.Window.props, "suspended"):
             # Minimized or covered: the microphone meter stops until the window is back.
             self._suspend_handler = self.win.connect("notify::suspended",
@@ -363,8 +365,10 @@ class VoicePage(SettingsPage):
         data = config.get("data") or {}
         if state == "loading" and data:
             state = "ok"          # asking again: keep showing the last answer meanwhile
+        call = models.call_models(data)
         signature = (self.win.profile_id, state, data.get("voiceModel"), data.get("voiceName"),
-                     bool(data.get("hasVoiceKey")), is_gateway(data))
+                     bool(data.get("hasVoiceKey")), is_gateway(data),
+                     tuple(sorted(call.items())), models.display_name(data))
         if signature == self._voice_signature:
             return
         self._voice_signature = signature
@@ -397,13 +401,49 @@ class VoicePage(SettingsPage):
             add(row, ("voice", "timbre"))
             return
 
-        model = str(data.get("voiceModel") or "")
-        gateway = is_gateway(data)
-        model_row = Adw.ActionRow(title=_("Voice Model"), subtitle=escape(model or "—"),
-                                  subtitle_selectable=True)
+        model = call["voice"] or str(data.get("voiceModel") or "")
+        gateway = is_gateway(data) or call["gateway"]
         if gateway:
-            model_row.add_suffix(suffix_label(_("Through the Dotdeck voice gateway")))
-        add(model_row, ("model", "realtime", "gateway"))
+            # The gateway speaks through OpenRouter: only its audio models fit here.
+            ids = [m for m, _name, _hint in models.VOICE_MODELS]
+            labels = [name for _m, name, _hint in models.VOICE_MODELS]
+            if model and model not in ids:
+                ids.insert(0, model)
+                labels.insert(0, model)
+            line = _("{model} · Dotdeck voice gateway").format(model=model or "—")
+            hint = next((h for m, _name, h in models.VOICE_MODELS if m == model), "")
+            speech = Adw.ComboRow(title=_("Speech"), subtitle_lines=2,
+                                  subtitle=escape(f"{line} · {_(hint)}" if hint else line),
+                                  model=string_model(labels))
+            if model in ids:
+                speech.set_selected(ids.index(model))
+            speech.connect("notify::selected", lambda row, _p: self._on_voice_model(row, ids))
+            add(speech, ("model", "realtime", "gateway", "speech", "audio", "gpt-audio"))
+        else:
+            speech = Adw.ActionRow(title=_("Speech"), subtitle=escape(
+                _("{model} · OpenAI Realtime").format(model=model) if model else "—"),
+                subtitle_selectable=True)
+            add(speech, ("model", "realtime", "speech"))
+        if call["transcribe"]:
+            heard = call["transcribe"]
+        elif call["reported"]:
+            heard = _("Off, or the voice gateway did not answer")
+        else:
+            heard = _("This server does not report it")
+        add(Adw.ActionRow(title=_("Transcription"), subtitle=escape(heard),
+                          subtitle_selectable=True),
+            ("transcription", "speech to text"))
+        thinking = call["thinking"]
+        research = Adw.ActionRow(
+            title=_("Research During Calls"), subtitle_selectable=True,
+            subtitle=escape(_("{model} · the chat model").format(
+                model=models.display_name(data, thinking)) if thinking else "—"))
+        change = Gtk.Button(label=_("Change…"), valign=Gtk.Align.CENTER,
+                            tooltip_text=_("Change the chat model in AI Models"))
+        change.add_css_class("flat")
+        change.connect("clicked", lambda _b: self.win.show_page("model"))
+        research.add_suffix(change)
+        add(research, ("research", "ask_compute", "thinking", "chat model"))
 
         current = str(data.get("voiceName") or "marin")
         names = list(VOICES) if current in VOICES else [current, *VOICES]
@@ -452,6 +492,28 @@ class VoicePage(SettingsPage):
                 self.model_changed()
 
         self.win.change_model_config(done, voiceName=value)
+
+    def _on_voice_model(self, row: Adw.ComboRow, ids: list[str]) -> None:
+        index = row.get_selected()
+        if not 0 <= index < len(ids):
+            return
+        value = ids[index]
+        data = self.win.model_config().get("data") or {}
+        if value == models.call_models(data)["voice"]:
+            return
+        row.set_sensitive(False)
+
+        def done(ok: bool, error: str | None) -> None:
+            row.set_sensitive(True)
+            if ok:
+                self.win.toast(_("The next calls use {model}").format(model=value))
+            else:
+                self.win.toast(_("Could not change the voice model: {error}").format(
+                    error=error))
+                self._voice_signature = None
+                self.model_changed()
+
+        self.win.change_model_config(done, voiceModel=value)
 
     def _on_voice_key(self, row: Adw.PasswordEntryRow) -> None:
         key = row.get_text().strip()
