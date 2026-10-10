@@ -1005,11 +1005,11 @@ msgstr "Pronto"
 
 #: src/ui/pet_gallery.py:32
 msgid "Idle"
-msgstr "Em repouso"
+msgstr "Livre"
 
 #: src/ui/pet_gallery.py:32 src/ui/sidebar.py:57
 msgid "Working"
-msgstr "Trabalhando"
+msgstr "Ocupado"
 
 #: src/ui/pet_gallery.py:32 src/ui/window.py:1070
 msgid "Speaking"
@@ -2733,7 +2733,7 @@ msgstr "Seus Dots"
 
 #: src/ui/settings/window.py:177 src/ui/settings/window.py:179
 msgid "Search settings"
-msgstr "Pesquisar nas configurações"
+msgstr "Pesquisar configurações"
 
 #: src/ui/settings/window.py:193
 msgid "Search results"

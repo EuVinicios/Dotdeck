@@ -3,7 +3,9 @@
 #   make run            run from the source tree
 #   make test           unit, WebKit and voice tests (under xvfb + dbus when available)
 #   make smoke          drive the UI once and fail on errors
-#   make screenshots    refresh data/screenshots (DEMO_URL=… DEMO_TOKEN=… from tools/demo_server.py)
+#   make screenshots    refresh data/screenshots (OPENDOTS_CLIENT=<OpenDots>/dist/client)
+#   make store-assets   the Snap Store icon, banner and slides (data/store)
+#   make site           the website in build/website (build-aux/website.sh)
 #   make icon           re-render the plush app icon (tools/render_icon.py)
 #   make validate       desktop file, AppStream and release checks
 #   make privacy        no keys, tokens, home folders or private addresses in the tree
@@ -29,7 +31,7 @@ FLATPAK_BUILDER ?= $(shell command -v flatpak-builder 2>/dev/null || echo flatpa
 HEADLESS := $(shell command -v dbus-run-session >/dev/null 2>&1 && echo "dbus-run-session --") \
             $(shell command -v xvfb-run >/dev/null 2>&1 && echo "xvfb-run -a -s '-screen 0 1600x1000x24'")
 
-.PHONY: all run test smoke screenshots store-assets icon validate privacy locale install uninstall \
+.PHONY: all run test smoke screenshots store-assets site icon validate privacy locale install uninstall \
 	deb flatpak flatpak-lint snap pot clean version
 
 all: locale
@@ -47,10 +49,31 @@ test:
 smoke:
 	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py --smoke --out build/smoke
 
-screenshots:
-	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py $(if $(DEMO_URL),--url $(DEMO_URL) --token $(DEMO_TOKEN))
-	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py --dark --out build/dark $(if $(DEMO_URL),--url $(DEMO_URL) --token $(DEMO_TOKEN))
-	cp build/dark/workspace-dark.png data/screenshots/
+# English for AppStream (data/screenshots), Brazilian Portuguese for the site and the
+# store (data/screenshots/pt_BR), light and dark, all with fictional Dots on the real
+# OpenDots page: OPENDOTS_CLIENT is the dist/client folder of an OpenDots build.
+SHOTS := welcome connected workspace pets settings-dots settings-voice settings-model
+SHOOT  = $(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py \
+	--demo "$(OPENDOTS_CLIENT)"
+
+screenshots: locale
+	@test -f "$(OPENDOTS_CLIENT)/index.html" || \
+		{ echo "Use: make screenshots OPENDOTS_CLIENT=<OpenDots>/dist/client"; exit 1; }
+	rm -rf build/shots
+	LANGUAGE=en LANG=C.UTF-8 $(SHOOT) --out build/shots/en
+	LANGUAGE=en LANG=C.UTF-8 $(SHOOT) --dark --out build/shots/en
+	LANGUAGE=pt_BR LANG=pt_BR.UTF-8 $(SHOOT) --out build/shots/pt_BR
+	LANGUAGE=pt_BR LANG=pt_BR.UTF-8 $(SHOOT) --dark --out build/shots/pt_BR
+	mkdir -p data/screenshots/pt_BR
+	for shot in $(SHOTS); do \
+		cp build/shots/en/$$shot.png data/screenshots/ && \
+		cp build/shots/pt_BR/$$shot.png build/shots/pt_BR/$$shot-dark.png \
+			data/screenshots/pt_BR/ || exit 1; \
+	done
+	cp build/shots/en/workspace-dark.png data/screenshots/
+
+site:
+	build-aux/website.sh build/website
 
 store-assets:
 	$(PYTHON) tools/store_assets.py
