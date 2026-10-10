@@ -429,6 +429,21 @@ class SettingsWindowTests(unittest.TestCase):
         self.assertTrue(win.split.get_show_content())
         self.assertEqual(win.visible_page, "voice")
 
+    def test_a_narrow_page_is_only_as_wide_as_itself(self):
+        """At 360 px the pages fit: none takes the width of the widest one (Appearance)."""
+        win = self.open("general")
+        win.set_default_size(360, 720)
+        self.assertTrue(run_until(win.split.get_collapsed, 5))
+        widest = max(page.widget.measure(Gtk.Orientation.HORIZONTAL, -1)[0]
+                     for page in win.pages.values())
+        for name in ("general", "servers"):
+            win.show_page(name)
+            run_until(lambda: False, 0.2)
+            page_min = win.pages[name].widget.measure(Gtk.Orientation.HORIZONTAL, -1)[0]
+            self.assertLess(page_min, widest)
+            self.assertEqual(win.stack.measure(Gtk.Orientation.HORIZONTAL, -1)[0], page_min)
+            self.assertLessEqual(page_min, win.stack.get_width())
+
     def test_reopens_on_the_last_page(self):
         self.app.settings.set("settings-page", "privacy")
         win = self.open(None)

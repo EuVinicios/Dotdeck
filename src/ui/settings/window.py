@@ -129,7 +129,9 @@ class SettingsWindow(Adw.Window):
                                              sidebar_width_fraction=0.26)
         self.toasts.set_child(self.split)
 
-        self.stack = Adw.ViewStack(vhomogeneous=False)
+        # Each page as wide as it needs: a homogeneous stack made every page as wide as the
+        # widest (Appearance, 398 px), so at 360 px all of them ran off the right edge.
+        self.stack = Adw.ViewStack(vhomogeneous=False, hhomogeneous=False)
         self.pages: dict[str, SettingsPage] = {}
         self._build_pages()
         self.split.set_sidebar(self._build_sidebar())
