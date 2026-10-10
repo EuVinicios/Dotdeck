@@ -4,7 +4,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [0.3.7] - 2026-10-10
 
 ### Corrigido
 
