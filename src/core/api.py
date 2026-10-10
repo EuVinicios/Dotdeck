@@ -138,16 +138,42 @@ class OpenDotsAPI:
         self.get("/api/model-config", got)
 
     def set_model_config(self, callback: Callback, **changes) -> None:
-        """``model``, ``baseUrl``, ``apiKey``, ``voiceModel``, ``voiceName``, ``voiceKey``.
+        """``provider``, ``model``, ``baseUrl``, ``apiKey``, ``voiceModel``, ``voiceName``,
+        ``voiceKey``.
 
+        ``provider`` (``openrouter``, ``anthropic``, ``openai-compatible``) switches the
+        provider, and ``apiKey`` goes to the key of that provider (or of the one in use).
+        Servers older than Dotdeck 0.3.3 ignore ``provider``: do not send it to them.
         Values with line breaks are refused here: the server writes them into its .env.
         """
-        allowed = {"model", "baseUrl", "apiKey", "voiceModel", "voiceName", "voiceKey"}
+        allowed = {"provider", "model", "baseUrl", "apiKey", "voiceModel", "voiceName",
+                   "voiceKey"}
         body = {k: v.strip() for k, v in changes.items() if k in allowed and isinstance(v, str)}
         if any(("\n" in v or "\r" in v) for v in body.values()):
             callback(None, _("The value can only be one line."))
             return
         self.request("POST", "/api/model-config", body, callback)
+
+    def try_model(self, callback: Callback, **body) -> None:
+        """One tiny message to the chat model (``provider``, ``model``: the ones in use).
+
+        ``callback({"ok", "ms", "error"?}, None)``; error ``"unsupported"`` when the server
+        cannot test. A failed test is an answer, not an error: ``{"ok": False, ...}``.
+        """
+        sent = {k: v for k, v in body.items() if k in ("provider", "model")
+                and isinstance(v, str) and v}
+
+        def got(data, error):
+            if error in ("Not found.", "HTTP 404"):
+                callback(None, "unsupported")
+            elif error is not None:
+                callback({"ok": False, "error": error}, None)
+            elif isinstance(data, dict):
+                callback(data, None)
+            else:
+                callback({"ok": False, "error": _("The server sent an unexpected answer.")},
+                         None)
+        self.request("POST", "/api/model-config/test", sent, got)
 
 
 def for_profile(app, profile, callback: Callable[[OpenDotsAPI], None]) -> None:

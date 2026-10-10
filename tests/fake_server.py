@@ -9,10 +9,16 @@ With ``opendots=True`` the page is a small imitation of the OpenDots web client
 served with the real server's Content-Security-Policy, so focus mode, page commands,
 selection sync and pets can be tested without the real server. Add ``?nofiber=1`` to
 the page address to leave out the React internals some commands read.
+
+``model_config=`` adds the fork's ``/api/model-config`` endpoints (:class:`FakeModelConfig`):
+:data:`MODEL_CONFIG` answers like a server for Dotdeck 0.3.3 (providers, one key per
+provider, prices, the call models), :data:`MODEL_CONFIG_032` like one set up with
+Dotdeck 0.3.2, and ``None`` like upstream OpenDots (404).
 """
 
 from __future__ import annotations
 
+import copy
 import json
 import struct
 import threading
@@ -414,14 +420,177 @@ setInterval(refresh, 1000);
 """
 
 
+# GET /api/model-config of a server set up with Dotdeck 0.3.2: one key, a provider guessed
+# from the address, presets without prices, nothing about transcription.
+MODEL_CONFIG_032 = {
+    "model": "deepseek/deepseek-v4-flash-0731", "baseUrl": "https://openrouter.ai/api/v1",
+    "provider": "openrouter", "hasApiKey": True, "voiceModel": "openai/gpt-audio-mini",
+    "voiceName": "marin", "hasVoiceKey": False, "voiceReady": True, "voiceGateway": True,
+    "presets": [
+        {"id": "deepseek/deepseek-v4-flash-0731", "name": "DeepSeek V4 Flash (fast, low cost)",
+         "provider": "openrouter"},
+        {"id": "anthropic/claude-sonnet-5.5", "name": "Claude Sonnet 5.5 (Anthropic)",
+         "provider": "openrouter"},
+        {"id": "google/gemini-3.8-flash", "name": "Gemini 3.8 Flash (Google)",
+         "provider": "openrouter"},
+    ],
+}
+
+OPENROUTER_URL = "https://openrouter.ai/api/v1"
+ANTHROPIC_URL = "https://api.anthropic.com/v1/"
+PROVIDER_NAMES = {"openrouter": "OpenRouter", "anthropic": "Anthropic",
+                  "openai-compatible": "OpenAI-compatible"}
+
+
+def _preset(model_id, name, provider, price, speed, note=""):
+    return {"id": model_id, "name": name, "provider": provider,
+            "price": {"input": price[0], "output": price[1]} if price else None,
+            "speed": speed, "note": note}
+
+
+# The same server for Dotdeck 0.3.3 (prices here are test values, not a price list).
+MODEL_CONFIG = {
+    "model": "anthropic/claude-haiku-5.5", "baseUrl": OPENROUTER_URL, "provider": "openrouter",
+    "configured": True, "modelName": "Claude Haiku 5.5",
+    "price": {"input": 0.10, "output": 0.50}, "hasApiKey": True,
+    "keys": {"openrouter": True, "anthropic": False, "openai-compatible": False},
+    "providers": [
+        {"id": "openrouter", "name": "OpenRouter", "hasKey": True, "baseUrl": OPENROUTER_URL},
+        {"id": "anthropic", "name": "Anthropic", "hasKey": False, "baseUrl": ANTHROPIC_URL},
+        {"id": "openai-compatible", "name": "OpenAI-compatible", "hasKey": False,
+         "baseUrl": None},
+    ],
+    "voiceModel": "openai/gpt-audio-mini", "voiceName": "marin", "hasVoiceKey": False,
+    "voiceReady": True, "voiceGateway": True,
+    "presets": [
+        _preset("deepseek/deepseek-v4-flash-0731", "DeepSeek V4 Flash", "openrouter",
+                (0.0046, 1.28), "fast", "lowest cost"),
+        _preset("anthropic/claude-haiku-5.5", "Claude Haiku 5.5", "openrouter", (0.10, 0.50),
+                "fast"),
+        _preset("anthropic/claude-sonnet-5.5", "Claude Sonnet 5.5", "openrouter", (1.0, 5.0),
+                "balanced"),
+        _preset("claude-haiku-5-5", "Claude Haiku 5.5", "anthropic", (0.10, 0.50), "fast"),
+        _preset("claude-sonnet-5-5", "Claude Sonnet 5.5", "anthropic", (1.0, 5.0), "balanced"),
+        _preset("claude-opus-5-5", "Claude Opus 5.5", "anthropic", None, "deep"),
+    ],
+    "call": {"voiceModel": "openai/gpt-audio-mini",
+             "transcribeModel": "google/gemini-2.5-flash-lite",
+             "thinkingModel": "anthropic/claude-haiku-5.5", "gateway": True,
+             "voiceName": "marin"},
+}
+
+MODEL_KEYS = {"provider", "model", "baseUrl", "apiKey", "voiceModel", "voiceKey", "voiceName"}
+
+
+class FakeModelConfig:
+    """``/api/model-config`` (GET, POST) and ``/api/model-config/test`` of the fork.
+
+    Checks what is sent like the server does: a 0.3.2-era server drops keys it does not
+    know (zod strips them), a 0.3.3 one refuses them and checks the model id against the
+    provider. Every POST body is kept in ``posts`` and every test body in ``tests``.
+    """
+
+    def __init__(self, data: dict | None):
+        self.data = copy.deepcopy(data) if data is not None else None
+        self.posts: list[dict] = []
+        self.tests: list[dict] = []
+        self.test_result: dict = {"ok": True, "ms": 1234}
+        self.persisted = True              # False: the .env could not be written
+
+    @property
+    def modern(self) -> bool:
+        return self.data is not None and isinstance(self.data.get("keys"), dict)
+
+    def get(self) -> tuple[int, dict]:
+        if self.data is None:
+            return 404, {"error": "Not found."}
+        return 200, copy.deepcopy(self.data)
+
+    def post(self, body) -> tuple[int, dict]:
+        if self.data is None:
+            return 404, {"error": "Not found."}
+        self.posts.append(body)
+        if not isinstance(body, dict) or not all(isinstance(v, str) and v.strip()
+                                                 for v in body.values()):
+            return 400, {"error": "Invalid model or voice settings."}
+        if any("\n" in v or "\r" in v for v in body.values()):
+            return 400, {"error": "Values must be on one line."}
+        data = self.data
+        if not self.modern:
+            body = {k: v for k, v in body.items() if k in MODEL_KEYS - {"provider"}}
+        elif set(body) - MODEL_KEYS:
+            return 400, {"error": "Invalid model or voice settings."}
+        target = body.get("provider", data["provider"])
+        if self.modern:
+            if target not in PROVIDER_NAMES:
+                return 400, {"error": "Unknown provider."}
+            model = body.get("model", data.get("model") or "")
+            if model and target == "openrouter" and "/" not in model:
+                return 400, {"error": "OpenRouter model ids look like vendor/model."}
+            if model and target == "anthropic" and "/" in model:
+                return 400, {"error": "Anthropic model ids have no vendor prefix."}
+            if body.get("apiKey"):
+                data["keys"][target] = True
+            if target != data["provider"]:
+                data["provider"] = target
+                data["baseUrl"] = body.get("baseUrl") or {"openrouter": OPENROUTER_URL,
+                                                          "anthropic": ANTHROPIC_URL}.get(target)
+            elif body.get("baseUrl"):
+                data["baseUrl"] = body["baseUrl"]
+            for item in data["providers"]:
+                item["hasKey"] = data["keys"][item["id"]]
+                if item["id"] == target and body.get("baseUrl"):
+                    item["baseUrl"] = body["baseUrl"]
+            data["hasApiKey"] = data["keys"][data["provider"]]
+            data["configured"] = bool(data.get("model") or body.get("model")) and \
+                data["hasApiKey"]
+        elif body.get("apiKey"):
+            data["hasApiKey"] = True
+        if body.get("model"):
+            data["model"] = body["model"]
+            if self.modern:
+                found = next((p for p in data["presets"] if p["id"] == body["model"]), None)
+                data["modelName"] = found["name"] if found else None
+                data["price"] = found["price"] if found else None
+                data["call"]["thinkingModel"] = body["model"]
+        if body.get("voiceModel"):
+            data["voiceModel"] = body["voiceModel"]
+            if self.modern:
+                data["call"]["voiceModel"] = body["voiceModel"]
+        if body.get("voiceName"):
+            data["voiceName"] = body["voiceName"]
+        if body.get("voiceKey"):
+            data["hasVoiceKey"] = True
+        answer = {"ok": True, "persisted": self.persisted}
+        for key in ("model", "baseUrl", "voiceModel", "voiceName", "hasVoiceKey", "voiceReady",
+                    "voiceGateway") + (("provider",) if self.modern else ()):
+            answer[key] = data.get(key)
+        return 200, answer
+
+    def test(self, body) -> tuple[int, dict]:
+        if not self.modern:
+            return 404, {"error": "Not found."}
+        self.tests.append(body)
+        return 200, dict(self.test_result)
+
+    def workspace_fields(self) -> dict:
+        """What the fork adds to ``/api/workspace`` (nothing upstream)."""
+        if self.data is None:
+            return {}
+        return {"activeModel": self.data.get("model") or "",
+                "activeProvider": self.data.get("provider") or ""}
+
+
 class FakeOpenDots:
     def __init__(self, token: str | None = None, local_only: bool = False,
                  name: str = "OpenDots Test", dots: list[str] | None = None,
                  page: str = DEFAULT_PAGE, opendots: bool = False,
                  instructions: dict[str, str] | None = None,
                  conversations: list[dict] | None = None,
-                 spaces: list[dict] | None = None, voice: bool = True):
+                 spaces: list[dict] | None = None, voice: bool = True,
+                 model_config: dict | None = None):
         self.token = token
+        self.model = FakeModelConfig(model_config)
         self.local_only = local_only
         self.name = name
         self.dots = dots if dots is not None else ["Chief", "Researcher"]
@@ -487,6 +656,25 @@ class FakeOpenDots:
                                      "configured": True})
                 elif path == "/api/workspace":
                     self._json(200, fake.workspace())
+                elif path == "/api/model-config":
+                    self._json(*fake.model.get())
+                else:
+                    self._json(404, {"error": "Not found."})
+
+            def do_POST(self):  # noqa: N802
+                auth = self.headers.get("Authorization")
+                fake.requests.append((self.path, auth))
+                size = int(self.headers.get("Content-Length") or 0)
+                try:
+                    body = json.loads(self.rfile.read(size).decode() or "null")
+                except ValueError:
+                    body = None
+                if fake.token and auth != f"Bearer {fake.token}":
+                    self._json(401, {"error": "Enter your owner access token to unlock OpenDots."})
+                elif self.path == "/api/model-config":
+                    self._json(*fake.model.post(body))
+                elif self.path == "/api/model-config/test":
+                    self._json(*fake.model.test(body))
                 else:
                     self._json(404, {"error": "Not found."})
 
@@ -505,7 +693,8 @@ class FakeOpenDots:
                           "researchAllowed": True, "memoryAllowed": True, "createdAt": i + 1}
                          for i, n in enumerate(self.dots)],
                 "setup": {"intelligence": True, "model": True, "browser": False,
-                          "voice": self.voice, "slack": "not_configured", "missing": []}}
+                          "voice": self.voice, "slack": "not_configured", "missing": []},
+                **self.model.workspace_fields()}
 
     def __enter__(self) -> FakeOpenDots:
         self._thread.start()
