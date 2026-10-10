@@ -112,6 +112,11 @@ class Call:
     # that outlives ``max_duration`` (OpenDots ends calls at 15 min) is closed here.
     connect_timeout = 60.0
     max_duration = 20 * 60.0
+    # The Dot answers the call ("Oi, aqui é o Chefe…") this long after the data channel
+    # opens, unless the caller is already talking: proof that the call is live.
+    greeting_delay = 0.6
+    greeting_prompt = ("(The call just connected. Answer it with one short sentence in the same "
+                       "language as your role instructions: say your name and ask how you can help.)")
 
     def __init__(self, call_id: str, session: dict, config: Config, provider: OpenRouter,
                  on_closed: Callable[[str], None]):
@@ -522,6 +527,16 @@ class Call:
                 return
             self._announced_session = True
         self.send({"type": "session.created", "session": self._session_view()})
+        if self.config.greeting:
+            self._later(self.greeting_delay, self._greet)
+
+    def _greet(self) -> None:
+        """Answer the call with one sentence, unless the caller spoke or a turn began."""
+        with self._lock:
+            if self.closed or self._turns_started or self.vad.speaking:
+                return
+            self._add_message({"role": "user", "content": self.greeting_prompt})
+        self._respond()
 
     def _on_message(self, text: str) -> None:
         try:
