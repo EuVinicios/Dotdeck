@@ -8,6 +8,7 @@ from .. import config
 from ..core import monitor, store, voice
 from ..i18n import _
 from .server_form import ServerForm
+from .updates import UpdatesGroup
 
 COLOR_SCHEMES = ["system", "light", "dark"]
 MIC_CHOICES = [store.MIC_ASK, store.MIC_ALLOW, store.MIC_DENY]
@@ -174,6 +175,9 @@ class PreferencesDialog(Adw.PreferencesDialog):
         mic.connect("notify::selected", mic_changed)
         options.add(mic)
         box.append(options)
+        self._updates = UpdatesGroup(self._app, profile,
+                                     lambda text: self.add_toast(Adw.Toast(title=text)))
+        box.append(self._updates)
 
         danger = Adw.PreferencesGroup()
         clear = Adw.ButtonRow(title=_("Clear Website Data"),
@@ -225,6 +229,18 @@ class PreferencesDialog(Adw.PreferencesDialog):
         calls.add(engine)
         calls.add(self._switch("echo-cancellation", _("Echo Cancellation"),
                                _("Recommended when you use speakers instead of headphones")))
+        active = self._app.profiles.active
+        mon = self._app.monitors.get(active.id) if active else None
+        if mon is not None and mon.status == "online":
+            server_voice = Adw.ActionRow(
+                title=_("Calls on {name}").format(name=active.name),
+                subtitle=_("Ready") if mon.voice_ready else
+                _("Not configured on the server. With an OpenRouter key, install the voice "
+                  "gateway (server/README.md)."))
+            server_voice.add_prefix(Gtk.Image(
+                icon_name="object-select-symbolic" if mon.voice_ready
+                else "dialog-information-symbolic"))
+            calls.add(server_voice)
         page.add(calls)
         return page
 

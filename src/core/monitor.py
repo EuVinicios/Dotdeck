@@ -85,10 +85,12 @@ class ServerMonitor(GObject.Object):
     __gsignals__ = {
         "changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
         "task-event": (GObject.SignalFlags.RUN_FIRST, None, (str, str, str, str)),
+        "updates-available": (GObject.SignalFlags.RUN_FIRST, None, (int, str)),
     }
 
     INTERVAL = 20          # seconds between polls while healthy
     MAX_INTERVAL = 300     # backoff ceiling while the server is down
+    UPDATE_INTERVAL = 1800  # seconds between updater status checks
 
     def __init__(self, profile: Profile, token_lookup: Callable[[Callable[[str | None], None]], None]):
         super().__init__()
@@ -105,6 +107,11 @@ class ServerMonitor(GObject.Object):
         self.active_tasks = 0
         self.active_calls = 0
         self.missing: list[str] = []
+        self.voice_ready = False
+        # The server's updater (server/updater/): None until asked, {} when not installed.
+        self.updates: dict | None = None
+        self._update_timer = 0
+        self._announced_upstream = ""
 
     @property
     def online(self) -> bool:
@@ -118,6 +125,9 @@ class ServerMonitor(GObject.Object):
         if self._timer:
             GLib.source_remove(self._timer)
             self._timer = 0
+        if self._update_timer:
+            GLib.source_remove(self._update_timer)
+            self._update_timer = 0
         if self._cancellable:
             self._cancellable.cancel()
             self._cancellable = None
@@ -187,9 +197,38 @@ class ServerMonitor(GObject.Object):
                                     ("connecting", "active"))
             setup = data.get("setup") if isinstance(data.get("setup"), dict) else {}
             self.missing = [m for m in setup.get("missing", []) or [] if isinstance(m, str)]
+            self.voice_ready = bool(setup.get("voice"))
         self.status = "online"
         self.emit("changed")
         self._schedule()
+        if not self._update_timer:
+            self.poll_updates()
+
+    def poll_updates(self) -> None:
+        """Ask the server's updater what changed in the official OpenDots."""
+        from .updates import UpdaterClient
+        if self._update_timer:
+            GLib.source_remove(self._update_timer)
+        self._update_timer = GLib.timeout_add_seconds(self.UPDATE_INTERVAL, self._on_update_timer)
+        self._token_lookup(lambda token: UpdaterClient(self.profile, token).status(
+            self._got_updates))
+
+    def _on_update_timer(self) -> bool:
+        self._update_timer = 0
+        self.poll_updates()
+        return GLib.SOURCE_REMOVE
+
+    def _got_updates(self, data: dict | None, error: str | None) -> None:
+        self.set_updates(data if data is not None else {})
+
+    def set_updates(self, data: dict) -> None:
+        self.updates = data
+        behind = int(data.get("behind") or 0) if data else 0
+        upstream = str((data.get("upstream") or {}).get("short") or "") if data else ""
+        if behind and upstream and upstream != self._announced_upstream:
+            self._announced_upstream = upstream
+            self.emit("updates-available", behind, upstream)
+        self.emit("changed")
 
 
 def chief_dot(profile: Profile, dots: list[str]) -> str | None:

@@ -3,9 +3,9 @@
 # This file is distributed under the same license as the Dotdeck package.
 msgid ""
 msgstr ""
-"Project-Id-Version: Dotdeck 0.1.0\n"
+"Project-Id-Version: Dotdeck 0.2.0\n"
 "Report-Msgid-Bugs-To: https://github.com/EuVinicios/Dotdeck/issues\n"
-"PO-Revision-Date: 2026-10-09 21:00-0300\n"
+"PO-Revision-Date: 2026-10-09 23:00-0300\n"
 "Last-Translator: EuVinicios <EuVinicios@users.noreply.github.com>\n"
 "Language-Team: Portuguese (Brazil)\n"
 "Language: pt_BR\n"
@@ -63,235 +63,246 @@ msgstr "o servidor"
 msgid "Something went wrong."
 msgstr "Algo deu errado."
 
-#: src/main.py:28
+#: src/main.py:27
 msgid "Show or Hide Dotdeck"
 msgstr "Mostrar ou ocultar o Dotdeck"
 
-#: src/main.py:29
+#: src/main.py:28
 msgid "Mute or Unmute the Microphone in a Call"
 msgstr "Silenciar ou reativar o microfone na chamada"
 
-#: src/main.py:30
+#: src/main.py:29
 msgid "Hold to Talk in a Call"
 msgstr "Segurar para falar na chamada"
 
-#: src/main.py:40
+#: src/main.py:39
 msgid "Show the version and exit"
 msgstr "Mostrar a versão e sair"
 
-#: src/main.py:41
+#: src/main.py:40
 msgid "Show debug messages"
 msgstr "Mostrar mensagens de depuração"
 
-#: src/main.py:42
+#: src/main.py:41
 msgid "Start hidden, in the background"
 msgstr "Iniciar oculto, em segundo plano"
 
-#: src/main.py:43
+#: src/main.py:42
 msgid "Show or hide the window"
 msgstr "Mostrar ou ocultar a janela"
 
-#: src/main.py:44
+#: src/main.py:43
 msgid "Mute or unmute the microphone in a call"
 msgstr "Silenciar ou reativar o microfone na chamada"
 
-#: src/main.py:45
+#: src/main.py:44
 msgid "Check the components Dotdeck needs and exit"
 msgstr "Verificar os componentes de que o Dotdeck precisa e sair"
 
-#: src/main.py:215
+#: src/main.py:216
 msgid "Dotdeck is still running"
 msgstr "O Dotdeck continua aberto"
 
-#: src/main.py:216
+#: src/main.py:217
 msgid "You will be notified when your Dots finish their work. Open Dotdeck again from the app grid, or quit it from Background Apps."
 msgstr "Você será avisado quando os seus Dots terminarem o trabalho. Abra o Dotdeck de novo pela grade de aplicativos ou feche-o em Aplicativos em segundo plano."
 
-#: src/main.py:224 src/main.py:545
+#: src/main.py:225 src/main.py:571
 msgid "Deliver notifications from your Dots"
 msgstr "Entregar as notificações dos seus Dots"
 
-#: src/main.py:254 src/ui/preferences.py:67
+#: src/main.py:255 src/ui/preferences.py:68
 msgid "General"
 msgstr "Geral"
 
-#: src/main.py:254 src/main.py:507 src/ui/window.py:88 src/ui/window.py:393
+#: src/main.py:255 src/main.py:533 src/ui/window.py:92 src/ui/window.py:410
 msgid "Preferences"
 msgstr "Preferências"
 
-#: src/main.py:255 src/ui/window.py:89
+#: src/main.py:256 src/ui/window.py:93
 msgid "Keyboard Shortcuts"
 msgstr "Atalhos de teclado"
 
-#: src/main.py:256
+#: src/main.py:257
 msgid "Close Window"
 msgstr "Fechar a janela"
 
-#: src/main.py:256 src/main.py:509 src/ui/window.py:93
+#: src/main.py:257 src/main.py:535 src/ui/window.py:97
 msgid "Quit"
 msgstr "Sair"
 
-#: src/main.py:257
+#: src/main.py:258
 msgid "Workspace"
 msgstr "Espaço de trabalho"
 
-#: src/main.py:257
+#: src/main.py:258
 msgid "Reload"
 msgstr "Recarregar"
 
-#: src/main.py:257 src/ui/window.py:85
+#: src/main.py:258 src/ui/window.py:89
 msgid "Fullscreen"
 msgstr "Tela cheia"
 
-#: src/main.py:258 src/ui/window.py:82
+#: src/main.py:259 src/ui/window.py:86
 msgid "Zoom In"
 msgstr "Aumentar o zoom"
 
-#: src/main.py:258 src/ui/window.py:83
+#: src/main.py:259 src/ui/window.py:87
 msgid "Zoom Out"
 msgstr "Diminuir o zoom"
 
-#: src/main.py:259 src/ui/window.py:84
+#: src/main.py:260 src/ui/window.py:88
 msgid "Actual Size"
 msgstr "Tamanho real"
 
-#: src/main.py:259
+#: src/main.py:260
 msgid "Go Back"
 msgstr "Voltar"
 
-#: src/main.py:260
+#: src/main.py:261
 msgid "Switch to Server 1–9"
 msgstr "Ir para o servidor 1–9"
 
-#: src/main.py:261
+#: src/main.py:262
 msgid "New Chat"
 msgstr "Nova conversa"
 
-#: src/main.py:261 src/main.py:492
+#: src/main.py:262 src/main.py:518
 msgid "Activity"
 msgstr "Atividade"
 
-#: src/main.py:262
+#: src/main.py:263
 msgid "Talk to the Chief"
 msgstr "Falar com o Chefe"
 
-#: src/main.py:263 src/ui/preferences.py:215
+#: src/main.py:264 src/ui/preferences.py:219
 msgid "Voice Calls"
 msgstr "Chamadas de voz"
 
-#: src/main.py:263
+#: src/main.py:264
 msgid "Mute or Unmute the Microphone"
 msgstr "Silenciar ou reativar o microfone"
 
-#: src/main.py:279
+#: src/main.py:280
 msgid "A native desktop client for OpenDots servers: your AI coworkers with notifications, tray status, global shortcuts and voice calls."
 msgstr "Um cliente desktop nativo para servidores OpenDots: seus colegas de IA com notificações, status na bandeja, atalhos globais e chamadas de voz."
 
-#: src/main.py:282
+#: src/main.py:283
 msgid "translator-credits"
 msgstr "EuVinicios"
 
-#: src/main.py:283
+#: src/main.py:284
 msgid "Works With"
 msgstr "Funciona com"
 
-#: src/main.py:287
+#: src/main.py:288
 msgid "Dotdeck is an independent project and is not affiliated with or endorsed by CopilotKit. OpenDots is distributed by CopilotKit under the MIT license."
 msgstr "O Dotdeck é um projeto independente, sem vínculo nem aval da CopilotKit. O OpenDots é distribuído pela CopilotKit sob a licença MIT."
 
-#: src/main.py:310 src/main.py:372
+#: src/main.py:311 src/main.py:373
 #, python-brace-format
 msgid "Dotdeck token for {name}"
 msgstr "Token do Dotdeck para {name}"
 
-#: src/main.py:364
+#: src/main.py:365
 msgid "Access token saved in the keyring"
 msgstr "Token de acesso salvo no chaveiro"
 
-#: src/main.py:379
+#: src/main.py:380
 msgid "The keyring is not available, so the token is kept only until Dotdeck closes."
 msgstr "O chaveiro não está disponível, então o token só fica guardado até o Dotdeck fechar."
 
-#: src/main.py:411
+#: src/main.py:413
 msgid "Connecting…"
 msgstr "Conectando…"
 
-#: src/main.py:413
+#: src/main.py:415
 msgid "Offline"
 msgstr "Sem conexão"
 
-#: src/main.py:415
+#: src/main.py:417
 msgid "Access token needed"
 msgstr "Precisa do token de acesso"
 
-#: src/main.py:417
+#: src/main.py:419
 msgid "Only reachable from its own computer"
 msgstr "Só acessível pelo próprio computador"
 
-#: src/main.py:419
+#: src/main.py:421
 msgid "Not an OpenDots server"
 msgstr "Não é um servidor OpenDots"
 
-#: src/main.py:420
+#: src/main.py:422
 #, python-brace-format
 msgid "{n} Dot"
 msgid_plural "{n} Dots"
 msgstr[0] "{n} Dot"
 msgstr[1] "{n} Dots"
 
-#: src/main.py:422
+#: src/main.py:424
 #, python-brace-format
 msgid "{n} task running"
 msgid_plural "{n} tasks running"
 msgstr[0] "{n} tarefa rodando"
 msgstr[1] "{n} tarefas rodando"
 
-#: src/main.py:425
+#: src/main.py:427
 msgid "in a call"
 msgstr "em chamada"
 
-#: src/main.py:427
+#: src/main.py:429
 msgid "setup incomplete"
 msgstr "configuração incompleta"
 
-#: src/main.py:437
+#: src/main.py:439
 msgid "A Dot finished a task"
 msgstr "Um Dot concluiu uma tarefa"
 
-#: src/main.py:438
+#: src/main.py:440
 msgid "A task failed"
 msgstr "Uma tarefa falhou"
 
-#: src/main.py:439
+#: src/main.py:441
 msgid "A scheduled task started"
 msgstr "Uma tarefa agendada começou"
 
-#: src/main.py:468
+#: src/main.py:459
+msgid "News in the official OpenDots"
+msgstr "Novidades no OpenDots oficial"
+
+#: src/main.py:461
+#, python-brace-format
+msgid "{n} change is ready for {name}. Open Dotdeck to update the server."
+msgid_plural "{n} changes are ready for {name}. Open Dotdeck to update the server."
+msgstr[0] "{n} mudança está pronta para {name}. Abra o Dotdeck para atualizar o servidor."
+msgstr[1] "{n} mudanças estão prontas para {name}. Abra o Dotdeck para atualizar o servidor."
+
+#: src/main.py:494
 msgid "No server yet"
 msgstr "Nenhum servidor ainda"
 
-#: src/main.py:488
+#: src/main.py:514
 msgid "Hide Dotdeck"
 msgstr "Ocultar o Dotdeck"
 
-#: src/main.py:488
+#: src/main.py:514
 msgid "Show Dotdeck"
 msgstr "Mostrar o Dotdeck"
 
-#: src/main.py:490
+#: src/main.py:516
 #, python-brace-format
 msgid "Talk to {name}"
 msgstr "Falar com {name}"
 
-#: src/main.py:494
+#: src/main.py:520
 msgid "Mute Microphone"
 msgstr "Silenciar o microfone"
 
-#: src/main.py:501 src/ui/preferences.py:43 src/ui/preferences.py:101
+#: src/main.py:527 src/ui/preferences.py:44 src/ui/preferences.py:102
 msgid "Servers"
 msgstr "Servidores"
 
-#: src/main.py:559
+#: src/main.py:585
 msgid "The global shortcuts were not set up."
 msgstr "Os atalhos globais não foram configurados."
 
@@ -355,7 +366,7 @@ msgstr "Continuar rodando em segundo plano"
 msgid "Closing the window keeps notifications from your Dots coming."
 msgstr "Fechar a janela não interrompe as notificações dos seus Dots."
 
-#: src/ui/onboarding.py:108 src/ui/preferences.py:83
+#: src/ui/onboarding.py:108 src/ui/preferences.py:84
 msgid "Start When You Log In"
 msgstr "Iniciar ao entrar na sessão"
 
@@ -371,210 +382,219 @@ msgstr "Esta conexão não é criptografada. Prefira HTTPS ou Tailscale fora da 
 msgid "Open Workspace"
 msgstr "Abrir o espaço de trabalho"
 
-#: src/ui/onboarding.py:132 src/ui/preferences.py:221
+#: src/ui/onboarding.py:132 src/ui/preferences.py:225 src/ui/preferences.py:237
 msgid "Ready"
 msgstr "Pronto"
 
-#: src/ui/preferences.py:69
+#: src/ui/preferences.py:70
 msgid "Appearance"
 msgstr "Aparência"
 
-#: src/ui/preferences.py:70
+#: src/ui/preferences.py:71
 msgid "Style"
 msgstr "Estilo"
 
-#: src/ui/preferences.py:71
+#: src/ui/preferences.py:72
 msgid "Follow System"
 msgstr "Seguir o sistema"
 
-#: src/ui/preferences.py:71
+#: src/ui/preferences.py:72
 msgid "Light"
 msgstr "Claro"
 
-#: src/ui/preferences.py:71
+#: src/ui/preferences.py:72
 msgid "Dark"
 msgstr "Escuro"
 
-#: src/ui/preferences.py:79
+#: src/ui/preferences.py:80
 msgid "Behavior"
 msgstr "Comportamento"
 
-#: src/ui/preferences.py:80
+#: src/ui/preferences.py:81
 msgid "Run in Background"
 msgstr "Rodar em segundo plano"
 
-#: src/ui/preferences.py:81
+#: src/ui/preferences.py:82
 msgid "Closing the window keeps Dotdeck running to deliver notifications"
 msgstr "Fechar a janela mantém o Dotdeck aberto para entregar notificações"
 
-#: src/ui/preferences.py:84
+#: src/ui/preferences.py:85
 msgid "Dotdeck opens hidden, in the background"
 msgstr "O Dotdeck abre oculto, em segundo plano"
 
-#: src/ui/preferences.py:85
+#: src/ui/preferences.py:86
 msgid "Status and quick actions in the top bar"
 msgstr "Status e ações rápidas na barra superior"
 
-#: src/ui/preferences.py:86
+#: src/ui/preferences.py:87
 msgid "Your desktop shows no tray. On GNOME, Dotdeck appears under Background Apps in the system menu instead."
 msgstr "O seu desktop não mostra bandeja. No GNOME, o Dotdeck aparece em Aplicativos em segundo plano, no menu do sistema."
 
-#: src/ui/preferences.py:88
+#: src/ui/preferences.py:89
 msgid "Tray Icon"
 msgstr "Ícone na bandeja"
 
-#: src/ui/preferences.py:89
+#: src/ui/preferences.py:90
 msgid "Notifications"
 msgstr "Notificações"
 
-#: src/ui/preferences.py:90
+#: src/ui/preferences.py:91
 msgid "When a Dot finishes or fails a task, and when a scheduled task starts"
 msgstr "Quando um Dot conclui ou falha uma tarefa, e quando uma tarefa agendada começa"
 
-#: src/ui/preferences.py:102
+#: src/ui/preferences.py:103
 msgid "Each server keeps its own sign-in, cookies and settings."
 msgstr "Cada servidor guarda o seu próprio acesso, cookies e configurações."
 
-#: src/ui/preferences.py:107
+#: src/ui/preferences.py:108
 msgid "Open"
 msgstr "Aberto"
 
-#: src/ui/preferences.py:113 src/ui/window.py:167
+#: src/ui/preferences.py:114 src/ui/window.py:171
 msgid "Add Server…"
 msgstr "Adicionar servidor…"
 
-#: src/ui/preferences.py:120 src/ui/preferences.py:128
+#: src/ui/preferences.py:121 src/ui/preferences.py:129
 msgid "Add Server"
 msgstr "Adicionar servidor"
 
-#: src/ui/preferences.py:133
+#: src/ui/preferences.py:134
 msgid "Save"
 msgstr "Salvar"
 
-#: src/ui/preferences.py:138
+#: src/ui/preferences.py:139
 msgid "Server saved"
 msgstr "Servidor salvo"
 
-#: src/ui/preferences.py:143
+#: src/ui/preferences.py:144
 msgid "This Server"
 msgstr "Este servidor"
 
-#: src/ui/preferences.py:147
+#: src/ui/preferences.py:148
 #, python-brace-format
 msgid "Automatic ({name})"
 msgstr "Automático ({name})"
 
-#: src/ui/preferences.py:147
+#: src/ui/preferences.py:148
 msgid "Automatic"
 msgstr "Automático"
 
-#: src/ui/preferences.py:149
+#: src/ui/preferences.py:150
 msgid "Chief Dot"
 msgstr "Dot Chefe"
 
-#: src/ui/preferences.py:150
+#: src/ui/preferences.py:151
 msgid "Who answers “Talk to the Chief” in the tray"
 msgstr "Quem atende “Falar com o Chefe” na bandeja"
 
-#: src/ui/preferences.py:164
+#: src/ui/preferences.py:165
 msgid "Microphone"
 msgstr "Microfone"
 
-#: src/ui/preferences.py:164
+#: src/ui/preferences.py:165
 msgid "Used for voice calls with Dots"
 msgstr "Usado nas chamadas de voz com os Dots"
 
-#: src/ui/preferences.py:165
+#: src/ui/preferences.py:166
 msgid "Ask"
 msgstr "Perguntar"
 
-#: src/ui/preferences.py:165 src/ui/window.py:405
+#: src/ui/preferences.py:166 src/ui/window.py:422
 msgid "Allow"
 msgstr "Permitir"
 
-#: src/ui/preferences.py:165 src/ui/window.py:404
+#: src/ui/preferences.py:166 src/ui/window.py:421
 msgid "Don't Allow"
 msgstr "Não permitir"
 
-#: src/ui/preferences.py:179
+#: src/ui/preferences.py:183
 msgid "Clear Website Data"
 msgstr "Limpar dados do site"
 
-#: src/ui/preferences.py:182
+#: src/ui/preferences.py:186
 msgid "Website data cleared"
 msgstr "Dados do site apagados"
 
-#: src/ui/preferences.py:183
+#: src/ui/preferences.py:187
 msgid "Remove Server"
 msgstr "Remover servidor"
 
-#: src/ui/preferences.py:193
+#: src/ui/preferences.py:197
 #, python-brace-format
 msgid "Remove {name}?"
 msgstr "Remover {name}?"
 
-#: src/ui/preferences.py:194
+#: src/ui/preferences.py:198
 msgid "Dotdeck forgets this server, its access token and its website data. Nothing changes on the server itself."
 msgstr "O Dotdeck esquece este servidor, o token de acesso e os dados do site. Nada muda no servidor em si."
 
-#: src/ui/preferences.py:196
+#: src/ui/preferences.py:200 src/ui/updates.py:200
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: src/ui/preferences.py:197
+#: src/ui/preferences.py:201
 msgid "Remove"
 msgstr "Remover"
 
-#: src/ui/preferences.py:212
+#: src/ui/preferences.py:216
 msgid "Voice"
 msgstr "Voz"
 
-#: src/ui/preferences.py:216
+#: src/ui/preferences.py:220
 msgid "WebKitGTK has no WebRTC, so Dotdeck runs voice calls natively with GStreamer, through PipeWire or PulseAudio."
 msgstr "O WebKitGTK não tem WebRTC, então o Dotdeck faz as chamadas de voz de forma nativa com o GStreamer, pelo PipeWire ou PulseAudio."
 
-#: src/ui/preferences.py:220
+#: src/ui/preferences.py:224
 msgid "Voice Engine"
 msgstr "Motor de voz"
 
-#: src/ui/preferences.py:222
+#: src/ui/preferences.py:226
 #, python-brace-format
 msgid "Missing GStreamer plugins: {names}"
 msgstr "Faltam plugins do GStreamer: {names}"
 
-#: src/ui/preferences.py:226
+#: src/ui/preferences.py:230
 msgid "Echo Cancellation"
 msgstr "Cancelamento de eco"
 
-#: src/ui/preferences.py:227
+#: src/ui/preferences.py:231
 msgid "Recommended when you use speakers instead of headphones"
 msgstr "Recomendado quando você usa caixas de som em vez de fones"
 
-#: src/ui/preferences.py:232
+#: src/ui/preferences.py:236
+#, python-brace-format
+msgid "Calls on {name}"
+msgstr "Chamadas em {name}"
+
+#: src/ui/preferences.py:238
+msgid "Not configured on the server. With an OpenRouter key, install the voice gateway (server/README.md)."
+msgstr "Não configuradas no servidor. Com uma chave do OpenRouter, instale a ponte de voz (server/README.md)."
+
+#: src/ui/preferences.py:248
 msgid "Shortcuts"
 msgstr "Atalhos"
 
-#: src/ui/preferences.py:235
+#: src/ui/preferences.py:251
 msgid "Global Shortcuts"
 msgstr "Atalhos globais"
 
-#: src/ui/preferences.py:237
+#: src/ui/preferences.py:253
 msgid "They work while another app is focused."
 msgstr "Funcionam mesmo com outro aplicativo em foco."
 
-#: src/ui/preferences.py:238
+#: src/ui/preferences.py:254
 msgid "Use Global Shortcuts"
 msgstr "Usar atalhos globais"
 
-#: src/ui/preferences.py:241
+#: src/ui/preferences.py:257
 msgid "Not set"
 msgstr "Não definido"
 
-#: src/ui/preferences.py:247
+#: src/ui/preferences.py:263
 msgid "Change Shortcuts…"
 msgstr "Alterar atalhos…"
 
-#: src/ui/preferences.py:253
+#: src/ui/preferences.py:269
 msgid "Your desktop does not offer global shortcuts to apps. Add a custom shortcut in the system keyboard settings with this command:"
 msgstr "O seu desktop não oferece atalhos globais para aplicativos. Crie um atalho personalizado nas configurações de teclado do sistema com este comando:"
 
@@ -631,105 +651,283 @@ msgstr[1] "{count} Dots estão prontos."
 msgid "This connection is not encrypted; prefer HTTPS or Tailscale outside your home network."
 msgstr "Esta conexão não é criptografada; prefira HTTPS ou Tailscale fora da rede de casa."
 
-#: src/ui/window.py:69
+#: src/ui/updates.py:22
+msgid "Downloading the news…"
+msgstr "Baixando as novidades…"
+
+#: src/ui/updates.py:23
+msgid "Merging with your local commits…"
+msgstr "Mesclando com os seus commits locais…"
+
+#: src/ui/updates.py:24
+msgid "Installing dependencies…"
+msgstr "Instalando dependências…"
+
+#: src/ui/updates.py:25
+msgid "Building…"
+msgstr "Compilando…"
+
+#: src/ui/updates.py:26
+msgid "Restarting OpenDots…"
+msgstr "Reiniciando o OpenDots…"
+
+#: src/ui/updates.py:27
+msgid "Checking that OpenDots is back…"
+msgstr "Conferindo se o OpenDots voltou…"
+
+#: src/ui/updates.py:28
+msgid "Saving the backup…"
+msgstr "Salvando o backup…"
+
+#: src/ui/updates.py:29
+msgid "Restoring the previous version…"
+msgstr "Restaurando a versão anterior…"
+
+#: src/ui/updates.py:30
+msgid "Updating…"
+msgstr "Atualizando…"
+
+#: src/ui/updates.py:37
+msgid "OpenDots Updates"
+msgstr "Atualizações do OpenDots"
+
+#: src/ui/updates.py:38
+msgid "Compare this server with the official project and update it here. Your local changes are kept, and a failed update is undone automatically."
+msgstr "Compare este servidor com o projeto oficial e atualize por aqui. As suas mudanças locais são mantidas, e uma atualização que falhar é desfeita sozinha."
+
+#: src/ui/updates.py:48
+msgid "Updater Not Found"
+msgstr "Atualizador não encontrado"
+
+#: src/ui/updates.py:49
+msgid "Install the updater next to OpenDots to check and apply updates from Dotdeck."
+msgstr "Instale o atualizador ao lado do OpenDots para verificar e aplicar atualizações pelo Dotdeck."
+
+#: src/ui/updates.py:51
+msgid "How to Install"
+msgstr "Como instalar"
+
+#: src/ui/updates.py:55
+msgid "Updater address (optional)"
+msgstr "Endereço do atualizador (opcional)"
+
+#: src/ui/updates.py:59
+msgid "Installed Version"
+msgstr "Versão instalada"
+
+#: src/ui/updates.py:60
+msgid "Official Project"
+msgstr "Projeto oficial"
+
+#: src/ui/updates.py:62
+msgid "Local Commits"
+msgstr "Commits locais"
+
+#: src/ui/updates.py:63
+msgid "Last Update"
+msgstr "Última atualização"
+
+#: src/ui/updates.py:66
+msgid "Check Now"
+msgstr "Verificar agora"
+
+#: src/ui/updates.py:69
+msgid "Update Server…"
+msgstr "Atualizar o servidor…"
+
+#: src/ui/updates.py:103 src/ui/window.py:271
+#, python-brace-format
+msgid "{n} change in the official OpenDots"
+msgid_plural "{n} changes in the official OpenDots"
+msgstr[0] "{n} novidade no OpenDots oficial"
+msgstr[1] "{n} novidades no OpenDots oficial"
+
+#: src/ui/updates.py:105
+msgid "OpenDots is up to date"
+msgstr "O OpenDots está atualizado"
+
+#: src/ui/updates.py:131
+#, python-brace-format
+msgid "{n} change to install"
+msgid_plural "{n} changes to install"
+msgstr[0] "{n} novidade para instalar"
+msgstr[1] "{n} novidades para instalar"
+
+#: src/ui/updates.py:140
+#, python-brace-format
+msgid "Up to date (official version of {date})"
+msgstr "Atualizado (versão oficial de {date})"
+
+#: src/ui/updates.py:141
+msgid "Up to date"
+msgstr "Atualizado"
+
+#: src/ui/updates.py:144
+#, python-brace-format
+msgid "{n} commit of your own, kept when updating"
+msgid_plural "{n} commits of your own, kept when updating"
+msgstr[0] "{n} commit seu, mantido ao atualizar"
+msgstr[1] "{n} commits seus, mantidos ao atualizar"
+
+#: src/ui/updates.py:146
+msgid "None"
+msgstr "Nenhum"
+
+#: src/ui/updates.py:155
+#, python-brace-format
+msgid "Finished on {date}: {message}"
+msgstr "Concluída em {date}: {message}"
+
+#: src/ui/updates.py:158
+#, python-brace-format
+msgid "The update failed and the previous version was restored. {message}"
+msgstr "A atualização falhou e a versão anterior foi restaurada. {message}"
+
+#: src/ui/updates.py:161
+#, python-brace-format
+msgid "Could not update: {message}"
+msgstr "Não foi possível atualizar: {message}"
+
+#: src/ui/updates.py:166
+msgid "Update Server… (uncommitted changes on the server)"
+msgstr "Atualizar o servidor… (há mudanças não salvas no servidor)"
+
+#: src/ui/updates.py:191
+#, python-brace-format
+msgid "Update {name}?"
+msgstr "Atualizar {name}?"
+
+#: src/ui/updates.py:193
+#, python-brace-format
+msgid "{n} official change will be merged with your local commits. OpenDots restarts, which takes about one or two minutes; calls in progress end. If anything fails, the previous version comes back by itself."
+msgid_plural "{n} official changes will be merged with your local commits. OpenDots restarts, which takes about one or two minutes; calls in progress end. If anything fails, the previous version comes back by itself."
+msgstr[0] "{n} mudança oficial será mesclada com os seus commits locais. O OpenDots reinicia, o que leva uns um ou dois minutos; chamadas em andamento são encerradas. Se algo falhar, a versão anterior volta sozinha."
+msgstr[1] "{n} mudanças oficiais serão mescladas com os seus commits locais. O OpenDots reinicia, o que leva uns um ou dois minutos; chamadas em andamento são encerradas. Se algo falhar, a versão anterior volta sozinha."
+
+#: src/ui/updates.py:201
+msgid "Update"
+msgstr "Atualizar"
+
+#: src/ui/updates.py:212
+#, python-brace-format
+msgid "Could not start the update: {error}"
+msgstr "Não foi possível iniciar a atualização: {error}"
+
+#: src/ui/updates.py:228
+msgid "OpenDots was updated"
+msgstr "O OpenDots foi atualizado"
+
+#: src/ui/updates.py:229
+msgid "The update failed; the previous version is back"
+msgstr "A atualização falhou; a versão anterior voltou"
+
+#: src/ui/updates.py:230
+msgid "The update did not finish"
+msgstr "A atualização não terminou"
+
+#: src/ui/window.py:73
 msgid "Switch Server"
 msgstr "Trocar de servidor"
 
-#: src/ui/window.py:73
+#: src/ui/window.py:77
 msgid "Reload (F5)"
 msgstr "Recarregar (F5)"
 
-#: src/ui/window.py:90
+#: src/ui/window.py:94
 msgid "About Dotdeck"
 msgstr "Sobre o Dotdeck"
 
-#: src/ui/window.py:96
+#: src/ui/window.py:100
 msgid "Main Menu"
 msgstr "Menu principal"
 
-#: src/ui/window.py:100 src/ui/window.py:293
+#: src/ui/window.py:104 src/ui/window.py:310
 msgid "Mute Microphone (Ctrl+Shift+M)"
 msgstr "Silenciar o microfone (Ctrl+Shift+M)"
 
-#: src/ui/window.py:108
+#: src/ui/window.py:112
 msgid "Show Activity"
 msgstr "Mostrar a atividade"
 
-#: src/ui/window.py:168
+#: src/ui/window.py:172
 msgid "Manage Servers…"
 msgstr "Gerenciar servidores…"
 
-#: src/ui/window.py:215
+#: src/ui/window.py:219
 msgid "The call was ended."
 msgstr "A chamada foi encerrada."
 
-#: src/ui/window.py:246
+#: src/ui/window.py:250
 #, python-brace-format
 msgid "{n} task"
 msgid_plural "{n} tasks"
 msgstr[0] "{n} tarefa"
 msgstr[1] "{n} tarefas"
 
-#: src/ui/window.py:249
+#: src/ui/window.py:253
 #, python-brace-format
 msgid "{name} needs a valid owner access token."
 msgstr "{name} precisa de um token de acesso válido."
 
-#: src/ui/window.py:250
+#: src/ui/window.py:254
 msgid "Update Token"
 msgstr "Atualizar o token"
 
-#: src/ui/window.py:252 src/ui/window.py:259
+#: src/ui/window.py:256 src/ui/window.py:276
 msgid "Edit Server"
 msgstr "Editar o servidor"
 
-#: src/ui/window.py:255
+#: src/ui/window.py:259
 #, python-brace-format
 msgid "No connection to {name}. Trying again…"
 msgstr "Sem conexão com {name}. Tentando de novo…"
 
-#: src/ui/window.py:256
+#: src/ui/window.py:260
 msgid "Retry Now"
 msgstr "Tentar agora"
 
-#: src/ui/window.py:258
+#: src/ui/window.py:273
+msgid "See Updates"
+msgstr "Ver atualizações"
+
+#: src/ui/window.py:275
 #, python-brace-format
 msgid "The connection to {name} is not encrypted."
 msgstr "A conexão com {name} não é criptografada."
 
-#: src/ui/window.py:292
+#: src/ui/window.py:309
 msgid "Unmute Microphone (Ctrl+Shift+M)"
 msgstr "Reativar o microfone (Ctrl+Shift+M)"
 
-#: src/ui/window.py:313
+#: src/ui/window.py:330
 #, python-brace-format
 msgid "Could not find {name} on the page."
 msgstr "Não encontrei {name} na página."
 
-#: src/ui/window.py:335
+#: src/ui/window.py:352
 #, python-brace-format
 msgid "Zoom {percent}%"
 msgstr "Zoom {percent}%"
 
-#: src/ui/window.py:343
+#: src/ui/window.py:360
 msgid "Press F11 to leave fullscreen"
 msgstr "Pressione F11 para sair da tela cheia"
 
-#: src/ui/window.py:392
+#: src/ui/window.py:409
 #, python-brace-format
 msgid "The microphone is blocked for {name}."
 msgstr "O microfone está bloqueado para {name}."
 
-#: src/ui/window.py:398
+#: src/ui/window.py:415
 msgid "Use the Microphone?"
 msgstr "Usar o microfone?"
 
-#: src/ui/window.py:399
+#: src/ui/window.py:416
 #, python-brace-format
 msgid "{name} wants to start a voice call with a Dot. Dotdeck only listens while the call is open."
 msgstr "{name} quer iniciar uma chamada de voz com um Dot. O Dotdeck só escuta enquanto a chamada estiver aberta."
 
-#: src/ui/window.py:401
+#: src/ui/window.py:418
 msgid "Remember for this server"
 msgstr "Lembrar para este servidor"
 

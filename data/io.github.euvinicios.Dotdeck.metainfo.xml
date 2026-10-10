@@ -140,6 +140,16 @@
   </screenshots>
 
   <releases>
+    <release version="0.2.0" date="2026-10-09">
+      <description>
+        <p>Updates and voice for your server.</p>
+        <ul>
+          <li>Check the official OpenDots for news and update your server with one click, keeping local changes and undoing a failed update automatically</li>
+          <li>Voice calls with only an OpenRouter key, through the new server voice gateway</li>
+          <li>Voice call status for the server in Preferences</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-10-09">
       <description>
         <p>First release.</p>
