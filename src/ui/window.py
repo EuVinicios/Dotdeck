@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Callable
 
+import gi
+gi.require_version("Adw", "1")
+gi.require_version("Gtk", "4.0")
 from gi.repository import Adw, Gio, GLib, Gtk, Pango
 
 from .. import config

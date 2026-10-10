@@ -11,9 +11,10 @@ import unittest
 
 from tests.helpers import run_until  # noqa: F401  (sets the test environment first)
 
-from gi.repository import GstWebRTC  # noqa: E402
-
 from src.core import voice  # noqa: E402
+
+if voice.available():
+    from gi.repository import GstWebRTC  # noqa: E402
 
 
 @unittest.skipUnless(voice.available(), "GStreamer WebRTC plugins are not installed")
