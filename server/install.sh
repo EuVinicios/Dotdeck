@@ -63,7 +63,9 @@ EnvironmentFile=$GATEWAY_ENV
 # with journalctl --user -t opendots-voice-gateway
 ExecStart=/usr/bin/flatpak run --die-with-parent --no-documents-portal --share=network --filesystem=$SHARE:ro --cwd=$SHARE --command=python3 $RUNTIME -m voice_gateway
 SyslogIdentifier=opendots-voice-gateway
-Restart=on-failure
+# always: a SIGTERM from the session going down (or the OOM killer) is a clean exit for
+# systemd, and on-failure left the gateway off until someone started it again
+Restart=always
 RestartSec=5
 
 [Install]
@@ -218,7 +220,7 @@ After=network-online.target opendots.service
 Type=simple
 ExecStart=/usr/bin/python3 $SHARE/updater/opendots_updater.py --repo $OPENDOTS --service opendots.service --port 4311
 Environment=PATH=/usr/local/bin:/usr/bin:/bin
-Restart=on-failure
+Restart=always
 RestartSec=10
 
 [Install]
