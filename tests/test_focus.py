@@ -236,8 +236,10 @@ class FocusModeTest(unittest.TestCase):
         self.assertTrue(run_until(lambda: self.focus_events, 6))
         self.assertEqual(self.focus_events, [True])
         self.assertTrue(view.page_recognized)
-        self.assertEqual(self.js("""return getComputedStyle(
-            document.querySelector('main.unlock form')).display;"""), "block")
+        # The page renders asynchronously: wait for the element before reading its style.
+        self.assertTrue(run_until(lambda: self.js("""const form = document.querySelector(
+            'main.unlock form'); return form ? getComputedStyle(form).display : null;""")
+            == "block", 5))
         # Mascots of no Dot get the brand pet, even with a Dot named "Dot".
         self.assertTrue(run_until(lambda: self.js(
             "return document.querySelector('main.unlock span.mascot')"
@@ -245,8 +247,9 @@ class FocusModeTest(unittest.TestCase):
         self.js("sessionStorage.setItem('opendots-token', token); return true;", token=TOKEN)
         self.assertTrue(run_until(lambda: self.js(
             "return !!document.querySelector('.template-app');"), 8))
-        self.assertEqual(self.js("return getComputedStyle("
-                                 "document.querySelector('nav.icon-rail')).display;"), "none")
+        self.assertTrue(run_until(lambda: self.js(
+            "const rail = document.querySelector('nav.icon-rail');"
+            " return rail ? getComputedStyle(rail).display : null;") == "none", 5))
         self.assertEqual(self.focus_events, [True])
         # Another layout takes over the page: its navigation comes back, then focus does.
         self.js("""const other = document.createElement('h1');
