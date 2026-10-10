@@ -79,8 +79,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._call_timer = 0
         # Ringing while a call connects, a chime when it is live, a tone when it ends (on
         # the call's speaker). Silenced on quit before the app hangs up its calls.
-        self.call_sounds = CallSounds(lambda: bool(settings.get("call-sounds")),
-                                      lambda: settings.get("speaker-device"))
+        self.call_sounds = CallSounds.for_settings(settings)
         app.connect("shutdown", lambda *_: self.call_sounds.close())
         self._prefs: dotprefs.DotPrefs | None = None
         self._prefs_handler = 0

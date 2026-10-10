@@ -95,7 +95,8 @@ _RINGBACK = (
 # sends what it hears, and the voice gateway takes 60 ms of loud sound for the caller
 # starting to talk (which would cut the Dot's greeting short). The gateway's detector
 # warms up during the first 300 ms of a call: 140 ms, plus the ~0.1 s the ringing takes
-# to give way, ends before it listens.
+# to give way, ends before it listens. Only just: a speaker with more latency (Bluetooth)
+# heard by the microphone ends it after, and the greeting can be cut; see the gateway.
 CONNECTED_S = 0.14
 _CONNECTED = (    # A5 then E6, rising
     Note(0.0, 0.07, (880.0,), 0.1, attack=0.004, release=0.025, decay=0.05, floor=0.25),
@@ -437,8 +438,9 @@ class CallSounds:
       connected chime plays;
     - "ended": the hang-up tone, or the error tone when a call error came right before.
 
-    ``enabled()`` is asked before each sound (the "call-sounds" setting). ``player``
-    needs ``play(samples, loop)``, ``stop()`` and ``close()`` (a ``TonePlayer`` on
+    ``enabled()`` is asked before each sound (the "call-sounds" setting); ``refresh()``
+    says it changed, and silences what plays when it is now off. ``player`` needs
+    ``play(samples, loop)``, ``stop()`` and ``close()`` (a ``TonePlayer`` on
     ``speaker()`` by default). ``close()`` silences it for good (the app is quitting).
     """
 
@@ -455,6 +457,24 @@ class CallSounds:
         self._error_at: float | None = None
         self._closed = False
         prepare()
+
+    @classmethod
+    def for_settings(cls, settings: GObject.Object, player=None) -> CallSounds:
+        """Sounds that follow the app settings: "call-sounds" turns them on and off (off
+        silences a ring at once) and "speaker-device" is where they play."""
+        sounds = cls(lambda: bool(settings.get("call-sounds")),
+                     lambda: settings.get("speaker-device"), player)
+
+        def changed(_settings, key: str) -> None:
+            if key == "call-sounds":
+                sounds.refresh()
+        settings.connect("changed", changed)
+        return sounds
+
+    def refresh(self) -> None:
+        """The setting changed: when it is off now, whatever plays fades out."""
+        if not self._closed and not self._allowed():
+            self.player.stop()
 
     def watch(self, bridge: GObject.Object) -> None:
         """Follow ``bridge``'s "call-phase" and "call-error" signals."""
@@ -498,13 +518,15 @@ class CallSounds:
         self.state = "idle"
         self.player.close()
 
-    def _play(self, samples: array, loop: bool = False) -> None:
+    def _allowed(self) -> bool:
         try:
-            enabled = bool(self._enabled())
+            return bool(self._enabled())
         except Exception:
             log.exception("Could not read the call sounds setting")
-            enabled = False
-        if enabled:
+            return False
+
+    def _play(self, samples: array, loop: bool = False) -> None:
+        if self._allowed():
             self.player.play(samples, loop)
         else:
             self.player.stop()  # turned off while it was ringing

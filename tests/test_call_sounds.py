@@ -12,9 +12,9 @@ import unittest
 from array import array
 from unittest import mock
 
-from tests.helpers import run_until  # noqa: F401  (sets the test environment first)
+from tests.helpers import run_until, tmp_path  # noqa: F401  (sets the test environment first)
 
-from src.core import call_sounds, voice  # noqa: E402
+from src.core import call_sounds, store, voice  # noqa: E402
 from tests.test_voice import StubPeer  # noqa: E402
 
 RATE = call_sounds.RATE
@@ -338,6 +338,27 @@ class CallSoundsTest(unittest.TestCase):
         self.enabled = False
         self.phases("listening")
         self.assertEqual(self.player.calls, [("play", "ringback", True), ("stop",)])
+
+    def test_the_switch_in_settings_silences_a_ring_at_once(self):
+        settings = store.Settings(store.Path(tmp_path("settings-call-sounds.json")))
+        settings.set("speaker-device", "alsa_output.usb-headset")
+        player = FakePlayer()
+        sounds = call_sounds.CallSounds.for_settings(settings, player=player)
+        self.addCleanup(sounds.close)
+        sounds.phase("connecting")
+        settings.set("verbose-logging", not settings.get("verbose-logging"))  # another one
+        self.assertEqual(player.calls, [("play", "ringback", True)])
+        # Off in the middle of the ring: it stops now, not when the call connects.
+        settings.set("call-sounds", False)
+        self.assertEqual(player.calls[-1], ("stop",))
+        sounds.phase("listening")
+        settings.set("call-sounds", True)  # back on: from the next sound on
+        sounds.phase("ended")
+        self.assertEqual(player.plays(), ["ringback", "hang-up"])
+        # The real player plays on the speaker chosen for calls.
+        real = call_sounds.CallSounds.for_settings(settings)
+        self.addCleanup(real.close)
+        self.assertEqual(real.player._device(), "alsa_output.usb-headset")
 
     def test_the_ring_gives_up_after_the_limit(self):
         with mock.patch.object(call_sounds.CallSounds, "RING_LIMIT_S", 0.05):

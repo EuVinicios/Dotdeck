@@ -23,9 +23,9 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
   de duas notas que sobem; e ao desligar (por você, pelo Dot ou pelo servidor), duas notas
   que descem, mais graves se a chamada caiu com erro. Os sons são gerados no próprio código,
   sem arquivos de áudio, tocam no alto-falante escolhido para as chamadas e nunca entram na
-  ligação; o aviso de conexão dura menos de 0,2 s para o detector de fala não confundi-lo com
-  voz. Liga e desliga em Configurações › Chamadas de voz › Sons da chamada (ligado por
-  padrão).
+  ligação; o aviso de conexão é curto (0,14 s) e baixinho. Liga e desliga em Configurações ›
+  Chamadas de voz › Sons da chamada (ligado por padrão); desligado no meio do toque, ele para
+  na hora.
 
 ## [0.3.5] - 2026-10-10
 
