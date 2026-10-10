@@ -80,13 +80,14 @@ class ProbeTest(unittest.TestCase):
         return box[0]
 
     def test_probe_against_fake_server(self):
-        with FakeOpenDots(token="s3cret-token-with-24-chars!", dots=["Chefe", "Zelador"]) as fake:
+        with FakeOpenDots(token="s3cret-token-with-24-chars!",
+                          dots=["Assistente", "Manutenção"]) as fake:
             self.assertEqual(self.probe(fake.url).kind, server.TOKEN_REQUIRED)
             self.assertEqual(self.probe(fake.url, "wrong").kind, server.TOKEN_INVALID)
             result = self.probe(fake.url, "s3cret-token-with-24-chars!")
             self.assertTrue(result.ok)
             self.assertEqual(result.name, "OpenDots Test")
-            self.assertEqual(result.dots, ["Chefe", "Zelador"])
+            self.assertEqual(result.dots, ["Assistente", "Manutenção"])
             self.assertIn(("/api/state", "Bearer s3cret-token-with-24-chars!"), fake.requests)
 
     def test_local_only_and_unreachable(self):

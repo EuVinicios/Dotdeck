@@ -12,6 +12,7 @@ dist/
 repo/
 *.flatpak
 *.deb
+*.tmp.png
 
 # Editors / OS
 .vscode/

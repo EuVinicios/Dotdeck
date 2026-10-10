@@ -27,6 +27,16 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
   Chamadas de voz › Sons da chamada (ligado por padrão); desligado no meio do toque, ele para
   na hora.
 
+### Alterado
+
+- Em português, o modelo "Caretaker" do Novo Dot passa a se chamar **Manutenção**.
+- Os exemplos das decisões (ADR-012 e ADR-013) e dos testes usam só os Dots fictícios das
+  capturas (ADR-019).
+
+### Removido
+
+- `data/icons/hicolor/1024.tmp.png`, um arquivo de trabalho que tinha ficado no repositório.
+
 ## [0.3.5] - 2026-10-10
 
 Site oficial e capturas novas.

@@ -51,16 +51,16 @@ class TaskEventsTest(unittest.TestCase):
 class ChiefTest(unittest.TestCase):
     def test_choice(self):
         profile = Profile("p", "Home", "http://h")
-        self.assertEqual(monitor.chief_dot(profile, ["Dot", "Chefe", "Zelador"]), "Chefe")
+        self.assertEqual(monitor.chief_dot(profile, ["Dot", "Chefe", "Manutenção"]), "Chefe")
         self.assertEqual(monitor.chief_dot(profile, ["Writer", "Analyst"]), "Writer")
         self.assertIsNone(monitor.chief_dot(profile, []))
-        profile.chief = "Zelador"
-        self.assertEqual(monitor.chief_dot(profile, ["Dot", "Chefe", "Zelador"]), "Zelador")
+        profile.chief = "Manutenção"
+        self.assertEqual(monitor.chief_dot(profile, ["Dot", "Chefe", "Manutenção"]), "Manutenção")
 
 
 class ServerMonitorTest(unittest.TestCase):
     def test_polls_and_reports_events(self):
-        with FakeOpenDots(token="t" * 24, dots=["Chefe"]) as fake:
+        with FakeOpenDots(token="t" * 24, dots=["Assistente"]) as fake:
             fake.tasks = [{"id": "a", "prompt": "Weekly report", "status": "running"}]
             profile = Profile("p", "Home", fake.url)
             mon = monitor.ServerMonitor(profile, lambda cb: cb("t" * 24))
@@ -68,7 +68,8 @@ class ServerMonitorTest(unittest.TestCase):
             mon.connect("task-event", lambda _m, *args: events.append(args))
             mon.start()
             self.assertTrue(run_until(lambda: mon.status == "online", 10))
-            self.assertEqual((mon.name, mon.dots, mon.active_tasks), ("OpenDots Test", ["Chefe"], 1))
+            self.assertEqual((mon.name, mon.dots, mon.active_tasks),
+                             ("OpenDots Test", ["Assistente"], 1))
             fake.tasks = [{"id": "a", "prompt": "Weekly report", "status": "completed"}]
             mon.poll_now()
             self.assertTrue(run_until(lambda: events, 10))
