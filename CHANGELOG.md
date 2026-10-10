@@ -4,6 +4,16 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.2] - 2026-10-10
+
+### Corrigido
+
+- **Snap:** o slot `dbus` da 0.3.1 exige revisão manual da Snap Store. No lugar dele,
+  o Dotdeck roda no snap como GApplication não exclusivo e garante uma única
+  instância por conta própria: uma trava e um socket na pasta privada do snap. Abrir
+  de novo, `--toggle` e `--toggle-mute` repassam o comando ao app aberto
+  (`src/core/instance.py`).
+
 ## [0.3.1] - 2026-10-10
 
 ### Corrigido
