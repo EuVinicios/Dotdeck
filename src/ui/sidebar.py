@@ -11,7 +11,8 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gio, GLib, GObject, Gtk, Pango  # noqa: E402
+gi.require_version("Graphene", "1.0")
+from gi.repository import Adw, Gio, GLib, GObject, Graphene, Gtk, Pango  # noqa: E402
 
 from ..core import pets  # noqa: E402
 from ..core.workspace import Dot, Workspace  # noqa: E402
@@ -175,17 +176,24 @@ class Sidebar(Adw.Bin):
         self.placeholder = _label(_("Connecting…"), ("dim-label", "caption"), xalign=0.5,
                                   margin_top=12, margin_bottom=12, wrap=True)
         self.dots.set_placeholder(self.placeholder)
+        # The Dot menu: right click, a long press on a touch screen, or Shift+F10 and the
+        # Menu key on the focused Dot (as in GTK's own text fields).
         click = Gtk.GestureClick(button=3)
         click.connect("pressed", self._on_dot_context)
         self.dots.add_controller(click)
-        press = Gtk.GestureLongPress()
+        press = Gtk.GestureLongPress(touch_only=True)
         press.connect("pressed", lambda g, x, y: self._on_dot_context(g, 1, x, y))
         self.dots.add_controller(press)
+        keys = Gtk.ShortcutController()
+        keys.add_shortcut(Gtk.Shortcut.new(Gtk.ShortcutTrigger.parse_string("<Shift>F10|Menu"),
+                                           Gtk.CallbackAction.new(self._on_dot_menu_key)))
+        self.dots.add_controller(keys)
         content.append(self.dots)
 
         self.hidden_button = Gtk.Button(halign=Gtk.Align.START, margin_start=12, visible=False)
         self.hidden_button.add_css_class("flat")
         self.hidden_button.add_css_class("caption")
+        self.hidden_button.add_css_class("hidden-dots")
         self.hidden_button.connect("clicked", lambda *_: self.emit("nav-activated", "hidden"))
         content.append(self.hidden_button)
 
@@ -209,7 +217,7 @@ class Sidebar(Adw.Bin):
         self.nav.add_css_class("navigation-sidebar")
         self.nav.connect("row-activated", lambda _l, row: self.emit("nav-activated", row.key))
         self.nav_rows = {
-            "activity": NavRow("activity", "document-open-recent-symbolic", _("Activity")),
+            "activity": NavRow("activity", "task-due-symbolic", _("Activity")),
             "memories": NavRow("memories", "user-bookmarks-symbolic", _("Memories")),
             "settings": NavRow("settings", "emblem-system-symbolic", _("Settings")),
         }
@@ -387,20 +395,52 @@ class Sidebar(Adw.Bin):
 
     def _on_dot_context(self, gesture, _n, x, y) -> None:
         row = self.dots.get_row_at_y(int(y))
-        if not isinstance(row, DotRow) or self.menu_for_dot is None:
-            return
+        if isinstance(row, DotRow) and self._open_dot_menu(row, _rect(x, y)):
+            if hasattr(gesture, "set_state"):
+                gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+
+    def _on_dot_menu_key(self, *_args) -> bool:
+        """Shift+F10 or the Menu key: the menu of the focused Dot, under its row."""
+        row = self.dots.get_focus_child()
+        if not isinstance(row, DotRow):
+            row = self.dots.get_selected_row()
+        if not isinstance(row, DotRow):
+            return False
+        ok, bounds = row.compute_bounds(self.dots)
+        if not ok:
+            return False
+        area = _rect(bounds.get_x(), bounds.get_y())
+        area.width, area.height = int(bounds.get_width()), int(bounds.get_height())
+        return self._open_dot_menu(row, area)
+
+    def _open_dot_menu(self, row: DotRow, area) -> bool:
+        """Show the Dot's menu pointing at ``area`` (in the coordinates of the Dots list)."""
+        if self.menu_for_dot is None:
+            return False
         menu = self.menu_for_dot(row.dot.id)
         if menu is None:
-            return
-        # Parented to the list, not the row: Pin or Hide rebuild the rows while it is open.
+            return False
+        # Parented to the sidebar, not to the list or the row: Pin and Hide rebuild the rows
+        # while the menu is open, and Gtk.ListBox never re-sizes a popover child, so the menu
+        # kept the height it had before its section separator appeared and had to scroll.
+        # The sidebar (an Adw.Bin) re-presents its popovers on every allocation.
+        _ok, origin = self.dots.compute_point(self, Graphene.Point().init(area.x, area.y))
+        area.x, area.y = int(origin.x), int(origin.y)
         popover = Gtk.PopoverMenu.new_from_model(menu)
-        popover.set_parent(self.dots)
+        popover.set_parent(self)
         popover.set_has_arrow(False)
-        popover.set_pointing_to(_rect(x, y))
-        popover.connect("closed", lambda p: GLib.idle_add(p.unparent))
+        # Opens to the right of the pointer (left in right-to-left languages) and below it,
+        # like GTK's own context menus, so the Dot's name and job stay visible.
+        popover.set_halign(Gtk.Align.START)
+        popover.set_pointing_to(area)
+        row.add_css_class("menu-open")
+
+        def closed(popover):
+            row.remove_css_class("menu-open")
+            GLib.idle_add(popover.unparent)
+        popover.connect("closed", closed)
         popover.popup()
-        if hasattr(gesture, "set_state"):
-            gesture.set_state(Gtk.EventSequenceState.CLAIMED)
+        return True
 
     # -- search ----------------------------------------------------------------------------
 

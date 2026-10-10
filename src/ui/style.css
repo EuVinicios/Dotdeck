@@ -55,12 +55,24 @@ statuspage.compact > scrolledwindow > viewport > box {
   font-weight: 600;
 }
 
+/* The Dot whose menu is open (right click, Shift+F10): highlighted like a hovered row. */
+.dots-list > row.dot-row.menu-open:not(:selected) {
+  background-color: alpha(currentColor, 0.07);
+}
+
 .dots-list > row.dot-row.compact .dot-job {
   font-size: 0.8em;
 }
 
+/* "2 hidden Dots": its words start where the "Dots" heading does (18 px in). */
+.dotdeck-sidebar .hidden-dots {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+/* Its arrow starts where the "Dots" heading does (the arrow has 4 px of its own). */
 .dotdeck-sidebar .spaces-expander > box > title {
-  padding: 8px 12px 4px 18px;
+  padding: 8px 12px 4px 14px;
 }
 
 .dotdeck-sidebar .nav-badge {
