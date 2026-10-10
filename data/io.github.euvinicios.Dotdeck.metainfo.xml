@@ -32,6 +32,15 @@
       servidor en este equipo, en la red de tu casa, por Tailscale o en la nube.
     </p>
     <ul>
+      <li>A native sidebar with all your Dots, each with its pet, name and job</li>
+      <li xml:lang="pt-BR">Barra lateral nativa com todos os seus Dots, cada um com pet, nome e função</li>
+      <li xml:lang="es">Barra lateral nativa con todos tus Dots, cada uno con su mascota, nombre y función</li>
+      <li>Twelve plush pets, one for every Dot, chosen in a gallery</li>
+      <li xml:lang="pt-BR">Doze pets de pelúcia, um para cada Dot, escolhidos numa galeria</li>
+      <li xml:lang="es">Doce mascotas de peluche, una para cada Dot, elegidas en una galería</li>
+      <li>Advanced settings with search: Dots, voice and microphone, AI model, notifications per event, privacy and more</li>
+      <li xml:lang="pt-BR">Configurações avançadas com busca: Dots, voz e microfone, modelo de IA, notificações por evento, privacidade e mais</li>
+      <li xml:lang="es">Configuración avanzada con búsqueda: Dots, voz y micrófono, modelo de IA, notificaciones por evento, privacidad y más</li>
       <li>Guided setup that tests the connection and finds the right address</li>
       <li xml:lang="pt-BR">Configuração guiada que testa a conexão e acha o endereço certo</li>
       <li xml:lang="es">Configuración guiada que prueba la conexión y encuentra la dirección correcta</li>
@@ -114,32 +123,49 @@
   <screenshots>
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/workspace.png</image>
-      <caption>Your OpenDots workspace in a native window</caption>
-      <caption xml:lang="pt-BR">Seu espaço de trabalho OpenDots numa janela nativa</caption>
+      <caption>Every Dot in a native sidebar, with its pet, name and job</caption>
+      <caption xml:lang="pt-BR">Todos os Dots numa barra lateral nativa, com pet, nome e função</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/welcome.png</image>
-      <caption>Guided setup for your own server</caption>
-      <caption xml:lang="pt-BR">Configuração guiada para o seu servidor</caption>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/pets.png</image>
+      <caption>Twelve plush pets: every Dot gets its own</caption>
+      <caption xml:lang="pt-BR">Doze pets de pelúcia: cada Dot tem o seu</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/connected.png</image>
-      <caption>Background, start at login and a global shortcut</caption>
-      <caption xml:lang="pt-BR">Segundo plano, início com a sessão e atalho global</caption>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/settings-voice.png</image>
+      <caption>Advanced settings with search, including voice and microphone</caption>
+      <caption xml:lang="pt-BR">Configurações avançadas com busca, incluindo voz e microfone</caption>
     </screenshot>
     <screenshot>
-      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/preferences.png</image>
-      <caption>Preferences</caption>
-      <caption xml:lang="pt-BR">Preferências</caption>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/settings-dots.png</image>
+      <caption>Edit each Dot's name, job, instructions and permissions</caption>
+      <caption xml:lang="pt-BR">Edite nome, função, instruções e permissões de cada Dot</caption>
     </screenshot>
     <screenshot>
       <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/workspace-dark.png</image>
       <caption>Dark style</caption>
       <caption xml:lang="pt-BR">Estilo escuro</caption>
     </screenshot>
+    <screenshot>
+      <image>https://raw.githubusercontent.com/EuVinicios/Dotdeck/main/data/screenshots/welcome.png</image>
+      <caption>Guided setup for your own server</caption>
+      <caption xml:lang="pt-BR">Configuração guiada para o seu servidor</caption>
+    </screenshot>
   </screenshots>
 
   <releases>
+    <release version="0.3.0" date="2026-10-10">
+      <description>
+        <p>A redesigned workspace.</p>
+        <ul>
+          <li>A native sidebar with all your Dots, each with its pet, name and job, plus Spaces, Activity and Memories</li>
+          <li>Twelve new plush pets: every Dot gets its own, and you can change it in the pet gallery</li>
+          <li>A new Settings window with sections and search: appearance, notifications per event, Dots, voice and microphone, AI model, servers, privacy and diagnostics</li>
+          <li>Call a Dot from the header, the sidebar or the tray, with a call timer and microphone controls</li>
+          <li>Keyboard shortcuts to search, switch and call Dots</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-10-09">
       <description>
         <p>Updates and voice for your server.</p>

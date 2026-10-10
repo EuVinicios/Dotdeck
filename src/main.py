@@ -14,7 +14,7 @@ gi.require_version("Gst", "1.0")
 from gi.repository import Adw, Gdk, Gio, GLib, Gst, Gtk  # noqa: E402
 
 from . import config  # noqa: E402
-from .core import monitor, portals, secrets, server, store, tray, voice  # noqa: E402
+from .core import dotprefs, monitor, portals, secrets, server, store, tray, voice  # noqa: E402
 from .i18n import _, ngettext  # noqa: E402
 
 log = logging.getLogger("dotdeck")
@@ -75,6 +75,8 @@ class DotdeckApplication(Adw.Application):
         Adw.Application.do_startup(self)
         Gst.init(None)
         self.settings = store.Settings()
+        if self.settings.get("verbose-logging"):
+            logging.getLogger().setLevel(logging.DEBUG)
         self.profiles = store.ProfileStore()
         self._load_style()
         from .ui.preferences import apply_color_scheme
@@ -154,6 +156,8 @@ class DotdeckApplication(Adw.Application):
 
         add("quit", lambda *_: self.quit_app(), ["<Control>q"])
         add("preferences", lambda *_: self.show_preferences(), ["<Control>comma"])
+        add("open-dot", lambda _a, value: self._open_dot_by_key(value.unpack()),
+            parameter=GLib.VariantType("s"))
         add("shortcuts", lambda *_: self.show_shortcuts(), ["<Control>question"])
         add("about", lambda *_: self.show_about())
         add("show", lambda *_: self.show_window())
@@ -175,11 +179,19 @@ class DotdeckApplication(Adw.Application):
             "win.activity": ["<Control><Shift>a"],
             "win.talk-to-chief": ["<Control><Shift>c"],
             "win.new-chat": ["<Control>n"],
+            "win.new-dot": ["<Control><Shift>n"],
             "win.go-back": ["<Alt>Left"],
+            "win.search": ["<Control>k"],
+            "win.toggle-sidebar": ["<Control>b"],
+            "win.call": ["<Control><Shift>l"],
+            "win.previous-dot": ["<Alt>Up"],
+            "win.next-dot": ["<Alt>Down"],
+            "win.memories": ["<Control><Shift>y"],
             "window.close": ["<Control>w"],
         }
         for index in range(1, 10):
             accels[f"win.profile-{index}"] = [f"<Alt>{index}"]
+            accels[f"win.dot-{index}"] = [f"<Control>{index}"]
         for action, keys in accels.items():
             self.set_accels_for_action(action, keys)
 
@@ -234,44 +246,58 @@ class DotdeckApplication(Adw.Application):
         if page_action:
             GLib.timeout_add(600, lambda: (self.window.page_action(page_action), False)[1])
 
-    def show_preferences(self, page: str = "general", add_server: bool = False,
-                         edit: str | None = None) -> None:
-        from .ui.preferences import PreferencesDialog
+    def show_preferences(self, page: str | None = None, add_server: bool = False,
+                         edit: str | None = None, dot: str | None = None) -> None:
+        """The Settings window (src/ui/settings), on ``page`` (None = the last one seen)
+        or on a server's or a Dot's page."""
+        from .ui.settings import open_settings
         self.show_window()
-        dialog = PreferencesDialog(self, page)
-        dialog.present(self.window)
-        if add_server:
-            dialog._add_server()
-        elif edit and self.profiles.get(edit):
-            dialog._edit_server(self.profiles.get(edit))
+        open_settings(self, page if isinstance(page, str) else None, add_server=add_server,
+                      edit=edit if edit and self.profiles.get(edit) else None, dot=dot)
 
     def edit_server(self, profile_id: str) -> None:
         self.show_preferences("servers", edit=profile_id)
 
-    def show_shortcuts(self) -> None:
-        self.show_window()
+    def _open_dot_by_key(self, key: str) -> None:
+        """``<profile id>/<dot id>`` from a notification: show that Dot."""
+        profile_id, _sep, dot_id = key.partition("/")
+        self._open_profile(profile_id, None)
+        if dot_id and self.window is not None:
+            GLib.timeout_add(600, lambda: (self.window.open_dot(dot_id), False)[1])
+
+    def show_shortcuts(self, parent=None) -> None:
+        if parent is None:
+            self.show_window()
         dialog = Adw.ShortcutsDialog()
         groups = [
-            (_("General"), [(_("Preferences"), "<Control>comma"),
+            (_("General"), [(_("Settings"), "<Control>comma"),
                             (_("Keyboard Shortcuts"), "<Control>question"),
                             (_("Close Window"), "<Control>w"), (_("Quit"), "<Control>q")]),
-            (_("Workspace"), [(_("Reload"), "F5"), (_("Fullscreen"), "F11"),
+            (_("Dots"), [(_("Search Dots and Spaces"), "<Control>k"),
+                         (_("Open Dot 1–9"), "<Control>1"),
+                         (_("Previous Dot"), "<Alt>Up"), (_("Next Dot"), "<Alt>Down"),
+                         (_("New Chat"), "<Control>n"), (_("New Dot"), "<Control><Shift>n"),
+                         (_("Talk to the Chief"), "<Control><Shift>c"),
+                         (_("Activity"), "<Control><Shift>a"),
+                         (_("Memories"), "<Control><Shift>y")]),
+            (_("Workspace"), [(_("Show or Hide the Sidebar"), "<Control>b"),
+                              (_("Reload"), "F5"), (_("Fullscreen"), "F11"),
                               (_("Zoom In"), "<Control>plus"), (_("Zoom Out"), "<Control>minus"),
                               (_("Actual Size"), "<Control>0"), (_("Go Back"), "<Alt>Left"),
-                              (_("Switch to Server 1–9"), "<Alt>1"),
-                              (_("New Chat"), "<Control>n"), (_("Activity"), "<Control><Shift>a"),
-                              (_("Talk to the Chief"), "<Control><Shift>c")]),
-            (_("Voice Calls"), [(_("Mute or Unmute the Microphone"), "<Control><Shift>m")]),
+                              (_("Switch to Server 1–9"), "<Alt>1")]),
+            (_("Voice Calls"), [(_("Call or Hang Up"), "<Control><Shift>l"),
+                                (_("Mute or Unmute the Microphone"), "<Control><Shift>m")]),
         ]
         for title, items in groups:
             section = Adw.ShortcutsSection(title=title)
             for label, accel in items:
                 section.add(Adw.ShortcutsItem(title=label, accelerator=accel))
             dialog.add(section)
-        dialog.present(self.window)
+        dialog.present(parent or self.window)
 
-    def show_about(self) -> None:
-        self.show_window()
+    def show_about(self, parent=None) -> None:
+        if parent is None:
+            self.show_window()
         about = Adw.AboutDialog(
             application_name=config.APP_NAME, application_icon=config.APP_ID,
             developer_name=config.DEVELOPER, version=config.VERSION, website=config.WEBSITE,
@@ -287,7 +313,7 @@ class DotdeckApplication(Adw.Application):
             "OpenDots", None, Gtk.License.CUSTOM,
             _("Dotdeck is an independent project and is not affiliated with or endorsed by "
               "CopilotKit. OpenDots is distributed by CopilotKit under the MIT license."))
-        about.present(self.window)
+        about.present(parent or self.window)
 
     # -- profiles --------------------------------------------------------------------------
 
@@ -322,6 +348,7 @@ class DotdeckApplication(Adw.Application):
             return
         self.tokens.clear(profile.id, profile.url)
         self.clear_website_data(profile.id, lambda: None)
+        dotprefs.forget(profile.id)
         self.profiles.remove(profile_id)
         if self.profiles.active is None and self.window is not None:
             self.window.show_onboarding()
@@ -398,6 +425,7 @@ class DotdeckApplication(Adw.Application):
                 mon.connect("changed", lambda *_: self.refresh_status())
                 mon.connect("task-event", self._on_task_event)
                 mon.connect("updates-available", self._on_updates_available)
+                mon.connect("status-changed", self._on_server_status)
                 self.monitors[profile_id] = mon
                 mon.start()
             else:
@@ -432,8 +460,17 @@ class DotdeckApplication(Adw.Application):
     def _window_focused(self) -> bool:
         return bool(self.window and self.window.get_visible() and self.window.is_active())
 
+    def _notify_allowed(self, key: str) -> bool:
+        return bool(self.settings.get("notifications") and self.settings.get(key))
+
+    def _private(self) -> bool:
+        return self.settings.get("notification-content") == "private"
+
     def _on_task_event(self, mon, kind, task_id, prompt, error) -> None:
-        if not self.settings.get("notifications") or self._window_focused():
+        key = {monitor.TASK_COMPLETED: "notify-task-completed",
+               monitor.TASK_FAILED: "notify-task-failed",
+               monitor.TASK_TRIGGERED: "notify-task-started"}.get(kind, "notifications")
+        if not self._notify_allowed(key) or self._window_focused():
             return
         titles = {
             monitor.TASK_COMPLETED: _("A Dot finished a task"),
@@ -443,6 +480,8 @@ class DotdeckApplication(Adw.Application):
         text = prompt if len(prompt) <= 140 else prompt[:139] + "…"
         if kind == monitor.TASK_FAILED and error:
             text = f"{text}\n{error[:120]}"
+        if self._private():
+            text = _("Open Dotdeck to see the details.")
         notification = Gio.Notification.new(f"{titles.get(kind, kind)} · {mon.profile.name}")
         notification.set_body(text)
         notification.set_priority(Gio.NotificationPriority.HIGH if kind == monitor.TASK_FAILED
@@ -451,10 +490,28 @@ class DotdeckApplication(Adw.Application):
             "app.open-activity", GLib.Variant("s", mon.profile.id))
         self.send_notification(f"task-{mon.profile.id}-{task_id}-{kind}", notification)
 
+    def _on_server_status(self, mon, old: str, new: str) -> None:
+        """Tell when a server goes down or comes back (not on the first connection)."""
+        if not self._notify_allowed("notify-server") or old in ("unknown", new):
+            return
+        if new == "offline" and old == "online":
+            title = _("{name} is offline").format(name=mon.profile.name)
+            body = _("Dotdeck keeps trying and will tell you when it is back.")
+        elif new == "online" and old == "offline":
+            title = _("{name} is back online").format(name=mon.profile.name)
+            body = _("Your Dots are reachable again.")
+        else:
+            return
+        notification = Gio.Notification.new(title)
+        notification.set_body(body)
+        notification.set_default_action_and_target_value("app.open-profile",
+                                                         GLib.Variant("s", mon.profile.id))
+        self.send_notification(f"server-{mon.profile.id}", notification)
+
     def _on_updates_available(self, mon, behind: int, upstream: str) -> None:
         if self.window is not None:
             self.window.refresh_status()
-        if not self.settings.get("notifications"):
+        if not self._notify_allowed("notify-updates"):
             return
         notification = Gio.Notification.new(_("News in the official OpenDots"))
         notification.set_body(ngettext(
@@ -479,7 +536,7 @@ class DotdeckApplication(Adw.Application):
         if not self.settings.get("notifications"):
             return
         notification = Gio.Notification.new(title)
-        notification.set_body(body)
+        notification.set_body(_("Open Dotdeck to see the details.") if self._private() else body)
         notification.set_default_action_and_target_value("app.open-profile",
                                                          GLib.Variant("s", profile.id))
         self.send_notification(None, notification)
@@ -498,6 +555,16 @@ class DotdeckApplication(Adw.Application):
         if self.tray is not None:
             self._update_tray(profile, mon, line)
 
+    def _call_chief(self) -> None:
+        profile = self.profiles.active
+        mon = self.monitors.get(profile.id) if profile else None
+        if self.window is None or mon is None:
+            return
+        self.show_window()
+        dot = mon.workspace.dot_named(monitor.chief_dot(profile, mon.dots))
+        if dot is not None:
+            self.window.call_dot(dot.id)
+
     @property
     def tray_host_present(self) -> bool:
         return bool(self.tray and self.tray.visible_in_host)
@@ -515,6 +582,11 @@ class DotdeckApplication(Adw.Application):
                           action=self.toggle_window),
             tray.MenuItem(_("Talk to {name}").format(name=chief or ""), visible=bool(chief),
                           action=lambda: self.window and self.window.talk_to_chief()),
+            tray.MenuItem(_("Call {name}").format(name=chief or ""),
+                          visible=bool(chief and mon and mon.voice_ready and not in_call),
+                          action=lambda: self._call_chief()),
+            tray.MenuItem(_("End Call"), visible=in_call,
+                          action=lambda: self.window and self.window.end_call()),
             tray.MenuItem(_("Activity"), visible=profile is not None,
                           action=lambda: self._open_profile(profile.id, "activity")),
             tray.MenuItem(_("Mute Microphone"), toggle="checkmark", visible=in_call,
@@ -530,7 +602,7 @@ class DotdeckApplication(Adw.Application):
                               action=lambda p=p: self._open_profile(p.id, None))
                 for p in profiles]))
         items += [
-            tray.MenuItem(_("Preferences"), action=self.show_preferences),
+            tray.MenuItem(_("Settings"), action=self.show_preferences),
             tray.MenuItem(separator=True),
             tray.MenuItem(_("Quit"), action=self.quit_app),
         ]

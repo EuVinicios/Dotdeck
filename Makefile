@@ -3,7 +3,7 @@
 #   make run            run from the source tree
 #   make test           unit, WebKit and voice tests (under xvfb + dbus when available)
 #   make smoke          drive the UI once and fail on errors
-#   make screenshots    refresh data/screenshots (DEMO_URL=http://… for a real OpenDots)
+#   make screenshots    refresh data/screenshots (DEMO_URL=… DEMO_TOKEN=… from tools/demo_server.py)
 #   make icon           re-render the plush app icon (tools/render_icon.py)
 #   make validate       desktop file, AppStream and release checks
 #   make install        install system-wide (PREFIX=/usr/local, DESTDIR supported)
@@ -47,8 +47,8 @@ smoke:
 	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py --smoke --out build/smoke
 
 screenshots:
-	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py $(if $(DEMO_URL),--url $(DEMO_URL))
-	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py --dark --out build/dark $(if $(DEMO_URL),--url $(DEMO_URL))
+	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py $(if $(DEMO_URL),--url $(DEMO_URL) --token $(DEMO_TOKEN))
+	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py --dark --out build/dark $(if $(DEMO_URL),--url $(DEMO_URL) --token $(DEMO_TOKEN))
 	cp build/dark/workspace-dark.png data/screenshots/
 
 store-assets:
@@ -73,7 +73,7 @@ locale:
 	done
 
 pot:
-	xgettext --from-code=UTF-8 --language=Python --keyword=_ --keyword=ngettext:1,2 \
+	xgettext --from-code=UTF-8 --language=Python --keyword=_ --keyword=N_ --keyword=ngettext:1,2 \
 		--package-name=Dotdeck --package-version=$(VERSION) --add-comments=TRANSLATORS \
 		-o po/dotdeck.pot $$(cat po/POTFILES)
 	@for lang in $(LINGUAS); do msgmerge --update --backup=none --no-fuzzy-matching po/$$lang.po po/dotdeck.pot; done

@@ -1,18 +1,24 @@
-// Dotdeck: RTCPeerConnection for WebKitGTK builds without WebRTC.
+// Dotdeck: the page's voice calls run in Dotdeck's own WebRTC.
 //
 // The OpenDots voice call needs RTCPeerConnection, which distribution and Flatpak
 // builds of WebKitGTK leave out. This script gives the page one that forwards every
 // call to Dotdeck (src/core/voice.py), where GStreamer runs the real connection and
 // plays/captures audio itself. The page keeps its own UI and logic unchanged.
 //
+// It also stands in for a native RTCPeerConnection when WebKit has one: Dotdeck's call
+// controls (microphone and speaker choice, mute, the call in the window's header) only
+// see calls that go through it, and on insecure origins (a LAN or Tailscale address
+// over plain http) WebKit offers no microphone, so a native connection could not talk.
+//
 // Audio never goes through the page: getUserMedia() and the remote track hand the
 // page silent placeholder streams, and their mute switches are relayed to GStreamer.
+// Without navigator.mediaDevices (insecure origins) this script provides one for the
+// microphone.
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 (() => {
   'use strict';
-  if (window.location.origin !== __DOTDECK_ORIGIN__) return;
-  if (typeof window.RTCPeerConnection !== 'undefined') return;
+  if (window.location.origin !== __DOTDECK_ORIGIN__ || window.__dotdeckVoiceEvent) return;
   const handlers = window.webkit && window.webkit.messageHandlers;
   const native = handlers && handlers.dotdeckVoice;
   if (!native) return;
@@ -47,38 +53,71 @@
     if (!calls) return;
     for (const id of calls) call('setMicEnabled', { pc: id, enabled: value }).catch(() => {});
   };
-  const enabled = Object.getOwnPropertyDescriptor(MediaStreamTrack.prototype, 'enabled');
-  if (enabled && enabled.set) {
-    Object.defineProperty(MediaStreamTrack.prototype, 'enabled', {
-      configurable: true,
-      enumerable: enabled.enumerable,
-      get() {
-        return enabled.get.call(this);
-      },
-      set(value) {
-        enabled.set.call(this, value);
-        relayMic(this, Boolean(value));
-      },
-    });
+  if (typeof MediaStreamTrack !== 'undefined') {
+    const enabled = Object.getOwnPropertyDescriptor(MediaStreamTrack.prototype, 'enabled');
+    if (enabled && enabled.set) {
+      Object.defineProperty(MediaStreamTrack.prototype, 'enabled', {
+        configurable: true,
+        enumerable: enabled.enumerable,
+        get() {
+          return enabled.get.call(this);
+        },
+        set(value) {
+          enabled.set.call(this, value);
+          relayMic(this, Boolean(value));
+        },
+      });
+    }
+    const stopTrack = MediaStreamTrack.prototype.stop;
+    MediaStreamTrack.prototype.stop = function () {
+      relayMic(this, false);
+      return stopTrack.call(this);
+    };
   }
-  const stopTrack = MediaStreamTrack.prototype.stop;
-  MediaStreamTrack.prototype.stop = function () {
-    relayMic(this, false);
-    return stopTrack.call(this);
+
+  const microphone = async () => {
+    const result = await call('requestMicrophone');
+    if (!result.allowed) throw new DOMException('Microphone access was denied.', 'NotAllowedError');
+    const stream = placeholderStream();
+    stream.getAudioTracks().forEach((track) => micTracks.set(track.id, new Set()));
+    return stream;
   };
+  const onlyMicrophone = (constraints) => Boolean(constraints && constraints.audio && !constraints.video);
 
   const mediaDevices = navigator.mediaDevices;
   if (mediaDevices && typeof mediaDevices.getUserMedia === 'function') {
     const original = mediaDevices.getUserMedia.bind(mediaDevices);
-    mediaDevices.getUserMedia = async (constraints) => {
-      if (!constraints || !constraints.audio || constraints.video) return original(constraints);
-      const result = await call('requestMicrophone');
-      if (!result.allowed)
-        throw new DOMException('Microphone access was denied.', 'NotAllowedError');
-      const stream = placeholderStream();
-      stream.getAudioTracks().forEach((track) => micTracks.set(track.id, new Set()));
-      return stream;
+    mediaDevices.getUserMedia = async (constraints) =>
+      onlyMicrophone(constraints) ? microphone() : original(constraints);
+  } else {
+    const devices = mediaDevices || new EventTarget();
+    devices.getUserMedia = async (constraints) => {
+      if (!onlyMicrophone(constraints))
+        throw new DOMException('Only the microphone is available here.', 'NotSupportedError');
+      return microphone();
     };
+    if (typeof devices.enumerateDevices !== 'function') {
+      const microphoneInfo = { deviceId: 'default', groupId: 'dotdeck', kind: 'audioinput', label: '' };
+      devices.enumerateDevices = async () => [Object.assign({ toJSON: () => microphoneInfo }, microphoneInfo)];
+    }
+    if (typeof devices.getSupportedConstraints !== 'function') {
+      devices.getSupportedConstraints = () => ({
+        autoGainControl: true,
+        deviceId: true,
+        echoCancellation: true,
+        noiseSuppression: true,
+      });
+    }
+    if (!mediaDevices) {
+      devices.ondevicechange = null;
+      Object.defineProperty(Navigator.prototype, 'mediaDevices', {
+        configurable: true,
+        enumerable: true,
+        get() {
+          return devices;
+        },
+      });
+    }
   }
 
   const callOf = (element) => {
@@ -86,8 +125,15 @@
     return stream && typeof stream.id === 'string' ? remoteStreams.get(stream.id) : undefined;
   };
 
-  // Muting the <audio> element that plays a call mutes the speakers in GStreamer.
+  // Muting or pausing the <audio> element that plays a call mutes the speakers in
+  // GStreamer; playing it again brings them back unless it is still muted.
+  const pausedCalls = new Set();
+  // `paused` tells native the page paused the call audio, which OpenDots only does when
+  // it hangs up: the call ends there instead of ~30 s later when the line drops.
+  const speakers = (id, mute, paused = false) =>
+    call('setSpeakerMuted', { pc: id, muted: mute, paused }).catch(() => {});
   const muted = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'muted');
+  const isMuted = (element) => Boolean(muted && muted.get ? muted.get.call(element) : element.muted);
   if (muted && muted.set) {
     Object.defineProperty(HTMLMediaElement.prototype, 'muted', {
       configurable: true,
@@ -98,16 +144,28 @@
       set(value) {
         muted.set.call(this, value);
         const id = callOf(this);
-        if (id) call('setSpeakerMuted', { pc: id, muted: Boolean(value) }).catch(() => {});
+        if (id) speakers(id, Boolean(value) || pausedCalls.has(id));
       },
     });
   }
 
+  const pause = HTMLMediaElement.prototype.pause;
+  HTMLMediaElement.prototype.pause = function () {
+    const id = callOf(this);
+    if (id && !pausedCalls.has(id)) {
+      pausedCalls.add(id);
+      speakers(id, true, true);
+    }
+    return pause.call(this);
+  };
+
   // The <audio> element of a call plays nothing itself: GStreamer plays the call.
   const play = HTMLMediaElement.prototype.play;
   HTMLMediaElement.prototype.play = function () {
-    if (callOf(this)) return Promise.resolve();
-    return play.call(this);
+    const id = callOf(this);
+    if (!id) return play.call(this);
+    if (pausedCalls.delete(id)) speakers(id, isMuted(this));
+    return Promise.resolve();
   };
 
   const fire = (target, event) => {
@@ -318,6 +376,7 @@
       for (const channel of this._channels.values()) channel._event({ type: 'dcclose' });
       for (const calls of micTracks.values()) calls.delete(this._id);
       for (const [stream, id] of remoteStreams) if (id === this._id) remoteStreams.delete(stream);
+      pausedCalls.delete(this._id);
       this._enqueue((pc) => call('close', { pc }))
         .catch(() => {})
         .finally(() => peers.delete(this._id));

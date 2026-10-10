@@ -9,7 +9,7 @@ from gi.repository import GLib
 
 APP_ID = "io.github.euvinicios.Dotdeck"
 APP_NAME = "Dotdeck"
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 GETTEXT_DOMAIN = "dotdeck"
 DEVELOPER = "EuVinicios"
 REPOSITORY = "https://github.com/EuVinicios/Dotdeck"
@@ -60,6 +60,11 @@ def source_data_dir() -> Path | None:
     """The repository's data/ folder when running from a source checkout."""
     candidate = PKG_DIR.parent / "data"
     return candidate if (candidate / "icons").is_dir() else None
+
+
+def pets_dir() -> Path:
+    """The pet pictures (src/pets, rendered by tools/render_pets.py)."""
+    return PKG_DIR / "pets"
 
 
 def icon_file(size: int = 256) -> Path | None:

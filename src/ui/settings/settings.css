@@ -1,0 +1,114 @@
+/* Dotdeck Settings window: small additions to the Adwaita stylesheet. */
+
+/* A search result's row flashes once, then fades back. */
+.boxed-list > row,
+.boxed-list-separate > row,
+.settings-card {
+  transition: background-color 450ms ease-out, box-shadow 450ms ease-out;
+}
+
+.boxed-list > row.settings-highlight,
+.boxed-list-separate > row.settings-highlight,
+.settings-card.settings-highlight,
+row.settings-highlight {
+  background-color: color-mix(in srgb, var(--accent-bg-color) 16%, transparent);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent-color) 70%, transparent);
+}
+
+.settings-results > row {
+  border-radius: 8px;
+}
+
+/* The big pet and name at the top of a Dot's page. */
+.dot-hero {
+  padding: 6px 0 4px 0;
+}
+
+.dot-hero .title-1 {
+  margin-top: 6px;
+}
+
+/* Instructions editor: a text view in a card. */
+.instructions-view,
+.instructions-view text {
+  background-color: transparent;
+}
+
+.instructions-view {
+  font-size: 0.95em;
+}
+
+.counter {
+  font-feature-settings: "tnum";
+  font-size: 0.9em;
+}
+
+.counter.error {
+  color: var(--error-color);
+  font-weight: bold;
+}
+
+/* Small pills next to a Dot's name: Chief, Pinned, Hidden, Unsaved. */
+.settings-badge {
+  font-size: 0.8em;
+  font-weight: bold;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.settings-badge.accent {
+  color: var(--accent-color);
+  background-color: color-mix(in srgb, var(--accent-bg-color) 14%, transparent);
+}
+
+.settings-badge.warning {
+  color: var(--warning-color);
+  background-color: color-mix(in srgb, var(--warning-bg-color) 16%, transparent);
+}
+
+/* A status dot in front of a server or a check. */
+.settings-status {
+  min-width: 10px;
+  min-height: 10px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.settings-status.success {
+  background-color: var(--success-color);
+}
+
+.settings-status.warning {
+  background-color: var(--warning-color);
+}
+
+.settings-status.error {
+  background-color: var(--error-color);
+}
+
+/* The About page header. */
+.about-hero {
+  padding: 12px 0 6px 0;
+}
+
+.about-hero .version {
+  font-size: 0.9em;
+  padding: 2px 10px;
+  border-radius: 999px;
+  color: var(--accent-color);
+  background-color: color-mix(in srgb, var(--accent-bg-color) 14%, transparent);
+}
+
+/* The pet preview next to the animation choice. */
+.pet-preview {
+  padding: 12px 0;
+}
+
+levelbar.mic-level {
+  min-width: 160px;
+}
+
+levelbar.mic-level block.filled {
+  background-color: var(--success-color);
+}
