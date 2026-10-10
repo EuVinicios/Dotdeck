@@ -19,6 +19,7 @@ from urllib.parse import quote
 from gi.repository import Gio, GLib, Soup
 
 from . import server
+from ..i18n import _
 from .workspace import Dot
 
 log = logging.getLogger(__name__)
@@ -38,7 +39,7 @@ class OpenDotsAPI:
                 cancellable: Gio.Cancellable | None = None) -> None:
         message = Soup.Message.new(method, f"{self.url}{path}")
         if message is None:
-            callback(None, "invalid address")
+            callback(None, _("The server address is not valid."))
             return
         headers = message.get_request_headers()
         headers.append("Accept", "application/json")
@@ -144,7 +145,7 @@ class OpenDotsAPI:
         allowed = {"model", "baseUrl", "apiKey", "voiceModel", "voiceName", "voiceKey"}
         body = {k: v.strip() for k, v in changes.items() if k in allowed and isinstance(v, str)}
         if any(("\n" in v or "\r" in v) for v in body.values()):
-            callback(None, "invalid value")
+            callback(None, _("The value can only be one line."))
             return
         self.request("POST", "/api/model-config", body, callback)
 

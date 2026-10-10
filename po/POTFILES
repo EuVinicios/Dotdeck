@@ -1,3 +1,4 @@
+src/core/api.py
 src/core/pets.py
 src/core/server.py
 src/core/voice.py

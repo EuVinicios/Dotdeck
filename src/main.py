@@ -182,7 +182,7 @@ class DotdeckApplication(Adw.Application):
             "win.new-dot": ["<Control><Shift>n"],
             "win.go-back": ["<Alt>Left"],
             "win.search": ["<Control>k"],
-            "win.toggle-sidebar": ["<Control>b"],
+            "win.toggle-sidebar": ["F9"],
             "win.call": ["<Control><Shift>l"],
             "win.previous-dot": ["<Alt>Up"],
             "win.next-dot": ["<Alt>Down"],
@@ -241,7 +241,11 @@ class DotdeckApplication(Adw.Application):
 
     def _open_profile(self, profile_id: str, page_action: str | None) -> None:
         if self.profiles.get(profile_id):
-            self.profiles.set_active(profile_id)
+            if self.window is not None and self.window.view is not None \
+                    and self.window.view.voice.in_call:
+                self.window.switch_to(profile_id)  # asks before ending the call
+            else:
+                self.profiles.set_active(profile_id)
         self.show_window()
         if page_action:
             GLib.timeout_add(600, lambda: (self.window.page_action(page_action), False)[1])
@@ -280,7 +284,7 @@ class DotdeckApplication(Adw.Application):
                          (_("Talk to the Chief"), "<Control><Shift>c"),
                          (_("Activity"), "<Control><Shift>a"),
                          (_("Memories"), "<Control><Shift>y")]),
-            (_("Workspace"), [(_("Show or Hide the Sidebar"), "<Control>b"),
+            (_("Workspace"), [(_("Show or Hide the Sidebar"), "F9"),
                               (_("Reload"), "F5"), (_("Fullscreen"), "F11"),
                               (_("Zoom In"), "<Control>plus"), (_("Zoom Out"), "<Control>minus"),
                               (_("Actual Size"), "<Control>0"), (_("Go Back"), "<Alt>Left"),
@@ -486,7 +490,7 @@ class DotdeckApplication(Adw.Application):
         notification.set_body(text)
         notification.set_priority(Gio.NotificationPriority.HIGH if kind == monitor.TASK_FAILED
                                   else Gio.NotificationPriority.NORMAL)
-        notification.set_default_action_and_target_value(
+        notification.set_default_action_and_target(
             "app.open-activity", GLib.Variant("s", mon.profile.id))
         self.send_notification(f"task-{mon.profile.id}-{task_id}-{kind}", notification)
 
@@ -504,7 +508,7 @@ class DotdeckApplication(Adw.Application):
             return
         notification = Gio.Notification.new(title)
         notification.set_body(body)
-        notification.set_default_action_and_target_value("app.open-profile",
+        notification.set_default_action_and_target("app.open-profile",
                                                          GLib.Variant("s", mon.profile.id))
         self.send_notification(f"server-{mon.profile.id}", notification)
 
@@ -518,7 +522,7 @@ class DotdeckApplication(Adw.Application):
             "{n} change is ready for {name}. Open Dotdeck to update the server.",
             "{n} changes are ready for {name}. Open Dotdeck to update the server.",
             behind).format(n=behind, name=mon.profile.name))
-        notification.set_default_action_and_target_value("app.open-updates",
+        notification.set_default_action_and_target("app.open-updates",
                                                          GLib.Variant("s", mon.profile.id))
         self.send_notification(f"updates-{mon.profile.id}", notification)
 
@@ -537,7 +541,7 @@ class DotdeckApplication(Adw.Application):
             return
         notification = Gio.Notification.new(title)
         notification.set_body(_("Open Dotdeck to see the details.") if self._private() else body)
-        notification.set_default_action_and_target_value("app.open-profile",
+        notification.set_default_action_and_target("app.open-profile",
                                                          GLib.Variant("s", profile.id))
         self.send_notification(None, notification)
 

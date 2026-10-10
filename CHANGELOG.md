@@ -22,7 +22,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
   tempo da chamada e aviso antes de sair de uma chamada.
 - **Novo Dot** a partir de modelos (Chefe de gabinete, Pesquisador, Escritor, Finanças, Casa e
   infraestrutura, Parceiro de estudos).
-- Atalhos no estilo Grok Bot: `Ctrl+1…9` abre um Dot, `Alt+↑/↓` troca de Dot, `Ctrl+B`
+- Atalhos no estilo Grok Bot: `Ctrl+1…9` abre um Dot, `Alt+↑/↓` troca de Dot, `F9`
   mostra ou esconde a barra.
 - Notificação quando o servidor cai e quando volta; conteúdo das notificações pode ser privado.
 

@@ -8,6 +8,7 @@ native sidebar steps aside and the page shows its own navigation, as in Dotdeck 
 
 from __future__ import annotations
 
+import re
 import time
 from typing import Callable
 
@@ -144,7 +145,7 @@ class MainWindow(Adw.ApplicationWindow):
         header = Adw.HeaderBar()
         self.header = header
         self.sidebar_button = Gtk.ToggleButton(icon_name="sidebar-show-symbolic",
-                                               tooltip_text=_("Show Sidebar (Ctrl+B)"),
+                                               tooltip_text=_("Show Sidebar (F9)"),
                                                action_name="win.toggle-sidebar")
         header.pack_start(self.sidebar_button)
         # Used when the native sidebar is off or the page was not recognized.
@@ -244,11 +245,13 @@ class MainWindow(Adw.ApplicationWindow):
         view.add_top_bar(self.banner)
         self.toolbar = view
 
+        # pin_sidebar: un-collapsing must not bring back a sidebar that is off or hidden;
+        # _apply_layout decides.
         self.split = Adw.OverlaySplitView(sidebar=sidebar_view, content=view,
                                           min_sidebar_width=264, max_sidebar_width=320,
-                                          sidebar_width_fraction=0.24)
+                                          sidebar_width_fraction=0.24, pin_sidebar=True)
         self.split.connect("notify::show-sidebar", lambda *_: self._sync_sidebar_button())
-        self.split.connect("notify::collapsed", lambda *_: self._sync_sidebar_button())
+        self.split.connect("notify::collapsed", lambda *_: self._apply_layout())
         breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 720sp"))
         breakpoint.add_setter(self.split, "collapsed", True)
         self.add_breakpoint(breakpoint)
@@ -278,7 +281,10 @@ class MainWindow(Adw.ApplicationWindow):
         add("search", lambda *_: self._search())
         add("toggle-sidebar", lambda *_: self._toggle_sidebar())
         add("toggle-computer", lambda *_: self.view and self.view.toggle_computer())
-        add("pause-all", lambda *_: self._pause_all())
+        self._pause_action = Gio.SimpleAction.new_stateful("pause-all", None,
+                                                           GLib.Variant("b", False))
+        self._pause_action.connect("activate", lambda *_: self._pause_all())
+        self.add_action(self._pause_action)
         add("call", lambda *_: self.call_current())
         add("previous-dot", lambda *_: self._step_dot(-1))
         add("next-dot", lambda *_: self._step_dot(+1))
@@ -296,7 +302,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._mute_action.set_enabled(False)
         self.add_action(self._mute_action)
         switch = Gio.SimpleAction.new_stateful("profile", text, GLib.Variant("s", ""))
-        switch.connect("activate", lambda _a, value: self.app.profiles.set_active(value.unpack()))
+        switch.connect("activate", lambda _a, value: self.switch_to(value.unpack()))
         self.add_action(switch)
         self._profile_action = switch
         for index in range(1, 10):
@@ -325,7 +331,14 @@ class MainWindow(Adw.ApplicationWindow):
     def _switch_index(self, index: int) -> None:
         profiles = self.app.profiles.list()
         if index <= len(profiles):
-            self.app.profiles.set_active(profiles[index - 1].id)
+            self.switch_to(profiles[index - 1].id)
+
+    def switch_to(self, profile_id: str) -> None:
+        """Show another server; switching ends a call in progress, so ask first."""
+        active = self.app.profiles.active
+        if active is not None and active.id == profile_id:
+            return
+        self._confirm_leave_call(None, lambda: self.app.profiles.set_active(profile_id))
 
     def show_onboarding(self) -> None:
         self._drop_view()
@@ -347,6 +360,8 @@ class MainWindow(Adw.ApplicationWindow):
         self._drop_view()
         self._view_profile = profile.id
         self._dot_id, self._place, self._focus_ok = None, "home", None
+        self._told_fallback = False
+        self._apply_layout()
         self.content.set_visible_child_name("loading")
         self.refresh_status()
 
@@ -399,6 +414,7 @@ class MainWindow(Adw.ApplicationWindow):
             if mon is not None:
                 self._mon_handlers = [
                     mon.connect("workspace-changed", lambda *_: self._refresh_workspace()),
+                    mon.connect("status-changed", lambda *_: self._refresh_workspace()),
                 ]
         prefs = dotprefs.for_profile(profile.id)
         if prefs is not self._prefs:
@@ -502,6 +518,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.sidebar.set_placeholder({
             "unknown": _("Connecting…"), "offline": _("No connection to the server"),
             "token": _("An access token is needed to see the Dots"),
+            "local-only": _("This server only accepts connections from its own computer"),
+            "other": _("This address is not an OpenDots server"),
         }.get(status, _("No Dots yet") if status == "online" else ""))
         self.sidebar.set_dots(workspace, visible, hidden, self._pet_map,
                               density=settings.get("density"), show_job=settings.get("show-jobs"),
@@ -526,14 +544,15 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _confirm_leave_call(self, dot_id: str | None, then: Callable[[], None]) -> None:
         """Opening another Dot unmounts the page's call: ask first."""
-        if not (self.view and self.view.voice.in_call) or dot_id == self._call_dot or \
-                not self.app.settings.get("confirm-call-end"):
+        saving = getattr(self, "_call_phase", "") == "ended"   # already hung up
+        if not (self.view and self.view.voice.in_call) or saving or \
+                dot_id == self._call_dot or not self.app.settings.get("confirm-call-end"):
             then()
             return
         current = self.workspace.dot(self._call_dot)
         dialog = Adw.AlertDialog(
             heading=_("End the Call?"),
-            body=_("Leaving {name} ends the call in progress.").format(
+            body=_("This ends the call with {name}.").format(
                 name=current.name if current else _("this Dot")))
         dialog.add_response("stay", _("Stay"))
         dialog.add_response("leave", _("End Call and Continue"))
@@ -557,6 +576,11 @@ class MainWindow(Adw.ApplicationWindow):
         elif self._place == "space":
             self.sidebar.select_space(self._space_id)
 
+    def _close_overlay(self) -> None:
+        """In a narrow window the sidebar covers the page: hide it after choosing."""
+        if self.split.get_collapsed():
+            self.split.set_show_sidebar(False)
+
     def open_dot(self, dot_id: str, conversation_id: str | None = None) -> None:
         dot = self.workspace.dot(dot_id)
         if dot is None:
@@ -565,8 +589,7 @@ class MainWindow(Adw.ApplicationWindow):
         def go():
             self._dot_id, self._place = dot.id, "dot"
             self.sidebar.select_dot(dot.id)
-            if self.split.get_collapsed():
-                self.split.set_show_sidebar(False)
+            self._close_overlay()
             if self._prefs is not None:
                 self._prefs.mark_seen(dot.id)
             self._refresh_header()
@@ -593,6 +616,7 @@ class MainWindow(Adw.ApplicationWindow):
         def go():
             self._place, self._space_id = "space", space_id
             self.sidebar.select_space(space_id)
+            self._close_overlay()
             self._refresh_header()
             if self.view is not None and hasattr(self.view, "open_space"):
                 self.view.open_space(space_id)
@@ -602,6 +626,7 @@ class MainWindow(Adw.ApplicationWindow):
         def go():
             self._place = "activity"
             self.sidebar.select_nav("activity")
+            self._close_overlay()
             self._refresh_header()
             if self.view is not None:
                 if hasattr(self.view, "open_activity"):
@@ -614,6 +639,7 @@ class MainWindow(Adw.ApplicationWindow):
         def go():
             self._place = "memories"
             self.sidebar.select_nav("memories")
+            self._close_overlay()
             self._refresh_header()
             if self.view is not None and hasattr(self.view, "open_memories"):
                 self.view.open_memories()
@@ -657,7 +683,10 @@ class MainWindow(Adw.ApplicationWindow):
             self._place = "memories"
             self.sidebar.select_nav("memories")
         elif place == "space":
-            self._place = "space"
+            uri = self.view.webview.get_uri() if self.view is not None else ""
+            found = re.search(r"#/spaces/([^/?#]+)", uri or "")
+            self._place, self._space_id = "space", found.group(1) if found else None
+            self.sidebar.select_space(self._space_id)
         self._refresh_header()
 
     def _on_dot_state(self, _view, dot_name: str, state: str) -> None:
@@ -676,6 +705,7 @@ class MainWindow(Adw.ApplicationWindow):
         def go():
             self._dot_id, self._place = dot.id, "dot"
             self.sidebar.select_dot(dot.id)
+            self._close_overlay()
             self._refresh_header()
             self.view.new_chat(self.workspace.dot_index(dot.id), dot.name,
                                self._page_done(_("Could not start a new chat.")))
@@ -715,11 +745,11 @@ class MainWindow(Adw.ApplicationWindow):
     def _hide_dot(self, dot_id: str) -> None:
         if self._prefs is None:
             return
-        dot = self.workspace.dot(dot_id)
-        self._prefs.set_hidden(dot_id, True)
+        dot, prefs = self.workspace.dot(dot_id), self._prefs
+        prefs.set_hidden(dot_id, True)
         if dot is not None:
             self.toast(_("{name} is hidden from the sidebar.").format(name=dot.name), _("Undo"),
-                       lambda: self._prefs.set_hidden(dot_id, False))
+                       lambda: prefs.set_hidden(dot_id, False))
 
     def _make_chief(self, dot_id: str) -> None:
         profile, dot = self.app.profiles.active, self.workspace.dot(dot_id)
@@ -876,9 +906,13 @@ class MainWindow(Adw.ApplicationWindow):
             return
         self._mic_checked = False
         profile = self.app.profiles.active
+        view, profile_id = self.view, self._view_profile
 
         def start(conversation_id: str | None) -> None:
+            if self.view is not view or self._view_profile != profile_id:
+                return  # the server changed meanwhile
             self._dot_id, self._place, self._call_dot = dot.id, "dot", dot.id
+            self._close_overlay()
             self.sidebar.select_dot(dot.id)
             self._refresh_header()
             index = self.workspace.dot_index(dot.id)
@@ -888,7 +922,7 @@ class MainWindow(Adw.ApplicationWindow):
                     self._call_dot = None
                     self.toast(_("The call with {name} could not start.").format(name=dot.name))
                     self._refresh_header()
-            self.view.start_call(conversation_id, index, dot.name, done)
+            view.start_call(conversation_id, index, dot.name, done)
 
         latest = self.workspace.latest_conversation(dot.id)
         if latest is not None:
@@ -903,8 +937,9 @@ class MainWindow(Adw.ApplicationWindow):
             if self._mon is not None:
                 self._mon.poll_now()
             start(str(data["id"]))
-        api.for_profile(self.app, profile, lambda client: client.create_conversation(
-            dot.id, created, title=_("Voice call")))
+        self._confirm_leave_call(dot.id, lambda: api.for_profile(
+            self.app, profile, lambda client: client.create_conversation(
+                dot.id, created, title=_("Voice call"))))
 
     def _should_check_microphone(self) -> bool:
         return not self.app.settings.get("microphone-device") and \
@@ -915,7 +950,7 @@ class MainWindow(Adw.ApplicationWindow):
         if self.app.settings.get("microphone-device") or not hasattr(voice, "default_device_name"):
             return False
         try:
-            return voice.default_device_name("source") is None
+            return voice.default_device_name("source") is None and not voice.list_devices("source")
         except Exception:  # a sound server problem must not block the call
             return False
 
@@ -946,10 +981,11 @@ class MainWindow(Adw.ApplicationWindow):
     def end_call(self) -> None:
         if self.view is None:
             return
-        if hasattr(self.view, "end_call"):
-            self.view.end_call(lambda ok: ok or self.view.voice.close_all())
+        view = self.view
+        if hasattr(view, "end_call"):
+            view.end_call(lambda ok: ok or view.voice.close_all())
         else:
-            self.view.voice.close_all()
+            view.voice.close_all()
 
     def _on_calls_changed(self) -> None:
         in_call = bool(self.view and self.view.voice.in_call)
@@ -1009,9 +1045,11 @@ class MainWindow(Adw.ApplicationWindow):
         dot = self.current_dot() if self._place == "dot" else None
         in_call = bool(self.view and self.view.voice.in_call)
         show_dot = native and dot is not None
-        self.title_avatar.set_visible(show_dot)
-        self.new_chat_button.set_visible(show_dot)
-        self.history_button.set_visible(show_dot)
+        narrow = self.split.get_collapsed()
+        # A narrow window cannot fit everything: New Chat stays in the conversations menu.
+        self.title_avatar.set_visible(show_dot and not narrow)
+        self.new_chat_button.set_visible(show_dot and not narrow)
+        self.history_button.set_visible(show_dot and not (narrow and in_call))
         if show_dot:
             self.title_avatar.pet = self._pet_map.get(dot.id, pets.DEFAULT.id)
             calling_here = in_call and self._call_dot == dot.id
@@ -1068,6 +1106,13 @@ class MainWindow(Adw.ApplicationWindow):
             self.call_button.set_sensitive(reason is None)
             self.call_button.set_tooltip_text(reason or _("Call {name} (Ctrl+Shift+L)").format(
                 name=dot.name if dot else ""))
+        if narrow:  # icon only; the words stay in the tooltip
+            self.call_content.set_label("")
+            self.call_button.remove_css_class("call-button")
+            self.call_button.add_css_class("circular")
+        else:
+            self.call_button.add_css_class("call-button")
+            self.call_button.remove_css_class("circular")
 
     # -- status ----------------------------------------------------------------------------
 
@@ -1093,6 +1138,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.tasks_button.set_visible(active > 0 and not self._native())
         self._tasks_label.set_label(ngettext("{n} task", "{n} tasks", active).format(n=active))
         self.sidebar.set_counts(active, len(mon.state.memories) if mon else 0)
+        self._pause_action.set_state(GLib.Variant("b", bool(mon and mon.state.paused)))
 
         if status == "token":
             self._set_banner(_("{name} needs a valid owner access token.").format(

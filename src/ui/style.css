@@ -59,7 +59,7 @@ statuspage.compact > scrolledwindow > viewport > box {
   font-size: 0.8em;
 }
 
-.dotdeck-sidebar .spaces-expander > title {
+.dotdeck-sidebar .spaces-expander > box > title {
   padding: 8px 12px 4px 18px;
 }
 

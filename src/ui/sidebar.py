@@ -169,7 +169,8 @@ class Sidebar(Adw.Bin):
         self.dots = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
         self.dots.add_css_class("navigation-sidebar")
         self.dots.add_css_class("dots-list")
-        self.dots.connect("row-activated", self._on_dot_activated)
+        # Selecting opens (mouse and arrow keys alike); programmatic selection does not.
+        self.dots.connect("row-selected", self._on_dot_selected)
         self.dots.set_filter_func(self._filter_dot)
         self.placeholder = _label(_("Connecting…"), ("dim-label", "caption"), xalign=0.5,
                                   margin_top=12, margin_bottom=12, wrap=True)
@@ -193,7 +194,7 @@ class Sidebar(Adw.Bin):
         self.spaces_expander.set_label_widget(_label(_("Spaces"), ("sidebar-heading",)))
         self.spaces = Gtk.ListBox(selection_mode=Gtk.SelectionMode.SINGLE)
         self.spaces.add_css_class("navigation-sidebar")
-        self.spaces.connect("row-activated", self._on_space_activated)
+        self.spaces.connect("row-selected", self._on_space_selected)
         self.spaces.set_filter_func(self._filter_space)
         self.spaces_expander.set_child(self.spaces)
         content.append(self.spaces_expander)
@@ -341,17 +342,23 @@ class Sidebar(Adw.Bin):
             self.nav.unselect_all()
         self._selecting = False
 
-    def _on_dot_activated(self, _list, row) -> None:
-        if isinstance(row, DotRow):
-            self.spaces.unselect_all()
-            self.nav.unselect_all()
-            self.emit("dot-activated", row.dot.id)
+    def _on_dot_selected(self, _list, row) -> None:
+        if self._selecting or not isinstance(row, DotRow):
+            return
+        self._selecting = True
+        self.spaces.unselect_all()
+        self.nav.unselect_all()
+        self._selecting = False
+        self.emit("dot-activated", row.dot.id)
 
-    def _on_space_activated(self, _list, row) -> None:
-        if isinstance(row, SpaceRow):
-            self.dots.unselect_all()
-            self.nav.unselect_all()
-            self.emit("space-activated", row.space_id)
+    def _on_space_selected(self, _list, row) -> None:
+        if self._selecting or not isinstance(row, SpaceRow):
+            return
+        self._selecting = True
+        self.dots.unselect_all()
+        self.nav.unselect_all()
+        self._selecting = False
+        self.emit("space-activated", row.space_id)
 
     def _on_dot_context(self, gesture, _n, x, y) -> None:
         row = self.dots.get_row_at_y(int(y))
@@ -360,12 +367,11 @@ class Sidebar(Adw.Bin):
         menu = self.menu_for_dot(row.dot.id)
         if menu is None:
             return
+        # Parented to the list, not the row: Pin or Hide rebuild the rows while it is open.
         popover = Gtk.PopoverMenu.new_from_model(menu)
-        popover.set_parent(row)
+        popover.set_parent(self.dots)
         popover.set_has_arrow(False)
-        point = self.dots.compute_point(row, _point(x, y))
-        rect = _rect(point.x if point else x, point.y if point else 0)
-        popover.set_pointing_to(rect)
+        popover.set_pointing_to(_rect(x, y))
         popover.connect("closed", lambda p: GLib.idle_add(p.unparent))
         popover.popup()
         if hasattr(gesture, "set_state"):
@@ -424,12 +430,6 @@ class Sidebar(Adw.Bin):
         if not self._filter or not isinstance(row, SpaceRow):
             return True
         return self._filter in row.title.get_label().casefold()
-
-
-def _point(x: float, y: float):
-    gi.require_version("Graphene", "1.0")
-    from gi.repository import Graphene
-    return Graphene.Point().init(x, y)
 
 
 def _rect(x: float, y: float):
