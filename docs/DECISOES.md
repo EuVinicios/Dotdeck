@@ -453,3 +453,42 @@ inteiro, com a função de cada um. Também havia um arquivo de trabalho esqueci
 - **Arquivo esquecido.** `1024.tmp.png` sai do git e `*.tmp.png` entra no `.gitignore`.
 - **Histórico.** Os commits antigos continuam com os nomes. Reescrever o histórico do
   repositório público só se o dono pedir.
+
+## ADR-020 — Menu do Dot que cabe inteiro e o polimento de layout (10/10/2026)
+
+**Contexto.** O menu do botão direito sobre um Dot abria 13 px mais baixo que o conteúdo, e o
+último item só aparecia rolando, em todos os Dots, em qualquer tamanho de janela, no X11 e num
+GNOME Shell com Wayland (GTK 4.24.0 e Adw 1.10.0, as versões do snap). A causa está no GTK: um
+popover mede a janela dele uma vez, ao abrir, e só volta a medir quando o widget pai chama
+`gtk_popover_present()` na própria alocação, o que os gerenciadores de layout fazem sozinhos. O
+menu era filho do `Gtk.ListBox`, cuja alocação não faz isso, e o `GtkMenuSectionBox` acrescenta a
+linha entre as seções num idle, depois da primeira medida (1 px + 2 × 6 px de margem). Uma
+revisão da interface achou ainda: o item "Abrir" traduzido como "Aberto" (a mesma mensagem do
+selo do servidor aberto), o cabeçalho da chamada pulando de lugar a cada fase e com o tempo em
+dobro, nenhum sinal entre o clique em Ligar e a chamada conectar, Ligar ativo sem conexão,
+Configurações cortada na altura padrão e uma chamada que continuava sem página depois de F5.
+
+**Decisão.**
+- **O menu do Dot é filho da barra lateral** (um `Adw.Bin`, que reapresenta os popovers a cada
+  alocação), com o ponto do clique convertido para as coordenadas dela. Não vai na linha porque
+  Fixar e Ocultar refazem as linhas com o menu aberto. Abre à direita do ponteiro
+  (`halign=START`, como os menus de contexto do próprio GTK), também com Shift+F10 e a tecla
+  Menu, e o toque longo vale só para telas de toque. Um teste abre o menu em cada Dot e confere
+  que a rolagem interna não tem nada a rolar; ele falha com o código antigo (281 > 268) e passa
+  no SDK do GNOME 51 e no runtime do próprio snap.
+- **Uma mensagem por sentido**: o menu diz "Abrir"; o selo do servidor usa "Current" ("Atual").
+- **Cabeçalho da chamada de largura fixa**: "Chamando…" até conectar, depois "Em chamada ·
+  01:23" com algarismos tabulares; a fase fica no pet e na dica. Do clique em Ligar até a página
+  conectar (ou 25 s), o botão mostra um indicador e "Chamando…" e não aceita outro clique.
+- **Uma página nova encerra as chamadas da antiga**: no `load-changed` COMMITTED, se houver
+  chamada, `close_all()`.
+- **Janelas estreitas**: abaixo de 480 sp, "Conversas" vai para o menu principal.
+- Configurações abre com 980 × 760 (limitado à altura da tela), e a galeria de pets com 712 px.
+
+**Fora desta rodada** (baixo impacto ou risco de regressão): os dois botões "+" vizinhos, um
+botão de criar o primeiro Dot na lista vazia, trocar os IDs de modelo por nomes, o texto de
+telemetria em Privacidade e as mensagens de erro do servidor em inglês nos avisos.
+
+**Pedido do dono:** "Outro ponto, ao clicar com o botão direito sobre os dots aparece um menu
+de interação, mas tenho que rolar para ver todas as opções. Faz um polimento final desses
+detalhes de layout e UX."
