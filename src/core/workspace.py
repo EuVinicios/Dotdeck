@@ -255,7 +255,7 @@ class Workspace:
                 tuple((s.id, s.name) for s in self.spaces),
                 tuple((c.id, c.dot_id, c.title) for c in self.conversations),
                 tuple((c.id, c.status) for c in self.calls if c.active),
-                bool(self.setup.get("voice")))
+                bool(self.setup.get("voice")), self.active_model, self.active_provider)
 
 
 @dataclass(frozen=True)

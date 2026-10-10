@@ -216,6 +216,21 @@ class Sidebar(Adw.Bin):
         for row in self.nav_rows.values():
             self.nav.append(row)
         outer.append(self.nav)
+
+        # The chat model at a glance ("Claude Haiku 5.5 · OpenRouter"): opens AI Models.
+        self.model_label = _label("", ("caption",), hexpand=True,
+                                  ellipsize=Pango.EllipsizeMode.END)
+        box = Gtk.Box(spacing=8)
+        icon = Gtk.Image(icon_name="applications-science-symbolic")
+        icon.add_css_class("dim-label")
+        box.append(icon)
+        box.append(self.model_label)
+        self.model_button = Gtk.Button(child=box, visible=False, margin_start=6, margin_end=6,
+                                       margin_bottom=6)
+        self.model_button.add_css_class("flat")
+        self.model_button.add_css_class("model-glance")
+        self.model_button.connect("clicked", lambda *_: self.emit("nav-activated", "model"))
+        outer.append(self.model_button)
         self.set_child(outer)
 
     @staticmethod
@@ -282,6 +297,16 @@ class Sidebar(Adw.Bin):
                 self._states[key] = "idle"
         if dot_id:
             self._states[dot_id] = state
+
+    def set_model(self, text: str) -> None:
+        """The chat model the Dots use, or "" to hide the line (servers that do not say)."""
+        self.model_label.set_label(text)
+        self.model_button.set_visible(bool(text))
+        tooltip = _("Chat model: {model}. Click to change it in AI Models.").format(
+            model=text) if text else None
+        self.model_button.set_tooltip_text(tooltip)
+        self.model_button.update_property([Gtk.AccessibleProperty.LABEL],
+                                          [_("Chat model: {model}").format(model=text)])
 
     def set_counts(self, activity: int, memories: int) -> None:
         self.nav_rows["activity"].set_badge(activity, accent=True)

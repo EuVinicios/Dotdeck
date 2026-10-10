@@ -122,6 +122,11 @@ class ServerMonitor(GObject.Object):
         self.state = ServerState()
         self._signature: tuple | None = None
         self._fast = False
+        # GET /api/model-config (OpenDots fork only), asked again when the model changes:
+        # friendly names for "the model at a glance". None when the server has none.
+        self.model_config: dict | None = None
+        self._model_key: tuple | None = None
+        self._model_asking: tuple | None = None
 
     @property
     def online(self) -> bool:
@@ -209,9 +214,10 @@ class ServerMonitor(GObject.Object):
         self._tasks = {task.id: task for task in tasks}
         self.active_tasks = sum(1 for t in tasks if t.status == "running")
         client.get_json("/api/workspace",
-                        lambda s, d, e: self._got_workspace(s, d, cancellable), cancellable)
+                        lambda s, d, e: self._got_workspace(s, d, cancellable, client),
+                        cancellable)
 
-    def _got_workspace(self, status, data, cancellable) -> None:
+    def _got_workspace(self, status, data, cancellable, client=None) -> None:
         if cancellable.is_cancelled():
             return
         if status == 200 and isinstance(data, dict):
@@ -233,6 +239,31 @@ class ServerMonitor(GObject.Object):
         self._schedule()
         if not self._update_timer:
             self.poll_updates()
+        if client is not None:
+            self._ask_model_config(client, cancellable)
+
+    def _ask_model_config(self, client, cancellable) -> None:
+        """Names for the model in use: once per model the server reports in /api/workspace."""
+        key = (self.workspace.active_model, self.workspace.active_provider)
+        if not key[0] or key == self._model_key or key == self._model_asking:
+            return
+        self._model_asking = key
+
+        def got(status, data, error) -> None:
+            self._model_asking = None
+            if error is not None or cancellable.is_cancelled():
+                return                     # asked again at the next poll
+            self._model_key = key
+            self.model_config = data if status == 200 and isinstance(data, dict) else None
+            self.emit("workspace-changed")
+
+        client.get_json("/api/model-config", got, cancellable)
+
+    def set_model_config(self, data: dict | None) -> None:
+        """A fresher answer from the Settings window (after a change made there)."""
+        if isinstance(data, dict) and data != self.model_config:
+            self.model_config = data
+            self.emit("workspace-changed")
 
     def poll_updates(self) -> None:
         """Ask the server's updater what changed in the official OpenDots."""

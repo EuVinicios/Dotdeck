@@ -18,7 +18,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Adw, Gio, GLib, GObject, Gtk, Pango
 
 from .. import config
-from ..core import api, dotprefs, monitor, pets, server, voice
+from ..core import api, dotprefs, models, monitor, pets, server, voice
 from ..core.store import MIC_ALLOW, MIC_DENY, Profile
 from ..core.workspace import Dot, Workspace
 from ..i18n import _, ngettext
@@ -525,6 +525,9 @@ class MainWindow(Adw.ApplicationWindow):
                               density=settings.get("density"), show_job=settings.get("show-jobs"),
                               pinned=pinned, in_call=call_dot.id if call_dot else None,
                               offline=bool(self._mon and self._mon.status != "online"))
+        self.sidebar.set_model(models.at_a_glance(
+            workspace.active_model, workspace.active_provider,
+            getattr(self._mon, "model_config", None)))
         if self._place == "dot" and self._dot_id:
             self.sidebar.select_dot(self._dot_id)
         pending = getattr(self, "_pending_dot", None)
@@ -656,6 +659,8 @@ class MainWindow(Adw.ApplicationWindow):
             self.app.show_preferences()
         elif key == "hidden":
             self.app.show_preferences("dots")
+        elif key == "model":
+            self.app.show_preferences("model")
 
     def _open_dot_index(self, index: int) -> None:
         ids = self.sidebar.visible_dot_ids()
