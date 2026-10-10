@@ -1,0 +1,7 @@
+src/core/server.py
+src/main.py
+src/ui/onboarding.py
+src/ui/preferences.py
+src/ui/server_form.py
+src/ui/window.py
+src/web/webview.py
