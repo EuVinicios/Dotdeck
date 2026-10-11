@@ -80,7 +80,15 @@ jobs:
       - name: Linter da Flathub (manifesto)
         run: flatpak-builder-lint manifest build-aux/flatpak/io.github.euvinicios.Dotdeck.json
       # The AppStream check fetches the screenshots from the main branch, so it only
-      # means something after a merge.
+      # means something after a merge. It also visits every URL in the metainfo, and
+      # GitHub sometimes answers 503 for a moment: try up to 3 times before failing.
+      # (flatpak-builder-lint has no --no-net option; passing it fails every run.)
       - name: Linter da Flathub (AppStream)
         if: github.event_name != 'pull_request'
-        run: flatpak-builder-lint appstream --no-net data/io.github.euvinicios.Dotdeck.metainfo.xml
+        run: |
+          for attempt in 1 2 3; do
+            flatpak-builder-lint appstream data/io.github.euvinicios.Dotdeck.metainfo.xml && exit 0
+            echo "AppStream lint attempt $attempt failed; retrying in 20 s"
+            sleep 20
+          done
+          exit 1
