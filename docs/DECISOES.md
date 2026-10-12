@@ -616,3 +616,40 @@ com as mesmas duas checagens: `tools/upstream_contract.py --opendots <checkout>`
 `make smoke OPENDOTS_CLIENT=<dist/client>` na imagem de CI. Ele roda contra o `main` oficial e
 contra o OpenDots que o servidor usa, e só avisa quando o resultado muda. Quem não tem esse
 servidor pode rodar o mesmo pelo `workflow_dispatch`.
+
+## ADR-022 — Lançamento automático no merge (12/10/2026)
+
+**Contexto.** Uma mudança chegava ao público em quatro passos manuais. Primeiro, um PR de
+versão mudava `src/config.py`, `po/dotdeck.pot`, o CHANGELOG e a metainfo. Depois vinham o merge,
+a tag `v*` (que publicava o snap em `candidate`) e a promoção para `stable` no snapcraft.io
+(ADR-016). Entre o merge de uma correção e a loja havia sempre um passo esquecível: a 0.3.8 (a
+caixa de mensagem que cresce) ficou no `edge` até alguém lembrar de lançar.
+
+**Pergunta ao dono:** "Como você quer que as mudanças cheguem à loja (canal stable da Snap
+Store) daqui em diante?" **Resposta:** "Automático no merge (Recomendado)".
+
+**Decisão.**
+- **O CHANGELOG decide.** Um PR que acrescenta uma linha em `## [Não lançado]` lança uma versão
+  ao ser integrado. Um PR sem linha ali (CI, docs, testes, refatoração) não lança nada.
+- **Só depois do CI verde.** O workflow `Lançamento` (`auto-release.yml`) roda no fim do CI de
+  cada push na `main` e só segue se ele passou e se a `main` ainda está naquele commit.
+  `tools/release.py` escolhe a versão: sobe o patch, ou o minor quando há `### Adicionado`.
+  O script escreve a versão nos quatro arquivos e gera o `<release>` da metainfo a partir dos
+  comentários `<!-- loja: … -->` (em inglês, o idioma da loja). O workflow confere com
+  `make validate`, faz o commit `chore(release): X.Y.Z` e envia a tag `vX.Y.Z`, os dois num
+  push atômico.
+- **Tag vai direto para `stable`.** O snap da tag é publicado em `stable`, e não mais em
+  `candidate`. O mesmo job que publica já instala o snap e roda `--version`, `--self-test`
+  (motor de voz pronto, sandbox snap), a varredura de privacidade e a checagem de D-Bus. Se
+  algo falha, nada é publicado. Para voltar atrás, basta devolver o canal à revisão anterior
+  (`snapcraft release dotdeck <revisão> stable`).
+- **Token próprio.** O que o `GITHUB_TOKEN` envia não dispara outros workflows, e a tag precisa
+  disparar o Release e o Snap. Por isso o envio usa o segredo `RELEASE_TOKEN`: um fine-grained
+  token do dono, só deste repositório, com Contents: Read and write. Sem ele, o workflow só
+  avisa.
+- **Versão feita à mão continua valendo.** Se `src/config.py` tem uma versão sem tag, o workflow
+  só cria a tag. O commit de versão do próprio workflow volta a passar pelo CI e termina sem
+  fazer nada, porque não há linha em "Não lançado" e a tag já existe.
+
+**Pedido do dono:** "pensa numa forma de deixar o processo automatizado sempre que eu lançar
+uma mudança aqui no aplicativo".

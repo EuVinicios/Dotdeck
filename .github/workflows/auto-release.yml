@@ -1,0 +1,114 @@
+name: Lançamento
+
+# Every merge into main whose CHANGELOG.md has entries under "## [Não lançado]" becomes a
+# version. Once CI passes on that commit, tools/release.py bumps the version, this workflow
+# commits it to main and pushes the tag v<version>, and the tag runs Release (the GitHub
+# release with the .deb and the Flatpak bundle) and Snap (amd64 and arm64, straight to the
+# stable channel after the snap installs and passes its self-test). A version already in
+# src/config.py without its tag (a release prepared by hand) only gets the tag. Without
+# entries and with the tag in place, nothing happens: the release commit itself ends here.
+#
+# Needs the RELEASE_TOKEN secret (docs/publicar-na-central-de-apps.md): what GITHUB_TOKEN
+# pushes starts no other workflow, and the tag must start Release and Snap.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lancamento
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Pode lançar?
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.token.outputs.ready }}
+    steps:
+      - id: token
+        env:
+          HAS_RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN != '' }}
+        run: |
+          if [ "$HAS_RELEASE_TOKEN" = true ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::Sem o segredo RELEASE_TOKEN, nada é lançado (docs/publicar-na-central-de-apps.md)."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    name: Lançar a versão
+    needs: check
+    if: needs.check.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    container: ubuntu:26.04
+    steps:
+      - name: Instalar ferramentas
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git make gettext python3 desktop-file-utils appstream
+
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Versão
+        id: version
+        env:
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -eu
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          # The main branch moved on since this CI run: the CI of the newer commit decides.
+          if [ -n "$CI_SHA" ] && [ "$(git rev-parse HEAD)" != "$CI_SHA" ]; then
+            echo "A main andou desde este CI; o CI do commit novo decide."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 tools/release.py | tee "$RUNNER_TEMP/release.txt"
+          version=$(sed -n 's/^version=//p' "$RUNNER_TEMP/release.txt")
+          changed=$(sed -n 's/^changed=//p' "$RUNNER_TEMP/release.txt")
+          if [ "$changed" = false ] && git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            echo "A versão $version já tem tag; nada a fazer."
+            echo "go=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "go=true"
+            echo "version=$version"
+            echo "changed=$changed"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Validar .desktop, AppStream e traduções
+        if: steps.version.outputs.go == 'true'
+        run: make validate
+
+      - name: Commit, tag e envio
+        if: steps.version.outputs.go == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          CHANGED: ${{ steps.version.outputs.changed }}
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$CHANGED" = true ]; then
+            git commit -q -a -m "chore(release): $VERSION"
+          fi
+          git tag -a "v$VERSION" -m "Dotdeck $VERSION"
+          git push --atomic origin HEAD:main "v$VERSION"
+          echo "### Dotdeck $VERSION" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag v$VERSION enviada: Release e Snap (stable) em andamento." >> "$GITHUB_STEP_SUMMARY"
