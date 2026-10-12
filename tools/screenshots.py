@@ -181,9 +181,27 @@ def run(args) -> int:
                 failures.append("focus mode did not start on the page")
             pump(1.0)
             dots = app.monitors[profile.id].workspace.dots
+            if args.smoke and dots:
+                # The page commands of the native sidebar, each answering whether the page
+                # showed the result: this is what breaks when the OpenDots client changes.
+                index = window.workspace.dot_index
+                for what, command in (
+                        (f"open {dots[-1].name}",
+                         lambda done: window.view.open_dot(index(dots[-1].id), dots[-1].name, done)),
+                        ("open Activity", lambda done: window.view.open_activity(done)),
+                        ("open Memories", lambda done: window.view.open_memories(done))):
+                    answer: list[bool] = []
+                    command(answer.append)
+                    if not wait(lambda: bool(answer), 20) or not answer[0]:
+                        failures.append(f"the page could not {what}")
             if dots:
                 window.open_dot(dots[0].id)
             pump(2.5)
+            if args.smoke and dots and not wait(
+                    lambda: window.view.page_selection == (dots[0].name, "home")
+                    or window.view.page_selection == (dots[0].name, "chat"), 15):
+                failures.append(f"the page did not show {dots[0].name} "
+                                f"(it shows {window.view.page_selection})")
             capture(window, out / f"workspace{suffix}.png")
 
             if dots and not args.smoke:

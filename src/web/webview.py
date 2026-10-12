@@ -67,7 +67,8 @@ class Host(Protocol):
 
 
 # Small scripts run on the OpenDots page for native shortcuts. They depend on the web
-# client's accessible labels, so each one reports whether it found its target.
+# client's accessible labels, so each one reports whether it found its target. Those labels,
+# and the page's questions below, are listed in contract.json (tests/test_contract.py).
 _CLICK = """
 const button = document.querySelector(selector);
 if (!button || button.disabled) return false;

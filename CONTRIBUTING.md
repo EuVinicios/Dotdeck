@@ -19,6 +19,11 @@ No Ubuntu 26.04 também dá para usar os pacotes da distribuição; a lista est�
 - `make test` passa (unitários, WebKit, chamada de voz em loopback e bandeja).
 - `make smoke` passa (a interface abre, conecta e mostra as Preferências).
 - `make validate` passa (desktop file, AppStream e traduções).
+- Mexeu no que o Dotdeck usa da página ou da API do OpenDots (seletores, rótulos e palavras em
+  `src/web/`, rotas em `src/core/`)? O `tests/test_contract.py` pede o registro em
+  [`src/web/contract.json`](src/web/contract.json), e
+  `make contract OPENDOTS=<um checkout do OpenDots>` confere contra o projeto oficial (o
+  workflow [OpenDots oficial](.github/workflows/upstream.yml) faz isso todo dia).
 - Textos novos usam `_()`; rode `make pot` e, se puder, traduza em `po/pt_BR.po`.
 - Siga o estilo do código ao redor e as diretrizes de interface do GNOME (HIG).
 

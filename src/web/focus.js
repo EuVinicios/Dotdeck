@@ -16,6 +16,9 @@
 //
 // The OpenDots client has no ids in its DOM and no routes for Dots or conversations,
 // so this relies on its structure and accessible labels (src/client/App.tsx upstream).
+// Every class, id, label and word of the page used here is listed in contract.json,
+// which tests/test_contract.py keeps in sync with this file and checks against the
+// official OpenDots every day (.github/workflows/upstream.yml).
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 (() => {
@@ -188,7 +191,9 @@
   const rowName = (row) => text($('button.dot-nav > span:last-of-type', row));
   const activeDotName = () => text($(`${DOTS} button.dot-nav.active > span:last-of-type`));
   const BOTTOM_VIEWS = ['tasks', 'memories'];
-  const CRUMB_VIEWS = { Activity: 'tasks', Memories: 'memories', Pages: 'space' };
+  // The page's breadcrumb words (quoted: every word of the page used here is a string,
+  // which tests/test_contract.py finds and checks against contract.json).
+  const CRUMB_VIEWS = { 'Activity': 'tasks', 'Memories': 'memories', 'Pages': 'space' };
 
   const currentSelection = () => {
     if (!$('.template-app')) return null;
