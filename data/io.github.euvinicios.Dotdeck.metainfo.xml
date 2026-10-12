@@ -159,6 +159,15 @@
   </screenshots>
 
   <releases>
+    <release version="0.4.0" date="2026-10-12">
+      <description>
+        <p>Every Dot setting now lives in Settings: MCP connections and Automatic Learning.</p>
+        <ul>
+          <li>Connections: add an MCP server and choose, tool by tool, Allowed, Ask First or Blocked.</li>
+          <li>Automatic Learning: the container ID and published skills, saved with the Dot.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.8" date="2026-10-12">
       <description>
         <p>A message box that grows with what you type.</p>

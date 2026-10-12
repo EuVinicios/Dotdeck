@@ -4,13 +4,10 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
+## [0.4.0] - 2026-10-12
 
 ### Adicionado
 
-<!-- loja: Every Dot setting now lives in Settings: MCP connections and Automatic Learning. -->
-<!-- loja: Connections: add an MCP server and choose, tool by tool, Allowed, Ask First or Blocked. -->
-<!-- loja: Automatic Learning: the container ID and published skills, saved with the Dot. -->
 - **Conexões de cada Dot nas Configurações** (Configurações › Dots › um Dot): adicione um
   servidor MCP (nome, endereço e token opcional), atualize ou remova, e escolha para cada
   ferramenta **Permitida**, **Pedir antes** ou **Bloqueada**, num menu ao lado do nome. Cada
