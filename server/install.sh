@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Install the Dotdeck server companions next to an OpenDots checkout:
-#   - opendots-updater.service       check/apply official updates from Dotdeck (port 4311)
+#   - opendots-updater.service       check/apply official updates from Dotdeck (127.0.0.1:4311)
 #   - opendots-voice-gateway.service voice calls through OpenRouter (127.0.0.1:4320)
 #
 # Default is a dry run that only prints what would change. Run with --apply to do it,
 # and with --uninstall to undo it (the OpenDots .env is restored from the backup).
-# --update refreshes only the voice gateway (code and unit) and restarts it: OpenDots,
-# its .env and the updater are left alone (dry run too, unless --apply is also given).
+# --update refreshes the companions already installed (code and unit) and restarts them:
+# OpenDots and its .env are left alone (dry run too, unless --apply is also given).
+# --updater-host makes the updater listen on another address than 127.0.0.1, for a Dotdeck
+# on another device (it then guards OpenDots' rebuilds with the owner token alone).
 #
 #   server/install.sh [--apply | --uninstall | --update [--apply]] [--opendots DIR]
 #                     [--no-voice] [--no-updater] [--voice NAME] [--model MODEL]
+#                     [--updater-host ADDRESS]
 set -euo pipefail
 
 MODE=dry-run
@@ -19,9 +22,10 @@ WITH_VOICE=1
 WITH_UPDATER=1
 VOICE_NAME=""
 MODEL="openai/gpt-audio-mini"
+UPDATER_HOST=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --opendots|--voice|--model)
+    --opendots|--voice|--model|--updater-host)
       [ $# -ge 2 ] && [ -n "$2" ] || { echo "Falta o valor de $1." >&2; exit 2; } ;;
   esac
   case "$1" in
@@ -33,6 +37,7 @@ while [ $# -gt 0 ]; do
     --no-updater) WITH_UPDATER=0 ;;
     --voice) VOICE_NAME="$2"; shift ;;
     --model) MODEL="$2"; shift ;;
+    --updater-host) UPDATER_HOST="$2"; shift ;;
     -h|--help) sed -n '2,/^[^#]/s/^# \{0,1\}//p' "$0"; exit 0 ;;
     *) echo "Opção desconhecida: $1" >&2; exit 2 ;;
   esac
@@ -51,6 +56,9 @@ STAMP="$(date +%Y%m%d-%H%M%S)"
 BACKUP="$HOME/work/backups/dotdeck-server-$STAMP"
 RUNTIME="org.gnome.Platform//51"
 GATEWAY_UNIT_FILE="$UNITS/opendots-voice-gateway.service"
+UPDATER_UNIT_FILE="$UNITS/opendots-updater.service"
+UPDATER_PORT=4311
+UPDATER_STATE="${XDG_STATE_HOME:-$HOME/.local/state}/opendots-updater/state.json"
 GATEWAY_UNIT="[Unit]
 Description=OpenDots voice gateway (Dotdeck): Realtime-compatible voice calls on OpenRouter
 After=network-online.target
@@ -117,6 +125,77 @@ backup_gateway() {  # the unit and the code running now, for a rollback (see ser
     find "$BACKUP/voice_gateway.before" -name __pycache__ -prune -exec rm -rf {} +
   fi
 }
+updater_unit() {  # updater_unit REPO HOST → the unit file
+  cat <<EOF
+[Unit]
+Description=OpenDots updater (Dotdeck): official updates with one click
+After=network-online.target opendots.service
+
+[Service]
+Type=simple
+# --host: the updater rebuilds and restarts OpenDots, so it only answers on this machine
+# unless installed with --updater-host (it never follows OpenDots' own HOST).
+ExecStart=/usr/bin/python3 $SHARE/updater/opendots_updater.py --repo $1 --service opendots.service --host $2 --port $UPDATER_PORT
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+EOF
+}
+write_updater_unit() { mkdir -p "$UNITS" && updater_unit "$1" "$2" > "$UPDATER_UNIT_FILE"; }
+unit_option() {  # unit_option --repo → that option's value in the installed updater unit
+  [ -f "$UPDATER_UNIT_FILE" ] && sed -n "s/^ExecStart=.* $1 \([^ ]*\).*/\1/p" "$UPDATER_UNIT_FILE" | head -n1
+}
+updater_listening() {  # where something listens on the updater's port now ("" = nowhere/unknown)
+  command -v ss >/dev/null || return 0
+  ss -Hltn "sport = :$UPDATER_PORT" 2>/dev/null | awk '{print $4}' | paste -sd ' ' -
+}
+updater_busy() {  # true while the updater is applying an OpenDots update
+  [ -f "$UPDATER_STATE" ] && python3 -c 'import json, sys
+sys.exit(0 if (json.load(open(sys.argv[1])).get("job") or {}).get("state") == "running" else 1)' \
+    "$UPDATER_STATE" 2>/dev/null
+}
+is_loopback() { case "$1" in 127.*|::1|localhost) return 0 ;; *) return 1 ;; esac; }
+updater_check_host() {  # the address to reach an updater listening on $1
+  case "$1" in 0.0.0.0|::|"") echo 127.0.0.1 ;; *:*) echo "[$1]" ;; *) echo "$1" ;; esac
+}
+describe_listen() {  # describe_listen HOST → "127.0.0.1:4311 (hoje: 0.0.0.0:4311)"
+  local now; now="$(updater_listening)"
+  printf '%s:%s (hoje: %s)' "$1" "$UPDATER_PORT" "${now:-não está escutando}"
+}
+warn_exposed() {
+  is_loopback "$1" || say "Atenção: o atualizador vai escutar em $1:$UPDATER_PORT. Qualquer aparelho que alcance esse endereço pode tentar o OWNER_TOKEN; use só numa rede confiável (por exemplo, o IP do Tailscale)."
+}
+copy_updater_code() {  # same swap as the gateway's
+  mkdir -p "$SHARE"
+  rm -rf "$SHARE/updater.new"
+  cp -R "$SRC/updater" "$SHARE/updater.new"
+  find "$SHARE/updater.new" -name __pycache__ -prune -exec rm -rf {} +
+  rm -rf "$SHARE/updater"
+  mv "$SHARE/updater.new" "$SHARE/updater"
+}
+backup_updater() {
+  mkdir -p "$BACKUP" && chmod 700 "$BACKUP"
+  cp -p "$UPDATER_UNIT_FILE" "$BACKUP/opendots-updater.service.before"
+  if [ -d "$SHARE/updater" ]; then
+    cp -R "$SHARE/updater" "$BACKUP/updater.before"
+    find "$BACKUP/updater.before" -name __pycache__ -prune -exec rm -rf {} +
+  fi
+}
+restart_updater() {
+  systemctl --user enable opendots-updater.service
+  systemctl --user restart opendots-updater.service
+}
+wait_for_updater() {  # wait_for_updater HOST → prints the /status HTTP status (401 = up, no token)
+  local code=000 url="http://$(updater_check_host "$1"):$UPDATER_PORT/status"
+  for i in $(seq 1 10); do
+    code="$(curl -s -o /dev/null -w '%{http_code}' "$url" || true)"
+    case "$code" in 200|401) break ;; esac; sleep 1
+  done
+  printf '%s' "$code"
+}
 wait_for_gateway() {  # wait_for_gateway → prints the /health HTTP status
   local code=000
   for i in $(seq 1 15); do
@@ -126,29 +205,63 @@ wait_for_gateway() {  # wait_for_gateway → prints the /health HTTP status
   printf '%s' "$code"
 }
 
-# -- update: only the voice gateway, never OpenDots ------------------------------------
+# -- update: the companions already installed, never OpenDots --------------------------
 if [ "$UPDATE" = 1 ]; then
   [ "$MODE" = uninstall ] && { say "Use --update ou --uninstall, não os dois."; exit 2; }
   for tool in systemctl curl python3 pgrep; do
     command -v "$tool" >/dev/null || { say "Falta o comando $tool."; exit 1; }
   done
-  [ -f "$GATEWAY_UNIT_FILE" ] && [ -f "$GATEWAY_ENV" ] || {
-    say "A ponte de voz não está instalada aqui (falta $GATEWAY_UNIT_FILE ou $GATEWAY_ENV)."
-    say "Instale com: $0 --apply"; exit 1; }
-  say "Atualizar a ponte de voz (o OpenDots e o .env dele não são tocados)   modo: $MODE"
-  calls="$(curl -s --max-time 3 http://127.0.0.1:4320/health 2>/dev/null | python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("calls", 0)))' 2>/dev/null || echo 0)"
-  [ "$calls" = 0 ] || { say "Há $calls chamada(s) em andamento; atualize quando terminarem."; exit 1; }
-  act "guardar o serviço e o código atuais em $BACKUP" backup_gateway
-  act "copiar o código novo para $SHARE/voice_gateway" copy_gateway_code
-  act "reescrever opendots-voice-gateway.service (logs em opendots-voice-gateway)" write_gateway_unit
+  HAS_GATEWAY=0; HAS_UPDATER=0
+  [ "$WITH_VOICE" = 1 ] && [ -f "$GATEWAY_UNIT_FILE" ] && [ -f "$GATEWAY_ENV" ] && HAS_GATEWAY=1
+  [ "$WITH_UPDATER" = 1 ] && [ -f "$UPDATER_UNIT_FILE" ] && HAS_UPDATER=1
+  if [ "$HAS_GATEWAY" = 0 ] && [ "$HAS_UPDATER" = 0 ]; then
+    say "Nada para atualizar: a ponte de voz não está instalada aqui (falta $GATEWAY_UNIT_FILE ou $GATEWAY_ENV), nem o atualizador ($UPDATER_UNIT_FILE)."
+    say "Instale com: $0 --apply"; exit 1
+  fi
+  say "Atualizar os serviços do Dotdeck já instalados (o OpenDots e o .env dele não são tocados)   modo: $MODE"
+  if [ "$HAS_GATEWAY" = 1 ]; then
+    calls="$(curl -s --max-time 3 http://127.0.0.1:4320/health 2>/dev/null | python3 -c 'import json,sys; print(int(json.load(sys.stdin).get("calls", 0)))' 2>/dev/null || echo 0)"
+    [ "$calls" = 0 ] || { say "Há $calls chamada(s) em andamento; atualize quando terminarem."; exit 1; }
+  fi
+  if [ "$HAS_UPDATER" = 1 ]; then
+    updater_busy && { say "O atualizador está aplicando uma atualização do OpenDots; tente quando terminar."; exit 1; }
+    UPDATER_REPO="$(unit_option --repo)"; UPDATER_REPO="${UPDATER_REPO:-$OPENDOTS}"
+    UPDATER_HOST="${UPDATER_HOST:-$(unit_option --host)}"; UPDATER_HOST="${UPDATER_HOST:-127.0.0.1}"
+  fi
+  if [ "$HAS_GATEWAY" = 1 ]; then
+    act "guardar o serviço e o código atuais em $BACKUP" backup_gateway
+    act "copiar o código novo para $SHARE/voice_gateway" copy_gateway_code
+    act "reescrever opendots-voice-gateway.service (logs em opendots-voice-gateway)" write_gateway_unit
+  fi
+  if [ "$HAS_UPDATER" = 1 ]; then
+    warn_exposed "$UPDATER_HOST"
+    act "guardar o serviço e o código atuais do atualizador em $BACKUP" backup_updater
+    act "copiar o código novo para $SHARE/updater" copy_updater_code
+    act "reescrever opendots-updater.service: escuta em $(describe_listen "$UPDATER_HOST"); testes do OpenDots antes de reiniciar" write_updater_unit "$UPDATER_REPO" "$UPDATER_HOST"
+  fi
   act "recarregar o systemd" systemctl --user daemon-reload
-  act "reiniciar opendots-voice-gateway.service" restart_gateway
+  [ "$HAS_GATEWAY" = 1 ] && act "reiniciar opendots-voice-gateway.service" restart_gateway
+  [ "$HAS_UPDATER" = 1 ] && act "reiniciar opendots-updater.service" systemctl --user restart opendots-updater.service
   [ "$MODE" = apply ] || { say; say "Nada foi alterado. Para aplicar: $0 --update --apply"; exit 0; }
   say; say "Conferindo…"
-  code="$(wait_for_gateway)"
-  [ "$code" = 200 ] || { say "✘ Ponte de voz não respondeu (HTTP $code). Veja: journalctl --user -t opendots-voice-gateway -n 50"; exit 1; }
-  say "✔ Ponte de voz respondendo em 127.0.0.1:4320"
-  say "Logs: journalctl --user -t opendots-voice-gateway -f"
+  ok=1
+  if [ "$HAS_GATEWAY" = 1 ]; then
+    code="$(wait_for_gateway)"
+    if [ "$code" = 200 ]; then
+      say "✔ Ponte de voz respondendo em 127.0.0.1:4320"
+      say "Logs: journalctl --user -t opendots-voice-gateway -f"
+    else
+      say "✘ Ponte de voz não respondeu (HTTP $code). Veja: journalctl --user -t opendots-voice-gateway -n 50"; ok=0
+    fi
+  fi
+  if [ "$HAS_UPDATER" = 1 ]; then
+    code="$(wait_for_updater "$UPDATER_HOST")"
+    case "$code" in
+      200|401) say "✔ Atualizador respondendo em $UPDATER_HOST:$UPDATER_PORT" ;;
+      *) say "✘ Atualizador não respondeu (HTTP $code). Veja: journalctl --user -u opendots-updater -n 50"; ok=0 ;;
+    esac
+  fi
+  [ "$ok" = 1 ] || exit 1
   exit 0
 fi
 
@@ -161,6 +274,9 @@ done
 OWNER_TOKEN="$(env_get OWNER_TOKEN)"
 [ "${#OWNER_TOKEN}" -ge 24 ] || { say "OWNER_TOKEN ausente ou curto em $ENV_FILE."; exit 1; }
 PORT="$(env_get PORT)"; PORT="${PORT:-4310}"
+if [ "$WITH_UPDATER" = 1 ] && updater_busy; then
+  say "O atualizador está aplicando uma atualização do OpenDots; tente quando terminar."; exit 1
+fi
 
 if [ "$MODE" = uninstall ]; then
   for unit in opendots-voice-gateway.service opendots-updater.service; do
@@ -212,20 +328,9 @@ act "copiar o código para $SHARE" sh -c "mkdir -p '$SHARE' && rm -rf '$SHARE/up
 act "criar $UNITS" mkdir -p "$UNITS"
 
 if [ "$WITH_UPDATER" = 1 ]; then
-  UPDATER_UNIT="[Unit]
-Description=OpenDots updater (Dotdeck): official updates with one click
-After=network-online.target opendots.service
-
-[Service]
-Type=simple
-ExecStart=/usr/bin/python3 $SHARE/updater/opendots_updater.py --repo $OPENDOTS --service opendots.service --port 4311
-Environment=PATH=/usr/local/bin:/usr/bin:/bin
-Restart=always
-RestartSec=10
-
-[Install]
-WantedBy=default.target"
-  act "escrever opendots-updater.service" sh -c "printf '%s\n' \"\$1\" > '$UNITS/opendots-updater.service'" _ "$UPDATER_UNIT"
+  UPDATER_HOST="${UPDATER_HOST:-127.0.0.1}"
+  warn_exposed "$UPDATER_HOST"
+  act "escrever opendots-updater.service: escuta em $(describe_listen "$UPDATER_HOST"); testes do OpenDots antes de reiniciar" write_updater_unit "$OPENDOTS" "$UPDATER_HOST"
 fi
 
 if [ "$WITH_VOICE" = 1 ]; then
@@ -272,7 +377,7 @@ fi
 
 # -- services --------------------------------------------------------------------------
 act "recarregar o systemd" systemctl --user daemon-reload
-[ "$WITH_UPDATER" = 1 ] && act "ativar opendots-updater.service" systemctl --user enable --now opendots-updater.service
+[ "$WITH_UPDATER" = 1 ] && act "ativar e (re)iniciar opendots-updater.service" restart_updater
 [ "$WITH_VOICE" = 1 ] && act "ativar opendots-voice-gateway.service" systemctl --user enable opendots-voice-gateway.service
 [ "$WITH_VOICE" = 1 ] && act "(re)iniciar opendots-voice-gateway.service" restart_gateway
 [ "$WITH_VOICE" = 1 ] && act "reiniciar o OpenDots" systemctl --user restart opendots.service
@@ -289,8 +394,8 @@ done
 [ "$code" = 200 ] && say "✔ OpenDots respondendo" || { say "✘ OpenDots não respondeu (HTTP $code)"; ok=0; }
 if [ "$WITH_UPDATER" = 1 ]; then
   sleep 2
-  code="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $OWNER_TOKEN" http://127.0.0.1:4311/status || true)"
-  [ "$code" = 200 ] && say "✔ Atualizador respondendo na porta 4311" || { say "✘ Atualizador não respondeu (HTTP $code)"; ok=0; }
+  code="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $OWNER_TOKEN" "http://$(updater_check_host "$UPDATER_HOST"):$UPDATER_PORT/status" || true)"
+  [ "$code" = 200 ] && say "✔ Atualizador respondendo em $UPDATER_HOST:$UPDATER_PORT" || { say "✘ Atualizador não respondeu (HTTP $code)"; ok=0; }
 fi
 if [ "$WITH_VOICE" = 1 ]; then
   code="$(wait_for_gateway)"
