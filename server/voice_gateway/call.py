@@ -45,6 +45,11 @@ log = logging.getLogger(__name__)
 VOICES = {"alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage",
           "shimmer", "verse", "marin", "cedar"}
 CHUNK_MS = 40
+# The caller's audio loses what is under 200 Hz (telephone audio starts at 300): the rumble
+# of a fan across the room came in bursts as loud as -17 dB and passed for speech
+# (12/10/2026). Both the detector and the model hear the filtered audio.
+EAR_FILTER = ("audioconvert ! audio/x-raw,format=F32LE ! "
+              "audiocheblimit mode=high-pass cutoff=200 poles=4 ! audioconvert")
 AHEAD_NS = 200 * Gst.MSECOND
 
 
@@ -84,6 +89,30 @@ def chat_tools(session: dict) -> list[dict]:
     return tools
 
 
+def merge_compute(calls: list[dict]) -> list[dict]:
+    """Several ``ask_compute`` calls in one reply become one with every request.
+
+    OpenDots runs one compute at a time per conversation: the second of two at once failed
+    ("Thread is already locked by another runner"), and the Dot, told "Compute failed",
+    asked the caller for access it already had (12/10/2026)."""
+    asks = [c for c in calls if c.get("name") == "ask_compute"]
+    if len(asks) < 2:
+        return calls
+    requests = []
+    for call in asks:
+        try:
+            request = json.loads(call.get("arguments") or "{}").get("request")
+        except (ValueError, AttributeError):
+            request = None
+        if isinstance(request, str) and request.strip():
+            requests.append(request.strip())
+    text = requests[0] if len(requests) == 1 else \
+        "\n".join(f"{n}. {r}" for n, r in enumerate(requests, 1))
+    merged = dict(asks[0], arguments=json.dumps({"request": text}, ensure_ascii=False))
+    return [merged if c is asks[0] else c for c in calls
+            if c is asks[0] or c.get("name") != "ask_compute"]
+
+
 def _plural(count: int, one: str, many: str) -> str:
     return f"{count} {one if count == 1 else many}"
 
@@ -115,6 +144,11 @@ class Call:
     # The Dot answers the call ("Oi, aqui é o Chefe…") this long after the data channel
     # opens, unless the caller is already talking: proof that the call is live.
     greeting_delay = 0.2
+    # Without a word first, the caller hears nothing for the 10 s or more an ask_compute
+    # takes and thinks the call dropped (12/10/2026).
+    call_rules = ("This is a phone call. Before you call a tool, always say one short "
+                  "sentence first, in the caller's language, so they know you are on it "
+                  "(for example, that you are going to check).")
     greeting_prompt = ("(The call just connected. Answer it with one short sentence in the same "
                        "language as your role instructions: say your name and ask how you can help.)")
 
@@ -144,7 +178,8 @@ class Call:
         self.tools = chat_tools(session)
         instructions = session.get("instructions") or \
             "You are a helpful voice assistant. Keep answers short."
-        self.messages: list[dict] = [{"role": "system", "content": str(instructions)}]
+        self.messages: list[dict] = [{"role": "system",
+                                      "content": f"{instructions}\n\n{self.call_rules}"}]
 
         # 800 ms of warm-up: Dotdeck plays a short "connected" chime when the call goes live,
         # and on open speakers the microphone hears it; it must not pass for the caller
@@ -293,6 +328,7 @@ class Call:
             return
         listen = Gst.parse_bin_from_description(
             "queue ! rtpopusdepay ! opusdec plc=true ! audioconvert ! audioresample ! "
+            f"audio/x-raw,rate={vadmod.RATE},channels=1 ! {EAR_FILTER} ! "
             f"audio/x-raw,format=S16LE,rate={vadmod.RATE},channels=1,layout=interleaved ! "
             "appsink name=ear emit-signals=true sync=false max-buffers=50 drop=false", True)
         self.pipeline.add(listen)
@@ -315,19 +351,30 @@ class Call:
             self._frames = getattr(self, "_frames", 0) + 1
             if self._frames % 25 == 0:
                 log.debug("call %s: %d bytes, level %.1f dB, floor %.1f, threshold %.1f, "
-                          "speaking=%s", self.id, len(pcm), vadmod.frame_db(pcm[-640:]),
-                          self.vad.floor_db, self.vad.threshold_db, self.vad.speaking)
+                          "stop %.1f, speaking=%s", self.id, len(pcm),
+                          vadmod.frame_db(pcm[-640:]), self.vad.floor_db,
+                          self.vad.threshold_db, self.vad.stop_db, self.vad.speaking)
         self.vad.bias_db = 6.0 if self._playing() else 0.0
         for event in self.vad.feed(pcm):
             if event[0] == vadmod.START:
                 self._caller_started()
-            elif event[0] == vadmod.END and event[1]:
-                self._caller_finished(event[1])
+            elif event[0] == vadmod.END:
+                log.debug("Call %s: utterance ended, loudest %.1f dB, caller's voice %.1f "
+                          "dB, %s", self.id, self.vad.peak_db, self.vad.voice_db,
+                          "answered" if event[1] else "ignored")
+                if event[1]:
+                    self._caller_finished(event[1])
+        self._barge_in()
         return Gst.FlowReturn.OK
 
     def _caller_started(self) -> None:
         self.send({"type": "input_audio_buffer.speech_started", "item_id": _id("item")})
-        if self._responding or self._playing():
+
+    def _barge_in(self) -> None:
+        """The caller talks over the Dot: stop the reply, but only for real speech
+        (``min_speech_ms`` of voice). A gust of background used to cancel every reply
+        before it was heard, and the call went silent (12/10/2026)."""
+        if self.vad.confirmed and (self._responding or self._playing()):
             self._interrupt()
 
     def _caller_finished(self, pcm: bytes) -> None:
@@ -387,11 +434,14 @@ class Call:
             except Exception:  # a bug must not cost the call: log it, carry on
                 log.exception("Call %s: transcription failed unexpectedly", self.id)
                 return
+            if not re.search(r"\w\w", result.text):
+                result.text = ""                 # "d", "." from a noise: no words
             with self._lock:
                 self.cost += result.cost
                 if result.text:
                     # Later turns carry the words, not the audio again.
                     message["content"] = result.text
+            self._report_cost()
             if result.text:
                 self.send({"type": "conversation.item.input_audio_transcription.completed",
                            "item_id": item, "content_index": 0, "transcript": result.text})
@@ -469,10 +519,13 @@ class Call:
             return
         with self._lock:
             self.cost += result.cost
+        self._report_cost()
+        with self._lock:
             if result.cancelled or cancel.is_set():
                 return
             self._responding = False
             self.replies += 1
+            result.tool_calls = merge_compute(result.tool_calls)
             for call in result.tool_calls:
                 call["id"] = call["id"] or _id("call")
             if result.tool_calls:
@@ -623,6 +676,13 @@ class Call:
             else:
                 log.info("Call %s: ignored unknown voice %r", self.id, str(voice)[:40])
         self.send({"type": "session.updated", "session": self._session_view()})
+
+    def _report_cost(self) -> None:
+        """What the call has cost so far (replies and transcriptions), for Dotdeck's
+        counter. Not a Realtime event: other callers ignore it."""
+        with self._lock:
+            cost = self.cost
+        self.send({"type": "gateway.cost", "cost": round(cost, 6)})
 
     def send(self, event: dict) -> None:
         channel = self._channel
