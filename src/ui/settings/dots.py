@@ -1,7 +1,8 @@
 """YOUR DOTS › Dots: the list of a server's Dots and the page that edits one.
 
-A Dot's name, job, instructions, permissions and Spaces live on the server and are
-saved together with an explicit Save (``PUT /api/dots/:id`` replaces the whole Dot).
+A Dot's name, job, instructions, permissions, Spaces and Automatic Learning live on the
+server and are saved together with an explicit Save (``PUT /api/dots/:id`` replaces the
+whole Dot). Its Connections (connections.py) are saved on the server one change at a time.
 Its pet, pinned and hidden flags and the Chief choice are Dotdeck's own and apply at
 once. The job has no field in OpenDots: it is the ``# Name — job`` first line of the
 instructions, the convention the owner's Dots follow.
@@ -17,15 +18,17 @@ from typing import Callable
 from gi.repository import Adw, GLib, GObject, Gtk, Pango
 
 from ...core import dotprefs, monitor
-from ...core.workspace import Dot, with_job
+from ...core.workspace import LEARNING_CONTAINER, LEARNING_CONTAINER_LIMIT, Dot, with_job
 from ...i18n import _, ngettext
-from .common import SettingsPage, escape
+from .common import SettingsPage, badge, escape
+from .connections import ConnectionsGroup
 
 log = logging.getLogger(__name__)
 
 NAME_LIMIT = 40
 INSTRUCTIONS_MIN = 3
 INSTRUCTIONS_LIMIT = 2000
+LEARNING_GUIDE = "https://docs.copilotkit.ai/learning"
 _HEADER = re.compile(r"^#+\s*(?P<name>.+?)\s+[—–-]\s+(?P<job>.+)$")
 
 
@@ -72,14 +75,6 @@ def chief_of(app, profile) -> str | None:
     names = [d.name for d in mon.workspace.dots] if mon is not None else []
     return monitor.chief_dot(profile, names or (list(mon.dots) if mon else [])) \
         if profile else None
-
-
-def _badge(text: str, css: str = "") -> Gtk.Label:
-    label = Gtk.Label(label=text, valign=Gtk.Align.CENTER)
-    label.add_css_class("settings-badge")
-    if css:
-        label.add_css_class(css)
-    return label
 
 
 def server_problem(app, profile, mon, purpose: str | None = None,
@@ -254,16 +249,16 @@ class DotsPage(SettingsPage):
             avatar = PetAvatar(pets.get(dot.id), size=40, state=avatar_state)
             row.add_prefix(avatar)
             if self._dirty(profile, dot.id):
-                row.add_suffix(_badge(_("Unsaved"), "warning"))
+                row.add_suffix(badge(_("Unsaved"), "warning"))
             if dot.name == chief:
-                row.add_suffix(_badge(_("Chief"), "accent"))
+                row.add_suffix(badge(_("Chief"), "accent"))
             if prefs.is_pinned(dot.id):
                 pin = Gtk.Image(icon_name="view-pin-symbolic", valign=Gtk.Align.CENTER,
                                 tooltip_text=_("Pinned"))
                 pin.add_css_class("dim-label")
                 row.add_suffix(pin)
             if prefs.is_hidden(dot.id):
-                row.add_suffix(_badge(_("Hidden")))
+                row.add_suffix(badge(_("Hidden")))
             row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
             row.connect("activated", lambda _r, dot_id=dot.id: self.open_dot(dot_id))
             self.add(self.list, row, ("dot", "edit", "instructions", dot.job))
@@ -448,6 +443,32 @@ class DotEditor:
         self.default_space.connect("notify::selected", lambda *_: self._changed())
         prefs.add(self.spaces)
 
+        # Everything the page's own Dot form had, so it never has to open (ADR-023).
+        self.connections = ConnectionsGroup(self.win, self.profile, self.dot.id,
+                                            lambda: self.dot.name)
+        prefs.add(self.connections)
+
+        self.learning = Adw.PreferencesGroup(
+            title=_("Automatic Learning"),
+            description=_("New conversations add what they learn to a container of your "
+                          "Intelligence project; create it there first. Leave the ID empty "
+                          "to keep new conversations out. Existing ones keep theirs."))
+        self.container_row = Adw.EntryRow(title=_("Container ID"),
+                                          max_length=LEARNING_CONTAINER_LIMIT)
+        self.container_row.connect("changed", lambda _r: self._learning_changed())
+        self.learning.add(self.container_row)
+        self.skills_row = Adw.SwitchRow(
+            title=_("Use Published Skills"),
+            subtitle=_("Loads the reviewed skills of the container. Turn on delivery in "
+                       "Intelligence too."))
+        self.skills_row.connect("notify::active", lambda *_: self._changed())
+        self.learning.add(self.skills_row)
+        guide = Adw.ActionRow(title=_("How to Set Up Learning"), activatable=True)
+        guide.add_suffix(Gtk.Image(icon_name="adw-external-link-symbolic"))
+        guide.connect("activated", lambda _r: self.win.open_url(LEARNING_GUIDE))
+        self.learning.add(guide)
+        prefs.add(self.learning)
+
         local = Adw.PreferencesGroup(
             title=_("In Dotdeck"),
             description=_("Kept on this computer and applied right away."))
@@ -463,13 +484,6 @@ class DotEditor:
         self.hide_row.connect("notify::active", self._on_hidden)
         local.add(self.hide_row)
         prefs.add(local)
-
-        more = Adw.PreferencesGroup()
-        self.tools_row = Adw.ActionRow(title=_("Connections and Tools…"), activatable=True)
-        self.tools_row.add_suffix(Gtk.Image(icon_name="go-next-symbolic"))
-        self.tools_row.connect("activated", lambda _r: self._edit_in_page())
-        more.add(self.tools_row)
-        prefs.add(more)
 
         # Save and Discard appear when something changed.
         self.save_button = Gtk.Button(label=_("Save"))
@@ -506,6 +520,10 @@ class DotEditor:
             self.research_row.set_active(dot.research_allowed)
             self.memory_row.set_active(dot.memory_allowed)
             self._load_spaces(dot)
+            self.learning.set_visible(dot.has_learning)
+            self.container_row.set_text(dot.learning_container)
+            self.skills_row.set_active(dot.skill_delivery)
+            self.skills_row.set_sensitive(bool(dot.learning_container))
             self.banner.set_revealed(False)
         finally:
             self._loading = False
@@ -590,7 +608,8 @@ class DotEditor:
         return (self.name_row.get_text(), self.job_row.get_text(),
                 self.buffer.get_text(start, end, False), self.research_row.get_active(),
                 self.memory_row.get_active(), tuple(self._checked_spaces()),
-                self._default_space_id())
+                self._default_space_id(), self.container_row.get_text().strip(),
+                self.skills_row.get_active())
 
     def instructions(self) -> str:
         """The instructions as they would be saved now."""
@@ -608,6 +627,11 @@ class DotEditor:
         if self.spaces.get_visible() and fields[5]:
             changes["spaceIds"] = list(fields[5])
             changes["spaceId"] = fields[6] or fields[5][0]
+        loaded = self._loaded
+        # Untouched Learning settings go back exactly as the server sent them.
+        if self.learning.get_visible() and (loaded is None or fields[7:9] != loaded[7:9]):
+            changes["learningContainerId"] = fields[7] or None
+            changes["skillDeliveryEnabled"] = bool(fields[7]) and fields[8]
         return changes
 
     def problems(self) -> list[str]:
@@ -623,7 +647,21 @@ class DotEditor:
         elif size > INSTRUCTIONS_LIMIT:
             found.append(_("The instructions are {n} characters over the limit.").format(
                 n=size - INSTRUCTIONS_LIMIT))
+        if not self._container_ok():
+            found.append(_("The container ID can only have lowercase letters, numbers and "
+                           "single hyphens."))
         return found
+
+    def _container_ok(self) -> bool:
+        container = self.container_row.get_text().strip()
+        return not container or bool(LEARNING_CONTAINER.match(container))
+
+    def _learning_changed(self) -> None:
+        has_container = bool(self.container_row.get_text().strip())
+        self.skills_row.set_sensitive(has_container)
+        if not has_container and not self._loading:
+            self.skills_row.set_active(False)    # the server refuses skills without one
+        self._changed()
 
     def _changed(self) -> None:
         if self._loading:
@@ -648,6 +686,10 @@ class DotEditor:
             self.name_row.add_css_class("error")
         else:
             self.name_row.remove_css_class("error")
+        if self._container_ok():
+            self.container_row.remove_css_class("error")
+        else:
+            self.container_row.add_css_class("error")
         self.save_button.set_sensitive(dirty and not problems and not self._busy
                                        and self._workspace_has_dot())
         self.bar_label.set_label(problems[0] if problems else _("Unsaved changes"))
@@ -691,13 +733,6 @@ class DotEditor:
             self.memory_row.set_subtitle(
                 _("Off for the whole server, in Privacy") if server is not None
                 and not server.memory_allowed else _("Can save and use memories about you"))
-            view = self.win.view_for(self.profile_id)
-            can_edit = view is not None and hasattr(view, "edit_dot_in_page")
-            self.tools_row.set_sensitive(can_edit)
-            self.tools_row.set_subtitle(
-                _("Connected apps, the computer and approvals, edited in the page")
-                if can_edit else _("Open {name} in Dotdeck to edit them").format(
-                    name=escape(profile.name)))
         finally:
             self._loading = loading
 
@@ -726,13 +761,6 @@ class DotEditor:
             return
         self._choose_pet(self.app, profile, self.dot, self.win,
                          lambda *_args: self.refresh_local())
-
-    def _edit_in_page(self) -> None:
-        view = self.win.view_for(self.profile_id)
-        if view is None or not hasattr(view, "edit_dot_in_page"):
-            return
-        view.edit_dot_in_page(self.dot.name)
-        self.win.close()
 
     # -- server updates --------------------------------------------------------------------
 
@@ -830,6 +858,7 @@ class DotEditor:
         self.name_row.set_sensitive(not busy)
 
     def close(self) -> None:
+        self.connections.close()
         if self._prefs_handler:
             self._prefs.disconnect(self._prefs_handler)
             self._prefs_handler = 0

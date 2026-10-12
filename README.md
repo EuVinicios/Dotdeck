@@ -37,7 +37,9 @@ conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailsca
 - **Configurações avançadas** com seções e busca:
   - Aparência e densidade
   - Notificações por evento
-  - Editor completo de cada Dot
+  - Editor completo de cada Dot: identidade, instruções, permissões, Espaços, Conexões
+    (servidores MCP, com cada ferramenta permitida, "Pedir antes" ou bloqueada) e
+    Aprendizado automático
   - Voz e microfone, com teste de nível
   - Modelos de IA: provedor (OpenRouter, Anthropic com chave de API ou compatível com
     OpenAI), uma chave por provedor, custo aproximado, teste do modelo e os três modelos de
