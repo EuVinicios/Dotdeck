@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 ACTIVE_CALL = ("connecting", "active")
 JOB_LIMIT = 60
@@ -112,6 +113,72 @@ class Dot:
                 body[key] = self.raw[key]
         body.update(changes)
         return body
+
+    @property
+    def has_learning(self) -> bool:
+        """Whether the server knows Automatic Learning (upstream since the Learning PR)."""
+        return "learningContainerId" in self.raw or "skillDeliveryEnabled" in self.raw
+
+    @property
+    def learning_container(self) -> str:
+        return _text(self.raw.get("learningContainerId"))
+
+    @property
+    def skill_delivery(self) -> bool:
+        return self.raw.get("skillDeliveryEnabled") is True
+
+
+# A Learning container id, as the server checks it (src/shared/learning.ts upstream).
+LEARNING_CONTAINER = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+LEARNING_CONTAINER_LIMIT = 64
+
+
+@dataclass(frozen=True)
+class ConnectionTool:
+    name: str
+    title: str
+    description: str = ""
+    read_only: bool = False
+    enabled: bool = True
+    requires_approval: bool = False
+
+    @classmethod
+    def from_json(cls, data) -> ConnectionTool | None:
+        if not isinstance(data, dict) or not _text(data.get("name")):
+            return None
+        return cls(name=data["name"], title=_text(data.get("title")) or data["name"],
+                   description=" ".join(_text(data.get("description")).split()),
+                   read_only=data.get("readOnly") is True,
+                   enabled=data.get("enabled") is not False,
+                   requires_approval=data.get("requiresApproval") is True)
+
+
+@dataclass(frozen=True)
+class Connection:
+    """An MCP server connected to one Dot (``GET /api/dots/:id/connections``)."""
+    id: str
+    name: str
+    url: str
+    has_token: bool = False
+    tools: tuple[ConnectionTool, ...] = ()
+    error: str = ""
+
+    @property
+    def host(self) -> str:
+        try:
+            return urlsplit(self.url).netloc or self.url
+        except ValueError:
+            return self.url
+
+    @classmethod
+    def from_json(cls, data) -> Connection | None:
+        if not isinstance(data, dict) or not _text(data.get("id")):
+            return None
+        tools = data.get("tools") if isinstance(data.get("tools"), list) else []
+        return cls(id=data["id"], name=_text(data.get("name")) or data["id"],
+                   url=_text(data.get("url")), has_token=data.get("hasToken") is True,
+                   tools=tuple(t for t in map(ConnectionTool.from_json, tools) if t),
+                   error=_text(data.get("error")))
 
 
 @dataclass(frozen=True)

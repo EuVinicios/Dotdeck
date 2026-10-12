@@ -62,6 +62,19 @@ def sample_dots() -> list[dict]:
     ]
 
 
+def sample_connection(dot_id: str = "d2") -> dict:
+    """An MCP server as ``GET /api/dots/:id/connections`` lists it."""
+    def tool(name, title, read_only, enabled=True, approval=None):
+        return {"name": name, "title": title, "description": f"{title}, on the home server.",
+                "inputSchema": {}, "readOnly": read_only, "enabled": enabled,
+                "requiresApproval": (not read_only) if approval is None else approval}
+    return {"id": "c1", "dotId": dot_id, "name": "Homelab", "url": "https://mcp.home.test/mcp",
+            "hasToken": True, "error": None, "createdAt": 1, "updatedAt": 1,
+            "tools": [tool("list_disks", "List disks", True),
+                      tool("restart_service", "Restart a service", False),
+                      tool("wipe_disk", "Wipe a disk", False, enabled=False)]}
+
+
 def sample_spaces() -> list[dict]:
     names = [("s1", "Dia a dia", "Everyday notes and plans"), ("s2", "Agenda", "The week ahead"),
              ("s3", "Casa", "The house and the home server"),
@@ -85,6 +98,7 @@ class RecordingOpenDots:
         self.memories = [{"id": f"m{i}", "text": f"Memory {i}", "createdAt": i}
                          for i in range(21)]
         self.voice = voice
+        self.connections: list[dict] | None = [sample_connection()]   # None: an older server
         self.requests: list[tuple[str, str, object]] = []
         fake = self
 
@@ -128,8 +142,31 @@ class RecordingOpenDots:
                                      **fake.model.workspace_fields()})
                 elif self.path == "/api/model-config":
                     self._json(*fake.model.get())
+                elif fake.connections is not None and self.path.startswith("/api/dots/") \
+                        and self.path.endswith("/connections"):
+                    dot_id = self.path.split("/")[3]
+                    self._json(200, [c for c in fake.connections if c["dotId"] == dot_id])
                 else:
                     self._json(404, {"error": "Not found."})
+
+            def _connection(self):
+                """The connection of /api/connections/<id>/…, or None after a 400."""
+                parts = self.path.split("/")
+                found = next((c for c in fake.connections or ()
+                              if len(parts) > 3 and c["id"] == parts[3]), None)
+                if found is None:
+                    self._json(400, {"error": "Connection not found."})
+                return found
+
+            def do_DELETE(self):  # noqa: N802
+                body = self._body()
+                fake.requests.append(("DELETE", self.path, body))
+                if not self._authorized():
+                    return
+                connection = self._connection()
+                if connection is not None:
+                    fake.connections.remove(connection)
+                    self._json(200, {"ok": True})
 
             def do_PUT(self):  # noqa: N802
                 body = self._body()
@@ -154,6 +191,20 @@ class RecordingOpenDots:
                 fake.requests.append(("PATCH", self.path, body))
                 if not self._authorized():
                     return
+                if self.path.startswith("/api/connections/"):
+                    connection = self._connection()
+                    tool = next((t for t in connection["tools"]
+                                 if t["name"] == self.path.rsplit("/", 1)[-1]), None) \
+                        if connection else None
+                    if connection is None:
+                        return
+                    if tool is None or not isinstance(body, dict) or not body \
+                            or set(body) - {"enabled", "requiresApproval"}:
+                        self._json(400, {"error": "Connection tool not found."})
+                        return
+                    tool.update(body)
+                    self._json(200, connection)
+                    return
                 if self.path != "/api/settings" or not isinstance(body, dict) \
                         or set(body) - SETTINGS_KEYS:
                     self._json(400, {"error": "Invalid settings."})
@@ -170,6 +221,21 @@ class RecordingOpenDots:
                     self._json(*fake.model.post(body))
                 elif self.path == "/api/model-config/test":
                     self._json(*fake.model.test(body))
+                elif self.path.endswith("/refresh") and self.path.startswith("/api/connections/"):
+                    connection = self._connection()
+                    if connection is not None:
+                        self._json(200, connection)
+                elif self.path.startswith("/api/dots/") and self.path.endswith("/connections"):
+                    if not isinstance(body, dict) or set(body) - {"name", "url", "token"} \
+                            or not body.get("name") or not body.get("url", "").startswith("http"):
+                        self._json(400, {"error": "Use an http(s) MCP endpoint without "
+                                                  "embedded credentials."})
+                        return
+                    created = {**sample_connection(self.path.split("/")[3]),
+                               "id": f"added-{len(fake.requests)}", "name": body["name"],
+                               "url": body["url"], "hasToken": bool(body.get("token"))}
+                    fake.connections.append(created)
+                    self._json(201, created)
                 else:
                     self._json(404, {"error": "Not found."})
 
@@ -207,9 +273,6 @@ class FakeView:
 
     def set_zoom(self, zoom):
         self.calls.append(("zoom", zoom))
-
-    def edit_dot_in_page(self, name, done=None):
-        self.calls.append(("edit", name))
 
     def open_memories(self, done=None):
         self.calls.append(("memories",))
@@ -636,8 +699,134 @@ class SettingsWindowTests(unittest.TestCase):
         self.assertEqual(self.app.profiles.get(self.profile.id).chief, "Manutenção")
         editor.pin_row.set_active(True)
         self.assertTrue(dotprefs.for_profile(self.profile.id).is_pinned("d2"))
-        editor.tools_row.emit("activated")
-        self.assertIn(("edit", "Manutenção"), self.app.window.view.calls)
+        self.assertEqual(self.app.window.view.calls, [])     # the page's form stays closed
+
+    # -- Automatic Learning and Connections (ADR-023) --------------------------------------
+
+    def connections(self, editor, count=1):
+        group = editor.connections
+        self.assertTrue(run_until(lambda: len(group._rows) == count, 5),
+                        group.status.get_title())
+        return group
+
+    def tool_rows(self, row) -> dict:
+        return {r.tool_name: r for r in descendants(row) if isinstance(r, Adw.ComboRow)}
+
+    def test_learning_is_edited_with_the_rest_of_the_dot(self):
+        win = self.open("dots", dot="d2")
+        editor = self.editor(win, "d2")
+        self.assertTrue(editor.learning.get_visible())
+        self.assertEqual(editor.container_row.get_text(), "")
+        self.assertFalse(editor.skills_row.get_sensitive())      # no container yet
+        editor.container_row.set_text("Home Lab")
+        self.assertTrue(editor.container_row.has_css_class("error"))
+        self.assertFalse(editor.save_button.get_sensitive())
+        self.assertIn("lowercase", editor.bar_label.get_label())
+        editor.container_row.set_text("home-lab")
+        self.assertFalse(editor.container_row.has_css_class("error"))
+        self.assertTrue(editor.skills_row.get_sensitive())
+        editor.skills_row.set_active(True)
+        done = []
+        editor.save(done.append)
+        self.assertTrue(run_until(lambda: done, 5))
+        self.assertEqual(done, [True])
+        body = self.fake.writes("PUT")[-1][2]
+        self.assertEqual((body["learningContainerId"], body["skillDeliveryEnabled"]),
+                         ("home-lab", True))
+        editor.container_row.set_text("")          # no container: no skills either
+        self.assertFalse(editor.skills_row.get_active())
+        self.assertEqual(editor.changes()["learningContainerId"], None)
+        self.assertFalse(editor.changes()["skillDeliveryEnabled"])
+
+    def test_learning_hides_on_servers_without_it(self):
+        for dot in self.fake.dots:
+            del dot["learningContainerId"], dot["skillDeliveryEnabled"]
+        self.mon.poll_now()
+        self.assertTrue(run_until(lambda: not self.mon.workspace.dot("d2").has_learning, 5))
+        win = self.open("dots", dot="d2")
+        editor = self.editor(win, "d2")
+        self.assertFalse(editor.learning.get_visible())
+        editor.memory_row.set_active(False)
+        self.assertNotIn("learningContainerId", editor.changes())
+
+    def test_each_tool_is_allowed_asks_first_or_is_off(self):
+        win = self.open("dots", dot="d2")
+        editor = self.editor(win, "d2")
+        group = self.connections(editor)
+        row = group._rows[0]
+        self.assertEqual(row.get_title(), "Homelab")
+        self.assertEqual(row.get_subtitle(), "mcp.home.test · 2 of 3 tools on · token saved")
+        tools = self.tool_rows(row)
+        self.assertEqual({name: r.get_selected() for name, r in tools.items()},
+                         {"list_disks": 0, "restart_service": 1, "wipe_disk": 2})
+        tools["wipe_disk"].set_selected(0)                        # Blocked → Allowed
+        self.assertTrue(run_until(lambda: self.fake.writes("PATCH"), 5))
+        self.assertEqual(self.fake.writes("PATCH")[-1][1:], (
+            "/api/connections/c1/tools/wipe_disk", {"enabled": True, "requiresApproval": False}))
+        self.assertTrue(run_until(lambda: "3 of 3" in row.get_subtitle(), 5))
+        tools["restart_service"].set_selected(2)                  # Ask First → Blocked
+        self.assertTrue(run_until(lambda: len(self.fake.writes("PATCH")) == 2, 5))
+        self.assertEqual(self.fake.writes("PATCH")[-1][2], {"enabled": False})
+        group.refresh("c1")
+        self.assertTrue(run_until(lambda: self.fake.writes("POST"), 5))
+        self.assertEqual(self.fake.writes("POST")[-1][1], "/api/connections/c1/refresh")
+        self.assertFalse(editor.dirty)                            # nothing waits for Save
+        self.assertEqual(self.fake.writes("PUT"), [])
+
+    def test_a_tool_the_server_did_not_change_goes_back(self):
+        win = self.open("dots", dot="d2")
+        editor = self.editor(win, "d2")
+        group = self.connections(editor)
+        tools = self.tool_rows(group._rows[0])
+        self.fake.token = "rotated"
+        tools["list_disks"].set_selected(1)
+        self.assertTrue(run_until(lambda: tools["list_disks"].get_selected() == 0, 5))
+        self.assertTrue(tools["list_disks"].get_sensitive())
+
+    def test_add_and_remove_an_mcp_server(self):
+        win = self.open("dots", dot="d2")
+        editor = self.editor(win, "d2")
+        group = self.connections(editor)
+        dialog = group.add_server()
+        self.assertFalse(dialog.connect_button.get_sensitive())
+        dialog.name_row.set_text("  GitHub ")
+        dialog.url_row.set_text("ftp://example.test")
+        self.assertTrue(dialog.url_row.has_css_class("error"))
+        self.assertFalse(dialog.connect_button.get_sensitive())
+        dialog.url_row.set_text("https://user:pw@example.test/mcp")
+        self.assertIn("token", dialog.problem())
+        dialog.url_row.set_text("https://mcp.github.test/mcp")
+        dialog.token_row.set_text("ghp-secret-token")
+        self.assertTrue(dialog.connect_button.get_sensitive())
+        dialog.submit()
+        self.assertTrue(run_until(lambda: len(group._rows) == 2, 5))
+        method, path, body = self.fake.writes("POST")[-1]
+        self.assertEqual(path, "/api/dots/d2/connections")
+        self.assertEqual(body, {"name": "GitHub", "url": "https://mcp.github.test/mcp",
+                                "token": "ghp-secret-token"})
+        self.assertEqual(dialog.token_row.get_text(), "")
+        added = group.connections[-1]
+        self.assertTrue(group._rows[-1].get_expanded())
+        group.remove_server(added.id)
+        self.assertTrue(run_until(lambda: isinstance(win.get_visible_dialog(),
+                                                     Adw.AlertDialog), 3))
+        alert = win.get_visible_dialog()
+        alert.emit("response", "ok")
+        alert.force_close()
+        self.assertTrue(run_until(lambda: len(group._rows) == 1, 5))
+        self.assertEqual(self.fake.writes("DELETE")[-1][1], f"/api/connections/{added.id}")
+
+    def test_no_connections_and_older_servers(self):
+        self.fake.connections = []
+        win = self.open("dots", dot="d2")
+        group = self.editor(win, "d2").connections
+        self.assertTrue(run_until(lambda: group.status.get_title() == "No Connections Yet", 5))
+        self.assertTrue(group.add_button.get_visible())
+        self.fake.connections = None                             # before upstream #52
+        group.load()
+        self.assertTrue(run_until(lambda: group.status.get_title()
+                                  == "Not on This Server Yet", 5))
+        self.assertFalse(group.add_button.get_visible())
 
     # -- model and voice -------------------------------------------------------------------
 

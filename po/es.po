@@ -1707,10 +1707,6 @@ msgstr "Ocultar de la barra lateral"
 msgid "Hidden Dots wait at the end of the list"
 msgstr "Los Dots ocultos quedan al final de la lista"
 
-#: src/ui/settings/dots.py:468
-msgid "Connections and Tools…"
-msgstr "Conexiones y herramientas…"
-
 #: src/ui/settings/dots.py:475 src/ui/settings/servers.py:142
 #: src/ui/settings/window.py:793
 msgid "Save"
@@ -1762,15 +1758,6 @@ msgstr "El Jefe por ahora, elegido automáticamente. Actívalo para mantenerlo."
 #, python-brace-format
 msgid "Now picked automatically: {name}"
 msgstr "Ahora elegido automáticamente: {name}"
-
-#: src/ui/settings/dots.py:698
-msgid "Connected apps, the computer and approvals, edited in the page"
-msgstr "Aplicaciones conectadas, el equipo y las aprobaciones, editados en la página"
-
-#: src/ui/settings/dots.py:699
-#, python-brace-format
-msgid "Open {name} in Dotdeck to edit them"
-msgstr "Abre {name} en Dotdeck para editarlos"
 
 #: src/ui/settings/dots.py:747
 msgid "This Dot is no longer on the server."
@@ -3570,3 +3557,192 @@ msgstr "{name} guardado"
 #: src/web/webview.py:1006
 msgid "file"
 msgstr "archivo"
+
+#: src/ui/settings/connections.py:45
+msgid "Enter the address of the MCP server."
+msgstr "Escribe la dirección del servidor MCP."
+
+#: src/ui/settings/connections.py:51
+msgid "Use a full address that starts with https:// or http://."
+msgstr "Usa una dirección completa que empiece por https:// o http://."
+
+#: src/ui/settings/connections.py:53
+msgid "Leave the user and password out of the address; use the token instead."
+msgstr "Quita el usuario y la contraseña de la dirección; usa el token en su lugar."
+
+#: src/ui/settings/connections.py:63
+#, python-brace-format
+msgid "{on} of {n} tool on"
+msgid_plural "{on} of {n} tools on"
+msgstr[0] "{on} de {n} herramienta activa"
+msgstr[1] "{on} de {n} herramientas activas"
+
+#: src/ui/settings/connections.py:66
+msgid "token saved"
+msgstr "token guardado"
+
+#: src/ui/settings/connections.py:75
+msgid "Connections"
+msgstr "Conexiones"
+
+#: src/ui/settings/connections.py:76
+msgid "Tools from MCP servers. Each tool runs on its own, asks you in the chat first or is blocked. Changes apply right away."
+msgstr "Herramientas de servidores MCP. Cada herramienta se ejecuta sola, te pide permiso en el chat o queda bloqueada. Los cambios se aplican al instante."
+
+#: src/ui/settings/connections.py:89
+msgid "Give this Dot the tools of an MCP server"
+msgstr "Dar a este Dot las herramientas de un servidor MCP"
+
+#: src/ui/settings/connections.py:132
+msgid "Loading connections…"
+msgstr "Cargando las conexiones…"
+
+#: src/ui/settings/connections.py:141
+msgid "Not on This Server Yet"
+msgstr "Todavía no está en este servidor"
+
+#: src/ui/settings/connections.py:142
+msgid "Update OpenDots to give Dots tools from MCP servers."
+msgstr "Actualiza OpenDots para dar a los Dots herramientas de servidores MCP."
+
+#: src/ui/settings/connections.py:148
+msgid "Could Not Load the Connections"
+msgstr "No se pudieron cargar las conexiones"
+
+#: src/ui/settings/connections.py:167
+msgid "No Connections Yet"
+msgstr "Ninguna conexión todavía"
+
+#: src/ui/settings/connections.py:168
+#, python-brace-format
+msgid "Add an MCP server to give {name} its tools, like GitHub or a calendar."
+msgstr "Añade un servidor MCP para darle herramientas a {name}, como GitHub o un calendario."
+
+#: src/ui/settings/connections.py:185
+msgid "Refresh the Tools"
+msgstr "Actualizar las herramientas"
+
+#: src/ui/settings/connections.py:188
+#, python-brace-format
+msgid "Refresh the tools of {name}"
+msgstr "Actualizar las herramientas de {name}"
+
+#: src/ui/settings/connections.py:195
+#, python-brace-format
+msgid "Remove {name}"
+msgstr "Quitar {name}"
+
+#: src/ui/settings/connections.py:200
+msgid "The server did not answer as expected"
+msgstr "El servidor no respondió como se esperaba"
+
+#: src/ui/settings/connections.py:208
+msgid "This server offers no tools."
+msgstr "Este servidor no ofrece herramientas."
+
+#: src/ui/settings/connections.py:211
+msgid "Allowed"
+msgstr "Permitida"
+
+#: src/ui/settings/connections.py:211
+msgid "Ask First"
+msgstr "Preguntar antes"
+
+#: src/ui/settings/connections.py:214
+msgid "Read-only"
+msgstr "Solo lectura"
+
+#: src/ui/settings/connections.py:263
+#, python-brace-format
+msgid "{tool} was not changed"
+msgstr "{tool} no se cambió"
+
+#: src/ui/settings/connections.py:289
+#, python-brace-format
+msgid "{name} was not refreshed"
+msgstr "{name} no se actualizó"
+
+#: src/ui/settings/connections.py:294
+#, python-brace-format
+msgid "{name}: {n} tool"
+msgid_plural "{name}: {n} tools"
+msgstr[0] "{name}: {n} herramienta"
+msgstr[1] "{name}: {n} herramientas"
+
+#: src/ui/settings/connections.py:314
+#, python-brace-format
+msgid "{name} was not removed"
+msgstr "{name} no se quitó"
+
+#: src/ui/settings/connections.py:325
+#, python-brace-format
+msgid "{dot} can no longer use its tools, and its token is deleted from the server."
+msgstr "{dot} ya no podrá usar sus herramientas, y el token se borra del servidor."
+
+#: src/ui/settings/connections.py:339
+msgid "The server is not available."
+msgstr "El servidor no está disponible."
+
+#: src/ui/settings/connections.py:352
+#, python-brace-format
+msgid "{name} connected with {n} tool"
+msgid_plural "{name} connected with {n} tools"
+msgstr[0] "{name} conectado con {n} herramienta"
+msgstr[1] "{name} conectado con {n} herramientas"
+
+#: src/ui/settings/connections.py:366
+msgid "Add an MCP Server"
+msgstr "Añadir servidor MCP"
+
+#: src/ui/settings/connections.py:386
+msgid "A name like GitHub and an address like https://example.com/mcp. Dotdeck connects and lists the server's tools: read-only ones are allowed, the others ask you in the chat before they run. You can change each one later."
+msgstr "Un nombre como GitHub y una dirección como https://example.com/mcp. Dotdeck se conecta y lista las herramientas del servidor: las de solo lectura quedan permitidas, las demás te piden permiso en el chat antes de ejecutarse. Puedes cambiar cada una después."
+
+#: src/ui/settings/connections.py:398
+msgid "Only if the server asks for one. It goes to your OpenDots server as a bearer token and is never shown again."
+msgstr "Solo si el servidor lo pide. Va a tu servidor OpenDots como token bearer y no se vuelve a mostrar."
+
+#: src/ui/settings/connections.py:400
+msgid "Access Token (Optional)"
+msgstr "Token de acceso (opcional)"
+
+#: src/ui/settings/connections.py:410
+msgid "Give the server a name."
+msgstr "Ponle un nombre al servidor."
+
+#: src/ui/settings/connections.py:441
+#, python-brace-format
+msgid "Could not connect: {error}"
+msgstr "No se pudo conectar: {error}"
+
+#: src/ui/settings/dots.py:452
+msgid "Automatic Learning"
+msgstr "Aprendizaje automático"
+
+#: src/ui/settings/dots.py:453
+msgid "New conversations add what they learn to a container of your Intelligence project; create it there first. Leave the ID empty to keep new conversations out. Existing ones keep theirs."
+msgstr "Las conversaciones nuevas guardan lo que aprenden en un contenedor de tu proyecto de Intelligence; créalo allí antes. Deja el ID vacío para mantener fuera las conversaciones nuevas. Las que ya existen conservan el suyo."
+
+#: src/ui/settings/dots.py:456
+msgid "Container ID"
+msgstr "ID del contenedor"
+
+#: src/ui/settings/dots.py:461
+msgid "Use Published Skills"
+msgstr "Usar skills publicadas"
+
+#: src/ui/settings/dots.py:462
+msgid "Loads the reviewed skills of the container. Turn on delivery in Intelligence too."
+msgstr "Carga las skills revisadas del contenedor. Activa también la entrega en Intelligence."
+
+#: src/ui/settings/dots.py:466
+msgid "How to Set Up Learning"
+msgstr "Cómo configurar el Aprendizaje"
+
+#: src/ui/settings/dots.py:651
+msgid "The container ID can only have lowercase letters, numbers and single hyphens."
+msgstr "El ID del contenedor solo puede tener letras minúsculas, números y guiones simples."
+
+#: src/ui/settings/connections.py:211
+msgid "Blocked"
+msgstr "Bloqueada"

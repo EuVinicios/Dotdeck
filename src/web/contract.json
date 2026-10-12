@@ -612,6 +612,36 @@
     },
     {
       "kind": "route",
+      "value": "GET /api/dots/:id/connections",
+      "used_by": "src/core/api.py (Settings → Dots → Connections)",
+      "breaks": "a Dot's Connections say the server has none"
+    },
+    {
+      "kind": "route",
+      "value": "POST /api/dots/:id/connections",
+      "used_by": "src/core/api.py (Settings → Dots → Connections)",
+      "breaks": "adding an MCP server to a Dot"
+    },
+    {
+      "kind": "route",
+      "value": "POST /api/connections/:id/refresh",
+      "used_by": "src/core/api.py (Settings → Dots → Connections)",
+      "breaks": "refreshing a connection's tools"
+    },
+    {
+      "kind": "route",
+      "value": "PATCH /api/connections/:id/tools/:name",
+      "used_by": "src/core/api.py (Settings → Dots → Connections)",
+      "breaks": "turning a connection's tools on and off, and Ask First"
+    },
+    {
+      "kind": "route",
+      "value": "DELETE /api/connections/:id",
+      "used_by": "src/core/api.py (Settings → Dots → Connections)",
+      "breaks": "removing an MCP server from a Dot"
+    },
+    {
+      "kind": "route",
       "value": "GET /api/model-config",
       "used_by": "src/core/api.py, monitor.py (AI Models)",
       "breaks": "the AI Models page stays hidden",

@@ -653,3 +653,61 @@ Store) daqui em diante?" **Resposta:** "Automático no merge (Recomendado)".
 
 **Pedido do dono:** "pensa numa forma de deixar o processo automatizado sempre que eu lançar
 uma mudança aqui no aplicativo".
+
+## ADR-023 — Conexões e Aprendizado de cada Dot no editor nativo (12/10/2026)
+
+**Contexto.** O editor do Dot (Configurações › Dots, ADR-014) não tinha o Aprendizado
+automático nem as Conexões (servidores MCP, do OpenDots oficial #52). A linha "Conexões e
+ferramentas…" fechava as Configurações e abria o formulário de Dot da própria página
+(`WorkspaceDialog.tsx`): uma coluna de 460 px com nome, instruções, Espaços, permissões,
+Aprendizado e Conexões, nessa ordem. O título e o Salvar sumiam na rolagem, e o fim da caixa
+de Aprendizado ficava cortado na borda de baixo. Metade dos campos repetia o editor nativo.
+
+**Referências.** O Grok Bot separa os assuntos. Cada bot tem um painel curto, "Bot settings"
+(nome, rótulo, descrição, avatar, notificações). Os plugins ficam em "Your plugins", com uma
+chave por ferramenta, e as regras de aprovação ficam nas configurações gerais
+(docs.x.ai/grok-bot/settings-and-notifications, 06/10/2026). No OpenDots oficial, nenhum PR
+aberto mexe nesse formulário.
+
+**Pergunta ao dono:** "Como você quer resolver a janela de capacidades do Dot?" **Resposta:**
+"Tudo nativo (Recomendado)". Ao confirmar, ele perguntou: "tudo nativo não quer dizer que
+perderei as possibilidades de configuração que hoje existem, certo?". Nada se perde: cada campo
+do formulário da página tem lugar no editor nativo, e as rotas da API são as mesmas.
+
+**Decisão.**
+- **Conexões** (`src/ui/settings/connections.py`), depois dos Espaços. Cada servidor MCP é uma
+  linha expansível com o endereço, "2 de 3 ferramentas ligadas" e "token salvo", e com os
+  botões Atualizar e Remover (Remover pede confirmação). Cada ferramenta é uma linha com um
+  menu de três opções: **Permitida**, **Pedir antes** ou **Bloqueada**. São as duas caixas
+  da página ("ligada" e "Ask first") num controle só; "Somente leitura" abre a descrição, para
+  os menus ficarem alinhados. **Adicionar servidor…** abre um diálogo com nome, endereço
+  (conferido como o servidor confere: http(s), sem usuário e senha) e token opcional, que vai
+  para o servidor e nunca mais é exibido. Como na página, cada mudança vale na hora, fora do
+  Salvar do Dot; se o servidor recusa, o menu volta ao valor anterior. Num servidor sem a
+  rota, o grupo diz "Ainda não existe neste servidor" e esconde o Adicionar.
+- **Aprendizado automático**, depois das Conexões, faz parte do rascunho do Dot: ID do
+  contêiner (validado com a regra do servidor; vazio = fora do Aprendizado), "Usar skills
+  publicadas" (apagado sem contêiner, porque o servidor recusa) e o link para o guia. Se os
+  dois campos não mudaram, o `PUT` devolve os valores exatos do servidor, como já fazia com as
+  instruções. Num servidor sem Aprendizado, o grupo não aparece.
+- A linha "Conexões e ferramentas…" saiu. O comando `editDot` da página continua no
+  `webview.py`/`focus.js` (e no contrato), mas nenhuma tela o usa.
+- **Contrato**: cinco rotas novas, obrigatórias porque o OpenDots oficial já as tem:
+  `GET`/`POST /api/dots/:id/connections`, `POST /api/connections/:id/refresh`,
+  `PATCH /api/connections/:id/tools/:name` e `DELETE /api/connections/:id`.
+
+**Prova.**
+- `tests/test_settings.py`: 6 testes novos, sobre o servidor de gravação, que agora tem as
+  rotas de Conexões: os três estados de cada ferramenta e os corpos exatos do `PATCH`;
+  Atualizar; um `PATCH` recusado volta o menu; adicionar (corpo exato, token limpo do campo,
+  endereço inválido barrado) e remover com confirmação; lista vazia e servidor antigo (404);
+  Aprendizado validado, salvo e zerado sem contêiner; grupo escondido sem Aprendizado.
+- Suíte local (`LANG=C`): 366 testes, só o erro conhecido do GstWebRTC ausente. Contrato
+  conferido contra o fork do servidor e contra o `main` oficial.
+- Capturas em pt_BR (a 980 px): grupo de Conexões com um servidor aberto, Aprendizado e o
+  diálogo de adicionar.
+
+**Pedido do dono:** "precisamos redesenhar e melhorar o design e a UX da janela de
+configurações das capacidades dos Dots. Veja na imagem anexa que abre uma janela estreita em
+que parte das informações ficam fora dela. Veja como o Grok Bot e o Dots tratam isso e crie
+uma experiência agradável e usual para o cliente final."

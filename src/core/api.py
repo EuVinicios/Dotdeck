@@ -115,6 +115,42 @@ class OpenDotsAPI:
             callback(data, error)
         self.get(f"/api/copilotkit/threads?agentId={quote(dot_id)}&limit={int(limit)}", got)
 
+    # -- a Dot's connections (MCP servers) ------------------------------------------------
+    #
+    # Each change applies on the server at once, like in the page. Servers older than the
+    # per-Dot connections (upstream #52) answer 404: error ``"unsupported"``.
+
+    def connections(self, dot_id: str, callback: Callback) -> None:
+        def got(data, error):
+            if error in ("Not found.", "HTTP 404"):
+                callback(None, "unsupported")
+            elif error is None and not isinstance(data, list):
+                callback(None, _("The server sent an unexpected answer."))
+            else:
+                callback(data, error)
+        self.get(f"/api/dots/{quote(dot_id)}/connections", got)
+
+    def add_connection(self, dot_id: str, callback: Callback, *, name: str, url: str,
+                       token: str = "") -> None:
+        """Connects to the MCP server and lists its tools; the token stays on the server."""
+        body = {"name": name.strip(), "url": url.strip()}
+        if token.strip():
+            body["token"] = token.strip()
+        self.request("POST", f"/api/dots/{quote(dot_id)}/connections", body, callback)
+
+    def refresh_connection(self, connection_id: str, callback: Callback) -> None:
+        self.request("POST", f"/api/connections/{quote(connection_id)}/refresh", {}, callback)
+
+    def set_connection_tool(self, connection_id: str, tool: str, callback: Callback,
+                            **changes) -> None:
+        """``enabled`` and ``requiresApproval`` ("Ask first")."""
+        body = {k: bool(v) for k, v in changes.items() if k in ("enabled", "requiresApproval")}
+        self.request("PATCH", f"/api/connections/{quote(connection_id)}/tools/"
+                     f"{quote(tool, safe='')}", body, callback)
+
+    def remove_connection(self, connection_id: str, callback: Callback) -> None:
+        self.request("DELETE", f"/api/connections/{quote(connection_id)}", {}, callback)
+
     # -- memories --------------------------------------------------------------------------
 
     def add_memory(self, text: str, callback: Callback) -> None:

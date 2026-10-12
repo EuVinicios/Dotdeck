@@ -11,6 +11,7 @@ src/ui/pet_gallery.py
 src/ui/server_form.py
 src/ui/settings/app_pages.py
 src/ui/settings/common.py
+src/ui/settings/connections.py
 src/ui/settings/dots.py
 src/ui/settings/model.py
 src/ui/settings/privacy.py

@@ -22,6 +22,15 @@ def status_icon(name: str, css: str = "") -> Gtk.Image:
     return icon
 
 
+def badge(text: str, css: str = "") -> Gtk.Label:
+    """A small pill next to a row's title: Chief, Hidden, Unsaved, Read-only…"""
+    label = Gtk.Label(label=text, valign=Gtk.Align.CENTER)
+    label.add_css_class("settings-badge")
+    if css:
+        label.add_css_class(css)
+    return label
+
+
 def suffix_label(text: str = "", dim: bool = True) -> Gtk.Label:
     label = Gtk.Label(label=text, valign=Gtk.Align.CENTER, xalign=1,
                       ellipsize=Pango.EllipsizeMode.END)
