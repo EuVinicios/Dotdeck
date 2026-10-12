@@ -4,13 +4,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
-
-<!-- loja: Each Dot has its own voice in calls, and costs are in sight. -->
-<!-- loja: Choose the call voice of each Dot in its settings. -->
-<!-- loja: The cost of the open conversation and of a call in progress, in the header. -->
-<!-- loja: What your OpenRouter key spent this month, under the model in the sidebar. -->
-<!-- loja: Voice calls hear when you stop talking in noisy rooms. -->
+## [0.5.0] - 2026-10-12
 
 ### Adicionado
 
