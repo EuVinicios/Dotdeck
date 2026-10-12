@@ -582,16 +582,20 @@ class FocusModeTest(unittest.TestCase):
         """Dotdeck's banner says the server is out of reach: no second bar, in English."""
         view = self.open_app()
         self.assertTrue(run_until(lambda: self.focus_events == [True], 15))
-        bar = """let bar = document.querySelector('.template-app .error-banner');
+        # Until its first poll answers (say, right after a reload) the page shows "Finding
+        # your dots…" and has no app to hang the bar on: answer null and let run_until wait.
+        bar = """const app = document.querySelector('.template-app');
+            if (!app) return null;
+            let bar = app.querySelector('.error-banner');
             if (!bar) {
               bar = document.createElement('div');
               bar.className = 'error-banner';
               bar.textContent = 'Load failed';
-              document.querySelector('.template-app').prepend(bar);
+              app.prepend(bar);
             }
             return [document.documentElement.hasAttribute('data-dotdeck-offline'),
                     getComputedStyle(bar).display];"""
-        self.assertEqual(self.js(bar), [False, "block"])
+        self.assertTrue(run_until(lambda: self.js(bar) == [False, "block"], 5))
         view.set_offline(True)
         self.assertTrue(run_until(lambda: self.js(bar) == [True, "none"], 5))
         # A page loaded while offline starts with the mark.
