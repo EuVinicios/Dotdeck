@@ -159,6 +159,15 @@
   </screenshots>
 
   <releases>
+    <release version="0.3.8" date="2026-10-12">
+      <description>
+        <p>A message box that grows with what you type.</p>
+        <ul>
+          <li>The message box grows line by line as you type, up to 40% of the window, then scrolls</li>
+          <li>It goes back to one line once the message is sent, and the conversation stays at its end while you type</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.3.7" date="2026-10-10">
       <description>
         <p>Layout and usability polish.</p>

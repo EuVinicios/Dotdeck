@@ -328,9 +328,14 @@
     const atEnd = transcript && transcript.scrollHeight - top - transcript.clientHeight < 4;
     const style = window.getComputedStyle(box);
     const cap = parseFloat(style.maxHeight) || Infinity;
-    const borders = (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+    const sum = (a, b) => (parseFloat(a) || 0) + (parseFloat(b) || 0);
+    // scrollHeight counts the padding; height counts padding and borders too, or neither.
+    const extra =
+      style.boxSizing === 'content-box'
+        ? -sum(style.paddingTop, style.paddingBottom)
+        : sum(style.borderTopWidth, style.borderBottomWidth);
     box.style.height = 'auto';
-    const wanted = box.scrollHeight + borders;
+    const wanted = box.scrollHeight + extra;
     box.style.height = `${Math.min(wanted, cap)}px`;
     const mode = wanted > cap + 1 ? 'scroll' : '';
     if (box.getAttribute(GROW) !== mode) box.setAttribute(GROW, mode);
