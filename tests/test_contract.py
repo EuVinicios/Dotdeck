@@ -3,8 +3,9 @@
 ContractSyncTest keeps the list in sync with Dotdeck's code: every class, id, label, word and
 route that focus.js, focus.css, webview.py and the API client use is listed, and every listed
 one is still used. UpstreamContractTest checks the list against an OpenDots checkout given in
-OPENDOTS_SRC and is skipped without it; .github/workflows/upstream.yml runs it every day on
-the official main branch (built, for the checks on the bundle).
+OPENDOTS_SRC and is skipped without it; .github/workflows/upstream.yml runs it on pull requests
+against the official main branch (built, for the checks on the bundle), and the maintainer's
+server runs it every night.
 
 No WebKit and no display: this is plain text processing.
 """
