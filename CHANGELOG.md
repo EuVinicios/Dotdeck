@@ -4,6 +4,16 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Corrigido
+
+- **A caixa de mensagem cresce com o texto**, linha a linha, como nos apps de chat: na conversa
+  e no começo de uma conversa nova. Antes ficava presa numa linha (até 120 px, com rolagem
+  interna) e, numa conversa nova, em duas. Ela para em 40% da altura da janela (no máximo
+  320 px) e rola a partir daí; volta a uma linha quando a mensagem é enviada, e a conversa
+  acima continua no fim enquanto se digita.
+
 ## [0.3.7] - 2026-10-10
 
 ### Corrigido
