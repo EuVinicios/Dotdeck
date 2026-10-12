@@ -342,6 +342,19 @@ class FocusModeTest(unittest.TestCase):
         self.assertLess(GLib.get_monotonic_time() - started, 4_000_000)
         self.assertTrue(self.selection_is("Manutenção", "chat"))
 
+    def test_the_open_conversation_is_reported_for_its_cost(self):
+        view = self.open_app()
+        threads = []
+        view.connect("page-thread", lambda _v, thread: threads.append(thread))
+        self.assertTrue(self.command(view.open_conversation, "c2", 0, "Assistente"))
+        self.assertTrue(run_until(lambda: view.page_thread == "c2", 5))
+        self.assertTrue(self.command(view.open_conversation, "c1", 4, "Finanças"))
+        self.assertTrue(run_until(lambda: view.page_thread == "c1", 5))
+        # The new-chat screen of a Dot has no conversation.
+        self.assertTrue(self.command(view.new_chat, 1, "Manutenção"))
+        self.assertTrue(run_until(lambda: view.page_thread == "", 5))
+        self.assertEqual([t for t in threads if t], ["c2", "c1"])
+
     def test_open_conversation_waits_for_a_new_one(self):
         # Dotdeck creates a conversation through the API, then opens it at once: the
         # page learns about it only at its next refresh.

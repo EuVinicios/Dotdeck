@@ -842,6 +842,7 @@ class CallEvent(NamedTuple):
     final: bool = False        # the caption is complete
     compute: bool = False      # the Dot asked OpenDots to work on something (ask_compute)
     error: bool = False
+    cost: float | None = None  # what the call cost so far, in US$ (Dotdeck's voice gateway)
 
 
 _DOT_DELTAS = ("response.output_audio_transcript.delta", "response.audio_transcript.delta")
@@ -849,11 +850,13 @@ _DOT_DONE = ("response.output_audio_transcript.done", "response.audio_transcript
 _YOU_DELTA = "conversation.item.input_audio_transcription.delta"
 _YOU_DONE = "conversation.item.input_audio_transcription.completed"
 _AUDIO_STOPPED = ("output_audio_buffer.stopped", "output_audio_buffer.cleared")
+# Not a Realtime event: the Dotdeck voice gateway's running total (speech and transcription).
+_GATEWAY_COST = "gateway.cost"
 _INCOMING = frozenset({
     "input_audio_buffer.speech_started", "input_audio_buffer.speech_stopped",
     "response.created", "response.done", "response.function_call_arguments.done",
     "output_audio_buffer.started", *_AUDIO_STOPPED, *_DOT_DELTAS, *_DOT_DONE,
-    _YOU_DELTA, _YOU_DONE, "error"})
+    _YOU_DELTA, _YOU_DONE, _GATEWAY_COST, "error"})
 _OUTGOING = frozenset({"response.create", "response.cancel"})
 _TYPE_RE = re.compile(r'"type"\s*:\s*"([A-Za-z0-9_.]+)"')
 _MAX_EVENT_CHARS = 256 * 1024
@@ -891,6 +894,12 @@ def parse_call_event(data: str, outgoing: bool = False) -> CallEvent | None:
         return None
     if outgoing:
         return CallEvent(kind, phase="thinking" if kind == "response.create" else "listening")
+    if kind == _GATEWAY_COST:
+        cost = event.get("cost")
+        if isinstance(cost, bool) or not isinstance(cost, (int, float)) \
+                or not 0 <= cost < 1000:
+            return None
+        return CallEvent(kind, cost=float(cost))
     if kind == "input_audio_buffer.speech_started":
         return CallEvent(kind, phase="listening")
     if kind in ("input_audio_buffer.speech_stopped", "response.created"):
@@ -931,8 +940,8 @@ class CallTracker:
     """Turns one call's events and connection states into phases and captions.
 
     Plain Python: every method returns the signals to emit, as tuples
-    ``("call-phase", phase)``, ``("caption", role, text, final)`` and
-    ``("call-error", message)``. Captions are whole lines: pieces are joined here.
+    ``("call-phase", phase)``, ``("caption", role, text, final)``, ``("call-cost", usd)``
+    and ``("call-error", message)``. Captions are whole lines: pieces are joined here.
     """
 
     def __init__(self):
@@ -940,6 +949,7 @@ class CallTracker:
         self.ended = False
         self.computing = False
         self.seen = 0  # events read so far, for the "thinking" watchdog
+        self.cost: float | None = None  # US$ so far, when the voice gateway says
         self._captions = {"you": "", "dot": ""}
         # Providers that never say when the reply audio starts and stops end
         # "speaking" with the response itself.
@@ -997,6 +1007,11 @@ class CallTracker:
         event = parse_call_event(data, outgoing)
         if event is None:
             return []
+        if event.cost is not None:
+            if self.cost is not None and event.cost <= self.cost:
+                return []
+            self.cost = event.cost
+            return [("call-cost", event.cost)]
         if event.type in ("response.created", "response.create", "response.cancel"):
             self.computing = False
         if event.type == "response.created":
@@ -1353,6 +1368,8 @@ class VoiceBridge(GObject.Object):
         "caption": (GObject.SignalFlags.RUN_FIRST, None, (str, str, bool)),
         "call-error": (GObject.SignalFlags.RUN_FIRST, None, (str,)),
         "audio-level": (GObject.SignalFlags.RUN_FIRST, None, (str, float)),
+        # What the call cost so far (US$), from the Dotdeck voice gateway only.
+        "call-cost": (GObject.SignalFlags.RUN_FIRST, None, (float,)),
     }
 
     def __init__(self, send_event: Callable[[str, dict], None],

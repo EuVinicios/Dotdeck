@@ -6,7 +6,7 @@ from tests.helpers import run_until
 
 from src.core import monitor  # noqa: E402
 from src.core.store import Profile  # noqa: E402
-from tests.fake_server import MODEL_CONFIG, FakeOpenDots  # noqa: E402
+from tests.fake_server import MODEL_CONFIG, SPEND, FakeOpenDots  # noqa: E402
 
 
 def task(id_, status, interval=None, next_run=None, error=""):
@@ -112,6 +112,42 @@ class ServerMonitorTest(unittest.TestCase):
             run_until(lambda: False, 0.3)
             self.assertIsNone(mon.model_config)
             self.assertFalse(any(p == "/api/model-config" for p, _a in fake.requests))
+            mon.stop()
+
+    def test_openrouter_spend_is_asked_once_a_minute(self):
+        with FakeOpenDots(token="t" * 24, model_config=MODEL_CONFIG) as fake:
+            fake.spend = SPEND
+            mon = monitor.ServerMonitor(Profile("p", "Home", fake.url), lambda cb: cb("t" * 24))
+            changed = []
+            mon.connect("spend-changed", lambda _m: changed.append(1))
+            mon.set_fast(True)
+            mon.start()
+            self.assertTrue(run_until(lambda: mon.spend is not None, 10))
+            self.assertEqual(mon.spend["key"]["monthly"], 0.29)
+            self.assertEqual(changed, [1])
+            polls = len([p for p, _a in fake.requests if p == "/api/workspace"])
+            mon.poll_now()
+            self.assertTrue(run_until(lambda: len([p for p, _a in fake.requests
+                                                   if p == "/api/workspace"]) > polls, 10))
+            run_until(lambda: False, 0.3)
+            self.assertEqual(sum(1 for p, _a in fake.requests if p == "/api/spend"), 1)
+            # After a call, say: asked again at the next poll.
+            fake.spend = {**SPEND, "key": {**SPEND["key"], "monthly": 0.31}}
+            mon.refresh_spend()
+            mon.poll_now()
+            self.assertTrue(run_until(lambda: mon.spend["key"]["monthly"] == 0.31, 10))
+            self.assertEqual(changed, [1, 1])
+            mon.stop()
+
+    def test_upstream_servers_are_not_asked_for_spend(self):
+        with FakeOpenDots(token="t" * 24) as fake:
+            fake.spend = SPEND
+            mon = monitor.ServerMonitor(Profile("p", "Home", fake.url), lambda cb: cb("t" * 24))
+            mon.start()
+            self.assertTrue(run_until(lambda: mon.status == "online", 10))
+            run_until(lambda: False, 0.3)
+            self.assertIsNone(mon.spend)
+            self.assertFalse(any(p == "/api/spend" for p, _a in fake.requests))
             mon.stop()
 
     def test_token_and_offline_states(self):

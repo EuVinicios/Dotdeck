@@ -711,3 +711,124 @@ do formulário da página tem lugar no editor nativo, e as rotas da API são as 
 configurações das capacidades dos Dots. Veja na imagem anexa que abre uma janela estreita em
 que parte das informações ficam fora dela. Veja como o Grok Bot e o Dots tratam isso e crie
 uma experiência agradável e usual para o cliente final."
+
+## ADR-024 — A ponte de voz ouve o fim da fala em sala barulhenta (12/10/2026)
+
+**Contexto.** As ligações com os Dots pararam de responder. Numa ligação de 37 s com o
+Guardião, a ponte transcreveu o pedido do dono e terminou com "0 replies". O
+`gpt-audio-mini` respondia em 1,4 s quando testado direto, então o problema era a ponte.
+O log com `VOICE_GATEWAY_DEBUG=1` mostrou a causa:
+- A voz do dono chegava a −5 dB. O ganho automático do Dotdeck fazia o ruído da sala pular de
+  −41 a −27 dB a cada 20 ms.
+- O detector julgava cada pedaço de 20 ms sozinho. Um pedaço alto zerava os 700 ms de
+  silêncio, e a fala só terminava no corte de 15 s.
+- Três pedaços altos seguidos (60 ms) contavam como fala nova e cancelavam a resposta antes
+  de qualquer som sair.
+- Depois de corrigido isso, sobraram dois problemas: um ventilador distante (rajadas de −17
+  a −24 dB) e a própria voz do Dot vazando pelo cancelamento de eco (−36 dB) ainda passavam
+  por fala.
+
+**Decisão** (`server/voice_gateway/vad.py` e `call.py`).
+- **Decidir por 100 ms.** Início, fim e piso de ruído usam a energia média dos últimos 100 ms.
+  Um clique ou uma rajada curta não muda mais nada.
+- **Fim relativo à voz.** A fala termina 18 dB abaixo do que se ouviu dela, ou abaixo do
+  limite do piso, o que vier antes.
+- **Só a voz perto do microfone.** A ponte aprende o volume da voz do dono com as falas que
+  responde (sobe rápido; nunca desce por causa de uma fala aceita, só 0,1 dB/s com o tempo).
+  Uma fala 10 dB abaixo disso termina vazia: TV, ventilador, a voz do Dot.
+- **Interromper só com fala de verdade.** O Dot só é interrompido depois de 250 ms de voz
+  perto do microfone, e não no primeiro sinal de som.
+- **Filtro de 200 Hz.** O áudio de quem liga passa por `audiocheblimit` (passa-altas, 4
+  polos) antes do detector e do modelo. O telefone começa em 300 Hz.
+- **O Dot avisa antes de pesquisar.** Uma regra é acrescentada às instruções da ligação.
+  Duas `ask_compute` na mesma resposta viram uma com os dois pedidos: o OpenDots roda uma por
+  conversa, e a segunda falhava com "Thread is already locked", o que levava o Dot a pedir
+  acessos que já tinha.
+- **Transcrição sem palavras é descartada** ("d", "."), e o modelo de transcrição é instruído
+  a não inventar nada para ruído.
+
+**Prova.** 16 testes novos em `tests/test_gateway.py`, rodados no runtime Flatpak
+(`org.gnome.Platform//51`, onde a ponte roda):
+- ruído oscilante que nunca é fala;
+- fim da fala sobre esse ruído;
+- pausas entre palavras de quem fala baixo;
+- rajadas que não arrastam a voz aprendida;
+- voz distante que não interrompe;
+- filtro de 200 Hz que corta 70 Hz em mais de 20 dB e deixa a voz passar;
+- pedidos de pesquisa juntados.
+
+Com o código anterior, 5 dos 6 primeiros falham. Nas ligações reais de 12/10, a última
+durou 2 min 37 s, com 8 respostas, 4 pesquisas e todas as rajadas do ventilador
+ignoradas.
+
+**Pedido do dono:** "estou testando a funcionalidade de ligações e os bots não respondem" e
+"o ruído do ventilador que está longe de mim parece que atrapalha ele e fica cortando a
+ligação".
+
+## ADR-025 — Uma voz para cada Dot e custos à vista (12/10/2026)
+
+**Contexto.**
+- Todos os Dots falavam com a mesma voz (`VOICE_NAME` do servidor).
+- O Dotdeck não mostrava quanto uma conversa ou uma ligação custava, nem o gasto da chave do
+  OpenRouter. Isso ficava só no painel do OpenRouter.
+- O opencode mostra o custo da sessão junto da conversa.
+- O runtime do OpenDots guarda os tokens de cada turno, mas descarta o `usage.cost` do
+  OpenRouter (o conversor do CopilotKit só mantém contagens de tokens).
+
+**Decisão.**
+- **Servidor (fork do OpenDots, `src/server/fork/`).** As tabelas são do próprio fork, numa
+  conexão separada do mesmo arquivo SQLite. Nenhuma tabela ou schema do upstream muda.
+  - `GET /api/dot-voices` e `PUT /api/dots/:id/voice`: a voz de cada Dot. A sessão da ligação
+    usa essa voz, ou o `VOICE_NAME` quando o Dot não tem uma. As vozes `fable`, `nova` e
+    `onyx` só aparecem com a ponte de voz.
+  - Cada turno é somado à conversa com o custo aproximado: tokens × preço do modelo
+    (`model-prices.ts`). O cache de entrada conta como entrada normal.
+  - `GET /api/costs/threads/:id` informa esse custo. `POST /api/costs/calls/:id` acrescenta a
+    voz de uma ligação: um valor por ligação, que substitui o anterior.
+  - `GET /api/spend` traz `/key` (esta chave: dia, semana, mês, total e limite) e `/credits`
+    (o saldo da conta) do OpenRouter, guardados por 1 minuto. Um erro nunca fica guardado, e
+    a chave nunca sai na resposta.
+- **Ponte de voz.** Depois de cada resposta e transcrição, envia `gateway.cost` com o total
+  da ligação. Não é um evento da Realtime, e a página do OpenDots o ignora.
+- **Dotdeck.**
+  - Editor do Dot: grupo **Voz nas ligações**, que salva na hora, como as Conexões.
+  - Barra lateral: o gasto do mês e o que resta, abaixo do modelo, com o detalhe na dica.
+    Atualiza a cada minuto com a janela aberta e a cada 10 min fora dela. Só aparece em
+    servidores com o modelo à vista (fork).
+  - Cabeçalho: o custo da conversa aberta. A página passa a informar a conversa aberta
+    (`focus.js`), o que dispara o sinal `page-thread`.
+  - Ligação: o custo é a voz da ponte mais o que a conversa gastou desde o início da
+    ligação (as pesquisas). Ao desligar, a voz é enviada ao servidor.
+  - Tudo é opcional no contrato: num servidor upstream nada disso aparece.
+- **Vozes iniciais dos Dots do dono.** São dados aplicados pela rota, não código:
+  - Maestro: `cedar` (natural e firme)
+  - Guardião: `onyx` (grave e firme)
+  - Cofre: `ash` (clara e confiante)
+  - Faísca: `nova` (viva e animada)
+  - Forja: `coral` (calorosa e simpática)
+  - Farol: `echo` (calma e ressonante)
+  - Tese: `sage` (calma e ponderada)
+  - Dot: a do servidor (`marin`)
+
+  As 13 vozes foram conferidas no `gpt-audio-mini` em português, a cerca de US$ 0,0002 cada.
+
+**Prova.**
+- OpenDots (fork): 8 testes novos (`tests/fork-costs.test.ts`), suíte de 486 testes,
+  `typecheck` e `lint` limpos.
+- Dotdeck:
+  - textos de custo (`tests/test_costs.py`);
+  - monitor que só pergunta a servidores fork e uma vez por minuto;
+  - linha da barra lateral;
+  - página que informa a conversa aberta (`test_focus`);
+  - editor da voz, com o `PUT` exato e um servidor antigo sem o grupo;
+  - evento `gateway.cost` que só cresce;
+  - captura com o servidor de teste: "US$ 0.29 this month · US$ 6.11 left" sob o modelo e
+    "≈ US$ 0.07 in this conversation" no cabeçalho.
+- Suíte local (`LANG=C`): só o erro conhecido do GstWebRTC ausente.
+
+**Pedido do dono:** "veja se consegue deixar uma voz diferente para cada bot e vozes que
+combinem com eles. Outro ponto que seria legal é ter um contador de custos tanto nas chamadas
+quanto nas interações por chat como o opencode já faz e também ter facilmente à vista quanto
+já gastei da minha api do openrouter. Esse gasto geral pode ficar no menu à esquerda logo
+abaixo do modelo que estamos usando, enquanto chats e ligações no contexto do que está sendo
+executado".

@@ -118,7 +118,9 @@ class OpenRouter:
         audio = base64.b64encode(wav_bytes(pcm, rate)).decode()
         body = {"model": model, "stream": False, "usage": {"include": True}, "messages": [
             {"role": "system", "content": "Transcribe the audio exactly, in its original "
-                                          "language. Reply with the transcript only."},
+                                          "language. Reply with the transcript only. If "
+                                          "there are no clear spoken words, reply with "
+                                          "nothing at all."},
             {"role": "user", "content": [
                 {"type": "input_audio", "input_audio": {"data": audio, "format": "wav"}}]}]}
         with self._post(body) as response:

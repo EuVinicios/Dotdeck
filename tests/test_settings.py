@@ -99,6 +99,9 @@ class RecordingOpenDots:
                          for i in range(21)]
         self.voice = voice
         self.connections: list[dict] | None = [sample_connection()]   # None: an older server
+        # The fork's voice per Dot (GET /api/dot-voices); None: a server without it.
+        self.dot_voices: dict | None = {"voices": {"d1": "onyx"}, "default": "marin",
+                                        "available": ["marin", "cedar", "onyx", "nova"]}
         self.requests: list[tuple[str, str, object]] = []
         fake = self
 
@@ -142,6 +145,8 @@ class RecordingOpenDots:
                                      **fake.model.workspace_fields()})
                 elif self.path == "/api/model-config":
                     self._json(*fake.model.get())
+                elif self.path == "/api/dot-voices" and fake.dot_voices is not None:
+                    self._json(200, fake.dot_voices)
                 elif fake.connections is not None and self.path.startswith("/api/dots/") \
                         and self.path.endswith("/connections"):
                     dot_id = self.path.split("/")[3]
@@ -172,6 +177,22 @@ class RecordingOpenDots:
                 body = self._body()
                 fake.requests.append(("PUT", self.path, body))
                 if not self._authorized():
+                    return
+                if self.path.endswith("/voice"):
+                    voices = fake.dot_voices
+                    voice = body.get("voice", "?") if isinstance(body, dict) else "?"
+                    if voices is None:
+                        self._json(404, {"error": "Not found."})
+                    elif set(body) != {"voice"} or (voice is not None
+                                                    and voice not in voices["available"]):
+                        self._json(400, {"error": f"Unknown voice: {voice}."})
+                    else:
+                        dot_id = self.path.split("/")[3]
+                        if voice is None:
+                            voices["voices"].pop(dot_id, None)
+                        else:
+                            voices["voices"][dot_id] = voice
+                        self._json(200, voices)
                     return
                 dot_id = self.path.rsplit("/", 1)[-1]
                 dot = next((d for d in fake.dots if d["id"] == dot_id), None)
@@ -827,6 +848,37 @@ class SettingsWindowTests(unittest.TestCase):
         self.assertTrue(run_until(lambda: group.status.get_title()
                                   == "Not on This Server Yet", 5))
         self.assertFalse(group.add_button.get_visible())
+
+    # -- the voice of each Dot -------------------------------------------------------------
+
+    def test_each_dot_has_its_own_call_voice(self):
+        win = self.open("dots", dot="d1")
+        group = self.editor(win, "d1").voice
+        self.assertTrue(run_until(group.get_visible, 5))
+        self.assertEqual(group._choices, [None, "marin", "cedar", "onyx", "nova"])
+        self.assertEqual(group.row.get_selected(), 3)               # Onyx, saved before
+        labels = group.row.get_model()
+        self.assertEqual(labels.get_string(0), "Server voice (Marin)")
+        self.assertEqual(labels.get_string(3), "Onyx — deep and authoritative")
+        group.row.set_selected(4)
+        self.assertTrue(run_until(lambda: self.fake.writes("PUT"), 5))
+        self.assertEqual(self.fake.writes("PUT")[-1][1:], ("/api/dots/d1/voice",
+                                                           {"voice": "nova"}))
+        self.assertTrue(run_until(group.row.get_sensitive, 5))
+        group.row.set_selected(0)                                    # back to the server's
+        self.assertTrue(run_until(lambda: self.fake.writes("PUT")[-1][2] == {"voice": None},
+                                  5))
+        self.assertTrue(run_until(lambda: group.row.get_subtitle()
+                                  == "Dots without their own voice use Marin", 5))
+        # Nothing else of the Dot was sent: the voice is not part of its Save.
+        self.assertFalse([w for w in self.fake.writes("PUT") if w[1] == "/api/dots/d1"])
+
+    def test_no_call_voice_row_on_an_older_server(self):
+        self.fake.dot_voices = None
+        win = self.open("dots", dot="d2")
+        group = self.editor(win, "d2").voice
+        run_until(lambda: False, 0.5)
+        self.assertFalse(group.get_visible())
 
     # -- model and voice -------------------------------------------------------------------
 

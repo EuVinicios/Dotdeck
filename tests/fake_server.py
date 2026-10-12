@@ -585,6 +585,13 @@ class FakeModelConfig:
                 "activeProvider": self.data.get("provider") or ""}
 
 
+# What GET /api/spend answers on the fork (OpenRouter's /key and /credits).
+SPEND = {"available": True, "provider": "openrouter",
+         "key": {"usage": 4.51, "daily": 0.18, "weekly": 0.2, "monthly": 0.29, "limit": None,
+                 "limitRemaining": None},
+         "credits": {"total": 115, "used": 108.89, "remaining": 6.11}, "fetchedAt": 1}
+
+
 class FakeOpenDots:
     def __init__(self, token: str | None = None, local_only: bool = False,
                  name: str = "OpenDots Test", dots: list[str] | None = None,
@@ -606,6 +613,9 @@ class FakeOpenDots:
         self.paused = False
         self.tasks: list[dict] = []
         self.calls: list[dict] = []
+        # GET /api/spend and /api/costs/threads/:id of the fork (None: a server without).
+        self.spend: dict | None = None
+        self.thread_costs: dict[str, dict] | None = None
         self.page = OPENDOTS_PAGE if opendots else page
         self.opendots = opendots
         self.requests: list[tuple[str, str | None]] = []
@@ -662,6 +672,14 @@ class FakeOpenDots:
                     self._json(200, fake.workspace())
                 elif path == "/api/model-config":
                     self._json(*fake.model.get())
+                elif path == "/api/spend" and fake.spend is not None:
+                    self._json(200, fake.spend)
+                elif path.startswith("/api/costs/threads/") and fake.thread_costs is not None:
+                    thread = path.rsplit("/", 1)[-1]
+                    if thread in fake.thread_costs:
+                        self._json(200, fake.thread_costs[thread])
+                    else:
+                        self._json(404, {"error": "Conversation not found."})
                 else:
                     self._json(404, {"error": "Not found."})
 

@@ -145,6 +145,18 @@ Detalhes que a ponte cuida:
 - **Nada do que você diz se perde durante uma pesquisa.** Enquanto o Dot espera o resultado
   do `ask_compute`, o que você falar fica numa fila (até 3 falas; acima disso a mais antiga
   sai) e é respondido junto com o resultado.
+- **Ouvir só quem liga.** O detector decide pelos últimos 100 ms de áudio, já sem o que fica
+  abaixo de 200 Hz (ronco de ventilador). Ele aprende o volume da sua voz com as falas que
+  responde, e uma fala 10 dB mais baixa termina vazia: TV, ventilador distante ou a voz do
+  Dot vazando pelo cancelamento de eco. O Dot só é interrompido depois de 250 ms de voz de
+  verdade (ADR-024).
+- **Uma pesquisa por vez.** Duas `ask_compute` na mesma resposta viram uma só com os dois
+  pedidos, porque o OpenDots roda uma por conversa. Antes de pesquisar, o Dot diz uma frase
+  curta.
+- **Custo durante a ligação.** Depois de cada resposta e transcrição, a ponte envia
+  `{"type": "gateway.cost", "cost": 0.0042}`, o total da ligação em US$. Não é um evento da
+  Realtime, e a página do OpenDots o ignora. O Dotdeck o mostra no cabeçalho e, ao desligar,
+  soma ao custo da conversa.
 - **Troca de voz durante a chamada.** Um `session.update` com `audio.output.voice` (uma das
   vozes listadas abaixo) vale a partir da próxima resposta; a ponte confirma com
   `session.updated`. `VOICE_GATEWAY_FORCE_VOICE` tem prioridade sobre tudo.
@@ -165,10 +177,12 @@ então não precisa instalar pacotes com `sudo`. Variáveis em `voice-gateway.en
 | `VOICE_GATEWAY_GREETING` | `1` (o Dot atende a ligação com uma frase; `0` desliga) |
 | `VOICE_GATEWAY_FORCE_VOICE` | vazio (uma voz aqui ignora a que o OpenDots pedir) |
 | `VOICE_GATEWAY_MAX_CALLS` | `2` (chamadas ao mesmo tempo) |
-| `VOICE_GATEWAY_DEBUG` | vazio (`1` mostra cada turno e o nível do microfone nos logs) |
+| `VOICE_GATEWAY_DEBUG` | vazio (`1` mostra cada turno, o nível do microfone e, para cada fala, o volume e se foi respondida ou ignorada) |
 
 Vozes: `alloy`, `ash`, `ballad`, `cedar`, `coral`, `echo`, `fable`, `marin`, `nova`, `onyx`,
 `sage`, `shimmer`, `verse`.
+Cada Dot pode ter a sua (Configurações › Dots › um Dot › Voz nas ligações, ADR-025). Sem
+uma, ele usa a voz do servidor.
 
 `GET http://127.0.0.1:4320/health` mostra as chamadas em andamento e os modelos que elas
 usam, sem chave nenhuma: `{"ok": true, "calls": 0, "model": "openai/gpt-audio-mini",

@@ -42,7 +42,7 @@ sys.path.insert(0, str(SERVER))
 
 from voice_gateway import vad  # noqa: E402
 from voice_gateway.http_api import parse_form  # noqa: E402
-from voice_gateway.call import Call, chat_tools, opus_payload_type  # noqa: E402
+from voice_gateway.call import Call, chat_tools, merge_compute, opus_payload_type  # noqa: E402
 from voice_gateway.openrouter import OpenRouter, ProviderError  # noqa: E402
 
 from src.core import voice  # noqa: E402
@@ -139,6 +139,159 @@ class VadNoiseTest(unittest.TestCase):
         self.assertFalse(detector.speaking)
 
 
+def gusty(seconds: float, low_db: float = -41.0, high_db: float = -27.0, seed: int = 1,
+          rate: int = 16000) -> bytes:
+    """Background whose level jumps every 20 ms between low_db and high_db, like a
+    microphone with automatic gain pumping the room noise."""
+    noise = random.Random(seed)
+    out = array.array("h")
+    step = rate * vad.FRAME_MS // 1000
+    for _ in range(int(seconds * rate) // step):
+        amplitude = 32767 * (10 ** (noise.uniform(low_db, high_db) / 20)) * math.sqrt(3)
+        out.extend(int(noise.uniform(-amplitude, amplitude)) for _ in range(step))
+    return out.tobytes()
+
+
+def words(seconds: float, level: float = 0.3, seed: int = 1) -> bytes:
+    """Loud speech: 180 ms syllables with 60 ms gaps of gusty background between them."""
+    out = b""
+    for i in range(int(seconds / 0.24)):
+        out += tone(0.18, level=level) + gusty(0.06, seed=seed * 100 + i)
+    return out
+
+
+class VadGustTest(unittest.TestCase):
+    """12/10/2026: Dotdeck's automatic gain made the room noise jump from -41 to -27 dB
+    frame by frame while the caller spoke at -10 dB. Judged frame by frame, one loud frame
+    reset the 700 ms of silence (the caller was only cut at the 15 s cap) and three in a
+    row passed for speech, cancelling every reply before it was heard."""
+
+    def test_hears_the_caller_stop_over_a_pumping_background(self):
+        detector = vad.Vad(stop_ms=700, warmup_ms=800)
+        events = detector.feed(gusty(1.0) + words(3.0) + gusty(3.0, seed=2))
+        self.assertEqual([e[0] for e in events], [vad.START, vad.END])
+        seconds = len(events[1][1]) / 2 / 16000
+        self.assertTrue(3.0 <= seconds <= 4.2, seconds)
+        self.assertFalse(detector.speaking)
+
+    def test_a_pumping_background_alone_is_never_speech(self):
+        detector = vad.Vad(warmup_ms=800)
+        self.assertEqual(detector.feed(gusty(20.0, seed=3)), [])
+        self.assertFalse(detector.confirmed)
+
+    def test_two_utterances_over_a_pumping_background(self):
+        detector = vad.Vad(stop_ms=700)
+        audio = (gusty(1.0) + words(2.0, level=0.1) + gusty(2.0, seed=4)
+                 + words(1.5, seed=2) + gusty(2.0, seed=5))
+        self.assertEqual([e[0] for e in detector.feed(audio)],
+                         [vad.START, vad.END, vad.START, vad.END])
+
+    def test_pauses_between_words_do_not_end_a_quiet_utterance(self):
+        detector = vad.Vad(stop_ms=700)
+        audio = hum(1.0, level_db=-55)
+        for i in range(4):
+            audio += mix(hum(0.5, -55, seed=20 + i), tone(0.5, level=0.03))
+            audio += hum(0.4, -55, seed=40 + i)
+        events = detector.feed(audio + hum(1.5, -55, seed=60))
+        self.assertEqual([e[0] for e in events], [vad.START, vad.END])
+
+    def test_only_real_speech_is_confirmed(self):
+        detector = vad.Vad(warmup_ms=0)
+        detector.feed(silence(0.5) + tone(0.1))      # 100 ms: speaking, not yet confirmed
+        self.assertTrue(detector.speaking)
+        self.assertFalse(detector.confirmed)
+        detector.feed(tone(0.3))
+        self.assertTrue(detector.confirmed)
+
+
+def rumble(seconds: float, level: float = 0.5, hz: float = 70.0, rate: int = 16000) -> bytes:
+    return array.array("h", (int(32767 * level * math.sin(2 * math.pi * hz * i / rate))
+                             for i in range(int(seconds * rate)))).tobytes()
+
+
+@unittest.skipUnless(voice.available(), "GStreamer WebRTC plugins are not installed")
+class EarFilterTest(unittest.TestCase):
+    """What the gateway hears goes through EAR_FILTER: a fan's rumble is cut, a voice is not."""
+
+    def filtered_db(self, pcm: bytes) -> float:
+        from gi.repository import Gst
+        from voice_gateway.call import EAR_FILTER
+        caps = "audio/x-raw,format=S16LE,rate=16000,channels=1,layout=interleaved"
+        pipeline = Gst.parse_launch(
+            f"appsrc name=src caps={caps} format=time ! {EAR_FILTER} ! {caps} ! "
+            "appsink name=out sync=false")
+        src, out = pipeline.get_by_name("src"), pipeline.get_by_name("out")
+        pipeline.set_state(Gst.State.PLAYING)
+        src.emit("push-buffer", Gst.Buffer.new_wrapped(pcm))
+        src.emit("end-of-stream")
+        data = b""
+        while True:
+            sample = out.emit("try-pull-sample", Gst.SECOND)
+            if sample is None:
+                break
+            buffer = sample.get_buffer()
+            data += buffer.extract_dup(0, buffer.get_size())
+        pipeline.set_state(Gst.State.NULL)
+        return vad.frame_db(data[len(data) // 2:])          # past the filter's settling
+
+    def test_the_rumble_of_a_fan_is_cut(self):
+        self.assertLess(self.filtered_db(rumble(1.0)), vad.frame_db(rumble(1.0)) - 20)
+
+    def test_a_voice_goes_through(self):
+        self.assertGreater(self.filtered_db(tone(1.0)), vad.frame_db(tone(1.0)) - 1)
+
+
+class VadNearVoiceTest(unittest.TestCase):
+    """12/10/2026: with the caller at -5 dB, a room at -25 dB still made utterances
+    (transcribed as "He went out to the garden", "My name is Brian…") and the Dot's own
+    voice leaking past echo cancellation cut its reply. Only a voice about as loud as the
+    caller's counts."""
+
+    def test_a_distant_voice_after_the_caller_is_ignored(self):
+        detector = vad.Vad(stop_ms=600)
+        audio = (silence(0.5) + tone(1.0, level=0.5) + silence(1.0)       # the caller
+                 + tone(1.0, level=0.05) + silence(1.0))                  # 20 dB below
+        events = detector.feed(audio)
+        self.assertEqual([e[0] for e in events], [vad.START, vad.END, vad.START, vad.END])
+        self.assertTrue(events[1][1])
+        self.assertEqual(events[3][1], b"")
+        self.assertEqual(detector.ignored, 1)
+
+    def test_a_distant_voice_never_confirms(self):
+        detector = vad.Vad(stop_ms=600)
+        detector.feed(silence(0.5) + tone(1.0, level=0.5) + silence(1.0))
+        detector.feed(tone(0.8, level=0.05))
+        self.assertTrue(detector.speaking)
+        self.assertFalse(detector.confirmed)          # it must not cut the Dot
+        detector.feed(tone(0.5, level=0.5))
+        self.assertTrue(detector.confirmed)           # the caller talking over it does
+
+    def test_the_caller_speaking_a_little_softer_is_still_heard(self):
+        detector = vad.Vad(stop_ms=600)
+        events = detector.feed(silence(0.5) + tone(1.0, level=0.5) + silence(1.0)
+                               + tone(1.0, level=0.2) + silence(1.0))     # 8 dB softer
+        self.assertTrue(events[3][1])
+
+    def test_bursts_just_inside_the_margin_do_not_drag_the_voice_down(self):
+        # The caller at -9 dB, then a fan's bursts 9 dB below: they pass at first, but
+        # must not teach the detector that the caller is quieter and let softer ones in.
+        detector = vad.Vad(stop_ms=600)
+        detector.feed(silence(0.5) + tone(1.0, level=0.5) + silence(1.0))
+        for _ in range(8):
+            detector.feed(tone(0.6, level=0.18) + silence(1.0))
+        self.assertGreater(detector.voice_db, -13.5)
+        events = detector.feed(tone(0.6, level=0.12) + silence(1.0))     # 12 dB below
+        self.assertEqual(events[-1], (vad.END, b""))
+
+    def test_a_caller_who_drops_their_voice_is_heard_again_later(self):
+        detector = vad.Vad(stop_ms=600)
+        soft = tone(1.0, level=0.125) + silence(1.0)                     # 12 dB softer
+        events = detector.feed(silence(0.5) + tone(1.0, level=0.5) + silence(1.0) + soft)
+        self.assertEqual(events[3][1], b"")
+        events = detector.feed(silence(25.0) + soft)                      # 2.5 dB of decay
+        self.assertTrue(events[1][1])
+
+
 class FormAndToolsTest(unittest.TestCase):
     def test_multipart_like_undici(self):
         boundary = "----formdata-undici-0123"
@@ -148,6 +301,21 @@ class FormAndToolsTest(unittest.TestCase):
         fields = parse_form(f"multipart/form-data; boundary={boundary}", body.encode())
         self.assertTrue(fields["sdp"].startswith("v=0"))
         self.assertEqual(json.loads(fields["session"]), {"model": "x"})
+
+    def test_computes_asked_at_once_become_one(self):
+        # OpenDots runs one compute per conversation at a time; the second one failed.
+        calls = [{"id": "a", "name": "ask_compute", "arguments": '{"request": "saúde do servidor"}'},
+                 {"id": "b", "name": "ask_compute", "arguments": '{"request": "logs do painel"}'},
+                 {"id": "c", "name": "other", "arguments": "{}"}]
+        merged = merge_compute(calls)
+        self.assertEqual([c["id"] for c in merged], ["a", "c"])
+        self.assertEqual(json.loads(merged[0]["arguments"]),
+                         {"request": "1. saúde do servidor\n2. logs do painel"})
+        one = calls[:1] + calls[2:]
+        self.assertIs(merge_compute(one), one)
+        broken = [dict(calls[0]), {"id": "b", "name": "ask_compute", "arguments": "{"}]
+        self.assertEqual(json.loads(merge_compute(broken)[0]["arguments"]),
+                         {"request": "saúde do servidor"})
 
     def test_tools_and_payload_type(self):
         tools = chat_tools({"tools": [{"type": "function", "name": "ask_compute",
@@ -395,7 +563,8 @@ class GatewayCallTest(unittest.TestCase):
         first = next(r for r in self.fake.requests if r.get("stream"))
         self.assertEqual(first["model"], "openai/gpt-audio-mini")
         self.assertEqual(first["audio"], {"voice": "marin", "format": "pcm16"})
-        self.assertEqual(first["messages"][0], {"role": "system", "content": "You are Assistente."})
+        self.assertEqual(first["messages"][0], {
+            "role": "system", "content": f"You are Assistente.\n\n{Call.call_rules}"})
         self.assertEqual(first["messages"][-1]["content"][0]["type"], "input_audio")
         self.assertEqual(first["tools"][0]["function"]["name"], "ask_compute")
         self.assertTrue(run_until(lambda: got(
@@ -613,6 +782,15 @@ class CallLogicTest(unittest.TestCase):
         self.assertEqual(call.receipt(), ["You: fala de 0.6 s", "Dot: Olá, tudo bem?"])
         self.assertLess(call.first(TRANSCRIBED)["at"], call.first(SPOKEN)["at"])
 
+    def test_the_running_cost_of_the_call_is_reported(self):
+        call = self.make_call()
+        call._caller_finished(tone(0.6))
+        self.wait(call, "response.done")
+        self.assertTrue(run_until(lambda: call.count("gateway.cost") >= 2, 5))
+        reported = [e["cost"] for e in call.events if e["type"] == "gateway.cost"]
+        self.assertEqual(reported, sorted(reported))      # it only grows
+        self.assertAlmostEqual(reported[-1], round(call.cost, 6))
+
     def test_a_late_transcript_does_not_hold_the_reply(self):
         call = self.make_call(transcribe_delay=1.5)
         call.transcript_wait = 0.3
@@ -719,6 +897,22 @@ class CallLogicTest(unittest.TestCase):
         run_until(lambda: False, 0.5)
         self.assertEqual(quiet.count("response.created"), 0)
 
+    def test_a_gust_of_background_does_not_cancel_the_reply(self):
+        call = self.make_call()
+        call.vad = vad.Vad(warmup_ms=0)
+        call._responding = True                  # a reply is streaming
+        call.vad.feed(silence(0.5) + tone(0.1))  # 100 ms of noise: START, not speech yet
+        call._barge_in()
+        self.assertTrue(call._responding)
+        call.vad.feed(tone(0.3))                 # the caller really talks over the Dot
+        call._barge_in()
+        self.assertFalse(call._responding)
+
+    def test_the_dot_is_told_to_speak_before_a_tool(self):
+        call = self.make_call()
+        self.assertTrue(call.messages[0]["content"].startswith("You are Assistente."))
+        self.assertIn("Before you call a tool", call.messages[0]["content"])
+
     def test_session_update_changes_the_voice_of_later_replies(self):
         call = self.make_call()
         call._session_created()
@@ -737,7 +931,8 @@ class CallLogicTest(unittest.TestCase):
         call._on_message(json.dumps({"type": "session.update", "session": {
             "audio": {"output": {"voice": "robot"}}, "instructions": "Be someone else."}}))
         self.assertEqual(call.last("session.updated")["session"]["voice"], "coral")
-        self.assertEqual(call.messages[0], {"role": "system", "content": "You are Assistente."})
+        self.assertEqual(call.messages[0]["content"],
+                         f"You are Assistente.\n\n{Call.call_rules}")
         call._on_message(json.dumps({"type": "session.update", "session": {"voice": 7}}))
         self.assertEqual(call.voice, "coral")
 

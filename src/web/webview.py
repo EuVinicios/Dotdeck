@@ -247,6 +247,8 @@ class ServerView(Adw.Bin):
       (a conversation of ``dot_name``), ``home`` (the empty new-chat screen of
       ``dot_name``), ``tasks``, ``memories`` or ``space`` (``dot_name`` empty).
     - ``dot-state(dot_name, state)``: the open Dot is ``idle``, ``working`` or ``paused``.
+    - ``page-thread(thread_id)``: the conversation the page shows ("" for none), for its
+      cost in the header.
     """
 
     __gtype_name__ = "DotdeckServerView"
@@ -255,6 +257,7 @@ class ServerView(Adw.Bin):
         "focus-changed": (GObject.SignalFlags.RUN_FIRST, None, (bool,)),
         "page-selection": (GObject.SignalFlags.RUN_FIRST, None, (str, str)),
         "dot-state": (GObject.SignalFlags.RUN_FIRST, None, (str, str)),
+        "page-thread": (GObject.SignalFlags.RUN_FIRST, None, (str,)),
     }
 
     # How long a page has to look like the OpenDots web client before focus mode gives up.
@@ -275,6 +278,7 @@ class ServerView(Adw.Bin):
         self._focus_active = False
         self.page_recognized: bool | None = None   # None until the page's probe settles
         self.page_selection: tuple[str, str] = ("", "")
+        self.page_thread = ""
         self.page_dot_state: tuple[str, str] = ("", "")
         self._scheme = "system"
         self._offline = False
@@ -667,6 +671,11 @@ class ServerView(Adw.Bin):
         if (dot, view) != self.page_selection:
             self.page_selection = (dot, view)
             self.emit("page-selection", dot, view)
+        thread = message.get("thread")
+        thread = thread[:200] if isinstance(thread, str) and view == "chat" else ""
+        if thread != self.page_thread:
+            self.page_thread = thread
+            self.emit("page-thread", thread)
 
     def _on_dot_state_report(self, message: dict) -> None:
         dot, state = message.get("dot"), message.get("state")
