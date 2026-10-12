@@ -832,3 +832,43 @@ quanto nas interações por chat como o opencode já faz e também ter facilment
 já gastei da minha api do openrouter. Esse gasto geral pode ficar no menu à esquerda logo
 abaixo do modelo que estamos usando, enquanto chats e ligações no contexto do que está sendo
 executado".
+
+## ADR-026 — A ponte de voz manda menos a cada resposta (12/10/2026)
+
+**Contexto.** Depois das vozes e dos custos à vista (ADR-025), o dono achou caras as ligações
+"pelo pouco que falamos". Ele perguntou se havia no OpenRouter um modelo mais barato que o
+`openai/gpt-audio-mini` (US$ 2,40 por milhão de tokens de saída), talvez um dos chineses.
+A investigação mostrou:
+- **Só dois modelos do catálogo respondem em voz.** Dos 459 modelos, só o `gpt-audio` (dez
+  vezes mais caro) e o `gpt-audio-mini`. Os Lyria do Google fazem música.
+- **A fala não é o que pesa.** Uma resposta com 4 s de fala custou US$ 0,00029. Com o histórico
+  que o OpenDots põe nas instruções (até 12.000 caracteres), a entrada sozinha custou
+  US$ 0,0015, e a mesma requisição repetida não teve cache (`cached_tokens: 0`).
+- **Ligação real de 1 min 54 s:** a voz custou US$ 0,029 em 7 respostas, e as 4 pesquisas do
+  Haiku 5.5 somaram uns US$ 0,016.
+- **Separar pensar de falar não funcionou.** O teste foi transcrever com o Gemini 2.5 Flash-Lite,
+  pensar com o Qwen 3.7 Flash (US$ 0,03 por milhão) e falar com o `gpt-audio-mini`. Custou
+  US$ 0,0007 por resposta, mas levou 5 s até o primeiro som. E o `gpt-audio-mini` não lê um
+  texto ao pé da letra: reescreveu a frase pedida. Sem uma voz sintetizada de verdade, o
+  caminho não é confiável, e o OpenRouter não tem uma.
+
+**Pergunta ao dono:** cortar o que a ponte manda a cada resposta, mantendo modelo, vozes e
+rapidez, ou trocar a voz por uma síntese local (Piper/Kokoro). **Resposta:** "Vamos apenas
+cortar os custos da ponte".
+
+**Decisão** (`server/voice_gateway/call.py`). A ligação guarda tudo; o corte vale só para o
+que vai ao OpenRouter.
+- `trim_history`: só os últimos 3.000 caracteres da conversa anterior à ligação, começando
+  numa mensagem inteira. Um formato de instruções desconhecido fica intacto.
+- `compact_messages`: as últimas 12 mensagens da ligação, sempre a partir de uma fala de quem
+  liga, para nunca separar uma pesquisa do seu resultado. Um resultado de pesquisa que o Dot
+  já respondeu vai só com os primeiros 1.000 caracteres.
+- As pesquisas (`ask_compute`) continuam vendo a conversa inteira no OpenDots.
+
+**Prova.** 6 testes novos em `tests/test_gateway.py`, 70 no total no runtime Flatpak:
+- formato real do OpenDots com acentos e aspas;
+- formato desconhecido intacto;
+- janela que começa numa fala e nunca separa pesquisa e resultado;
+- resultado pendente inteiro e resultado respondido cortado;
+- uma ligação longa que passa a enviar menos de um terço;
+- requisições da ligação limitadas à janela.

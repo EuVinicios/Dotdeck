@@ -130,7 +130,7 @@ a legenda aparece junto. A ferramenta `ask_compute` (pesquisa pelo Dot) funciona
 
 | Item | Valor medido (09/10/2026) |
 |---|---|
-| Custo | ~US$ 0,0003 por turno curto; ~US$ 0,005 por minuto de fala do Dot |
+| Custo | ~US$ 0,0003 pela fala de uma resposta curta, mais o texto reenviado com ela (até ~US$ 0,001; veja abaixo) |
 | Tempo até começar a responder | ~2,5 s depois que você para de falar |
 | Transcrição da sua fala | `google/gemini-2.5-flash-lite` (para legenda e recibo da chamada) |
 
@@ -150,6 +150,15 @@ Detalhes que a ponte cuida:
   responde, e uma fala 10 dB mais baixa termina vazia: TV, ventilador distante ou a voz do
   Dot vazando pelo cancelamento de eco. O Dot só é interrompido depois de 250 ms de voz de
   verdade (ADR-024).
+- **Cada resposta envia pouco.** O OpenRouter não usa cache no `gpt-audio-mini`, então cada
+  resposta paga de novo tudo o que vai junto. Em 12/10, 4 s de fala custavam US$ 0,0003, e o
+  texto reenviado com eles custava US$ 0,0015. Por isso a ponte manda:
+  - só os últimos 3.000 caracteres da conversa anterior à ligação (o OpenDots põe até 12.000
+    nas instruções; as pesquisas continuam vendo a conversa inteira);
+  - as últimas 12 mensagens da ligação, começando numa fala de quem liga;
+  - os primeiros 1.000 caracteres de um resultado de pesquisa que o Dot já respondeu.
+
+  A ligação guarda tudo; o corte vale só para o que é enviado (ADR-026).
 - **Uma pesquisa por vez.** Duas `ask_compute` na mesma resposta viram uma só com os dois
   pedidos, porque o OpenDots roda uma por conversa. Antes de pesquisar, o Dot diz uma frase
   curta.
