@@ -3016,6 +3016,55 @@ msgstr "A atualização falhou; a versão anterior voltou"
 msgid "The update did not finish"
 msgstr "A atualização não terminou"
 
+#: src/ui/updates.py:25
+#, python-brace-format
+msgid "{files} and {n} more"
+msgid_plural "{files} and {n} more"
+msgstr[0] "{files} e mais {n}"
+msgstr[1] "{files} e mais {n}"
+
+#: src/ui/updates.py:34
+#, python-brace-format
+msgid "The server is on the branch {branch}, not {expected}."
+msgstr "O servidor está na branch {branch}, e não na {expected}."
+
+#: src/ui/updates.py:36
+#, python-brace-format
+msgid "The server is not on the branch {expected}."
+msgstr "O servidor não está na branch {expected}."
+
+#: src/ui/updates.py:38
+#, python-brace-format
+msgid "Files that are not in git would be overwritten: {files}."
+msgstr "Arquivos que estão fora do git seriam sobrescritos: {files}."
+
+#: src/ui/updates.py:42
+#, python-brace-format
+msgid "The official changes conflict with your local commits in {n} file: {files}."
+msgid_plural "The official changes conflict with your local commits in {n} files: {files}."
+msgstr[0] "As novidades oficiais conflitam com os seus commits locais em {n} arquivo: {files}."
+msgstr[1] "As novidades oficiais conflitam com os seus commits locais em {n} arquivos: {files}."
+
+#: src/ui/updates.py:47
+msgid "Fix it on the server, then check again."
+msgstr "Resolva isso no servidor e verifique de novo."
+
+#: src/ui/updates.py:56
+msgid "Running the OpenDots tests…"
+msgstr "Rodando os testes do OpenDots…"
+
+#: src/ui/updates.py:83
+msgid "Install the updater next to OpenDots. It only answers on the server itself: to update from this device, reach it through an SSH tunnel or set it up to listen on the network, then enter its address below."
+msgstr "Instale o atualizador ao lado do OpenDots. Ele só responde no próprio servidor: para atualizar a partir deste aparelho, chegue até ele por um túnel SSH ou configure-o para escutar na rede e informe o endereço dele abaixo."
+
+#: src/ui/updates.py:99
+msgid "Update Blocked"
+msgstr "Atualização bloqueada"
+
+#: src/ui/updates.py:221
+msgid "Update Server… (blocked, see above)"
+msgstr "Atualizar o servidor… (bloqueado, veja acima)"
+
 #: src/ui/window.py:38
 msgid "Listening"
 msgstr "Ouvindo"

@@ -12,7 +12,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 from gi.repository import Adw, Gtk  # noqa: E402
 
-from src.core import monitor, secrets, store  # noqa: E402
+from src.core import monitor, secrets, store, updates  # noqa: E402
 from tests.fake_server import FakeUpdater  # noqa: E402
 
 TOKEN = "owner-token-for-ui-tests-0123456789"
@@ -76,6 +76,45 @@ class UpdatesUiTest(unittest.TestCase):
         self.assertTrue(run_until(lambda: not group.update_button.get_sensitive(), 5))
         self.assertIn("abc1234", group.job.get_subtitle())
 
+    def test_a_blocked_update_says_why_and_cannot_start(self):
+        from src.ui.updates import UpdatesGroup
+        self.updater.extra = {"conflicts": ["src/client/App.tsx", "src/server/app.ts"],
+                              "untracked": ["notes & ideas.md"]}
+        group = UpdatesGroup(self.app, self.profile, self.toasts.append)
+        window = Gtk.Window(child=group)
+        window.present()
+        self.addCleanup(window.destroy)
+        self.assertTrue(run_until(lambda: group.blocked.get_visible(), 10))
+        text = group.blocked.get_subtitle()
+        self.assertIn("in 2 files: src/client/App.tsx, src/server/app.ts.", text)
+        self.assertIn("would be overwritten: notes & ideas.md.", text)   # not markup
+        self.assertFalse(group.update_button.get_sensitive())
+        self.assertIn("blocked", group.update_button.get_title())
+
+        self.updater.extra = {"branch": "experiment"}
+        group.refresh()
+        self.assertTrue(run_until(lambda: "experiment" in group.blocked.get_subtitle(), 10))
+        self.assertNotIn("conflict", group.blocked.get_subtitle())
+        self.updater.extra = {}
+        group.refresh()
+        self.assertTrue(run_until(lambda: not group.blocked.get_visible(), 10))
+        self.assertTrue(group.update_button.get_sensitive())
+        self.assertEqual(group.update_button.get_title(), "Update Server…")
+
+    def test_failed_checks_show_their_output(self):
+        from src.ui.updates import UpdatesGroup
+        self.updater.job = {"state": "failed", "message": "npm test failed (exit 1).",
+                            "output": ["FAIL tests/chat.test.ts > keeps <b>markup</b>"],
+                            "finished_at": "2026-10-10T01:00:00+00:00"}
+        group = UpdatesGroup(self.app, self.profile, self.toasts.append)
+        window = Gtk.Window(child=group)
+        window.present()
+        self.addCleanup(window.destroy)
+        self.assertTrue(run_until(lambda: group.job.get_visible(), 10))
+        self.assertIn("npm test failed", group.job.get_subtitle())
+        self.assertEqual(group.job.get_tooltip_text(),
+                         "FAIL tests/chat.test.ts > keeps <b>markup</b>")
+
     def test_missing_updater_explains_how_to_install(self):
         from src.ui.updates import UpdatesGroup
         self.profile.updater_url = "http://127.0.0.1:9"
@@ -96,6 +135,27 @@ class UpdatesUiTest(unittest.TestCase):
         run_until(lambda: False, 0.5)
         self.assertEqual(seen, [(2, "c0ffee1")])
         mon.stop()
+
+
+class BlockersTest(unittest.TestCase):
+    """What stops an update, read from the updater's /status (no display needed)."""
+
+    def test_reads_every_reason_and_older_updaters(self):
+        found = updates.blockers({"dirty": True, "branch": "", "expected_branch": "main",
+                                  "untracked": ["a.txt"], "conflicts": None})
+        self.assertEqual(found, {"dirty": True, "branch": ("", "main"), "untracked": ["a.txt"],
+                                 "conflicts": [], "any": True})
+        # An updater from before the conflict preview reports none of these.
+        self.assertFalse(updates.blockers({"behind": 3, "dirty": False})["any"])
+        self.assertFalse(updates.blockers({"branch": "main", "expected_branch": "main"})["any"])
+
+    def test_knows_when_the_server_runs_here(self):
+        for url, here in (("http://127.0.0.1:4310", True), ("http://localhost:4310", True),
+                          ("http://[::1]:4310", True), ("http://aurora.local:4310", False),
+                          ("https://aurora.tail1234.ts.net", False),
+                          ("http://192.168.0.10:4310", False)):
+            profile = store.Profile(id="p", name="Aurora", url=url)
+            self.assertEqual(updates.on_this_machine(profile), here, url)
 
 
 if __name__ == "__main__":

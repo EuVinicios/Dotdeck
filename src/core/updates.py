@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 from typing import Callable
@@ -26,6 +27,36 @@ def updater_url(profile: Profile) -> str:
     if ":" in host:
         host = f"[{host}]"
     return f"http://{host}:{DEFAULT_PORT}"
+
+
+def on_this_machine(profile: Profile) -> bool:
+    """Whether the server runs here. The updater only answers on its own machine (127.0.0.1)
+    unless it was set up to listen on the network (server/README.md)."""
+    host = (urlsplit(profile.url).hostname or "").strip("[]")
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def blockers(data: dict) -> dict:
+    """What stops an update, from the updater's /status (older updaters report less).
+
+    ``dirty``: uncommitted changes. ``branch``: (current, expected) when the server is on
+    another branch ("" = detached). ``untracked``: files outside git that the official
+    changes would overwrite. ``conflicts``: files that would conflict with local commits.
+    """
+    branch, expected = data.get("branch"), data.get("expected_branch")
+    found = {"dirty": bool(data.get("dirty")),
+             "branch": (branch or "", expected) if isinstance(branch, str) and expected
+             and branch != expected else None,
+             "untracked": [str(p) for p in data.get("untracked") or [] if p],
+             "conflicts": [str(p) for p in data.get("conflicts") or [] if p]}
+    found["any"] = bool(found["dirty"] or found["branch"] or found["untracked"]
+                        or found["conflicts"])
+    return found
 
 
 class UpdaterClient:

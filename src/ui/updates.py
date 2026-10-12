@@ -17,11 +17,43 @@ def _date(iso: str) -> str:
     return value.to_local().format("%x") if value else ""
 
 
+def _files(paths: list[str], shown: int = 3) -> str:
+    names = ", ".join(paths[:shown])
+    rest = len(paths) - shown
+    if rest <= 0:
+        return names
+    return ngettext("{files} and {n} more", "{files} and {n} more", rest).format(files=names,
+                                                                                 n=rest)
+
+
+def _blocked_text(found: dict) -> str:
+    """Why the update cannot run, one sentence per reason (see updates.blockers)."""
+    lines = []
+    if found["branch"]:
+        current, expected = found["branch"]
+        lines.append(_("The server is on the branch {branch}, not {expected}.").format(
+            branch=current, expected=expected) if current else
+            _("The server is not on the branch {expected}.").format(expected=expected))
+    if found["untracked"]:
+        lines.append(_("Files that are not in git would be overwritten: {files}.").format(
+            files=_files(found["untracked"])))
+    if found["conflicts"]:
+        n = len(found["conflicts"])
+        lines.append(ngettext("The official changes conflict with your local commits in "
+                              "{n} file: {files}.",
+                              "The official changes conflict with your local commits in "
+                              "{n} files: {files}.", n).format(n=n,
+                                                               files=_files(found["conflicts"])))
+    lines.append(_("Fix it on the server, then check again."))
+    return "\n".join(lines)
+
+
 def _step(step: str) -> str:
     return {
         "fetch": _("Downloading the news…"),
         "merge": _("Merging with your local commits…"),
         "install": _("Installing dependencies…"),
+        "checks": _("Running the OpenDots tests…"),
         "build": _("Building…"),
         "restart": _("Restarting OpenDots…"),
         "health": _("Checking that OpenDots is back…"),
@@ -45,9 +77,12 @@ class UpdatesGroup(Adw.PreferencesGroup):
         self._busy = False
 
         self.missing = Adw.ActionRow(
-            title=_("Updater Not Found"), visible=False,
+            title=_("Updater Not Found"), visible=False, subtitle_lines=4,
             subtitle=_("Install the updater next to OpenDots to check and apply updates from "
-                       "Dotdeck."))
+                       "Dotdeck.") if updates.on_this_machine(profile) else
+            _("Install the updater next to OpenDots. It only answers on the server itself: to "
+              "update from this device, reach it through an SSH tunnel or set it up to listen "
+              "on the network, then enter its address below."))
         docs = Gtk.Button(label=_("How to Install"), valign=Gtk.Align.CENTER)
         docs.add_css_class("flat")
         docs.connect("clicked", lambda _b: app.window.open_external(DOCS))
@@ -60,7 +95,14 @@ class UpdatesGroup(Adw.PreferencesGroup):
         self.news = Adw.ExpanderRow(title=_("Official Project"))
         self._news_rows: list[Gtk.Widget] = []
         self.local = Adw.ActionRow(title=_("Local Commits"))
-        self.job = Adw.ActionRow(title=_("Last Update"), visible=False, subtitle_lines=4)
+        # File and branch names are shown as they are, not as markup.
+        self.blocked = Adw.ActionRow(title=_("Update Blocked"), subtitle_lines=6,
+                                     subtitle_selectable=True, use_markup=False)
+        warning = Gtk.Image(icon_name="dialog-warning-symbolic", valign=Gtk.Align.CENTER)
+        warning.add_css_class("warning")
+        self.blocked.add_prefix(warning)
+        self.job = Adw.ActionRow(title=_("Last Update"), visible=False, subtitle_lines=4,
+                                 use_markup=False)
         self._spinner = Adw.Spinner(visible=False, valign=Gtk.Align.CENTER)
         self.job.add_prefix(self._spinner)
         self.check_button = Adw.ButtonRow(title=_("Check Now"),
@@ -70,8 +112,8 @@ class UpdatesGroup(Adw.PreferencesGroup):
                                            start_icon_name="software-update-available-symbolic")
         self.update_button.add_css_class("suggested-action")
         self.update_button.connect("activated", lambda _r: self._confirm())
-        for row in (self.missing, self.address, self.current, self.news, self.local, self.job,
-                    self.check_button, self.update_button):
+        for row in (self.missing, self.address, self.current, self.news, self.local,
+                    self.blocked, self.job, self.check_button, self.update_button):
             self.add(row)
             row.set_visible(False)        # until the first status arrives
         self.connect("unrealize", lambda *_: self._stop_polling())
@@ -118,6 +160,7 @@ class UpdatesGroup(Adw.PreferencesGroup):
             row.set_visible(installed)
         if not installed:
             self.job.set_visible(False)
+            self.blocked.set_visible(False)
             return
         current = data.get("current") or {}
         self.current.set_subtitle(" · ".join(x for x in (
@@ -160,10 +203,24 @@ class UpdatesGroup(Adw.PreferencesGroup):
         elif state == "failed":
             self.job.set_subtitle(_("Could not update: {message}").format(
                 message=job.get("message", "")))
-        self.update_button.set_sensitive(bool(behind) and not running and not data.get("dirty")
+        # The end of what a failed command printed (the updater's tests, for example).
+        output = job.get("output") if state in ("failed", "rolled-back") else None
+        self.job.set_tooltip_text("\n".join(str(line) for line in output[-20:])
+                                  if isinstance(output, list) and output else None)
+        found = updates.blockers(data)
+        # Uncommitted changes keep their own wording on the button (and no warning row).
+        shown = bool(behind) and (found["branch"] or found["untracked"] or found["conflicts"])
+        self.blocked.set_visible(bool(shown))
+        if shown:
+            self.blocked.set_subtitle(_blocked_text(found))
+        self.update_button.set_sensitive(bool(behind) and not running and not found["any"]
                                          and not self._busy)
-        if data.get("dirty"):
+        if found["dirty"]:
             self.update_button.set_title(_("Update Server… (uncommitted changes on the server)"))
+        elif shown:
+            self.update_button.set_title(_("Update Server… (blocked, see above)"))
+        else:
+            self.update_button.set_title(_("Update Server…"))
         if running and not self._poll:
             self._poll = GLib.timeout_add_seconds(2, self._on_poll)
         elif not running:
