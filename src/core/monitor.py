@@ -8,6 +8,7 @@ send desktop notifications when a Dot finishes, fails or starts a scheduled task
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Callable
 
@@ -91,12 +92,16 @@ class ServerMonitor(GObject.Object):
         "workspace-changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
         # online <-> offline, for "server went down / is back" notifications.
         "status-changed": (GObject.SignalFlags.RUN_FIRST, None, (str, str)),
+        # GET /api/spend answered with something new (see ``spend``).
+        "spend-changed": (GObject.SignalFlags.RUN_FIRST, None, ()),
     }
 
     INTERVAL = 20          # seconds between polls while healthy
     FAST_INTERVAL = 4      # while its window is on screen, like the web page (3 s)
     MAX_INTERVAL = 300     # backoff ceiling while the server is down
     UPDATE_INTERVAL = 1800  # seconds between updater status checks
+    SPEND_INTERVAL = 60     # OpenRouter spend, while the window is on screen
+    SPEND_IDLE_INTERVAL = 600   # …and while it is not (the tray has no use for it)
 
     def __init__(self, profile: Profile, token_lookup: Callable[[Callable[[str | None], None]], None]):
         super().__init__()
@@ -127,6 +132,11 @@ class ServerMonitor(GObject.Object):
         self.model_config: dict | None = None
         self._model_key: tuple | None = None
         self._model_asking: tuple | None = None
+        # GET /api/spend (fork only): what the OpenRouter key and account spent. None until
+        # known, or when the server has no such route.
+        self.spend: dict | None = None
+        self._spend_next = 0.0
+        self._spend_asking = False
 
     @property
     def online(self) -> bool:
@@ -241,6 +251,7 @@ class ServerMonitor(GObject.Object):
             self.poll_updates()
         if client is not None:
             self._ask_model_config(client, cancellable)
+            self._ask_spend(client, cancellable)
 
     def _ask_model_config(self, client, cancellable) -> None:
         """Names for the model in use: once per model the server reports in /api/workspace."""
@@ -258,6 +269,35 @@ class ServerMonitor(GObject.Object):
             self.emit("workspace-changed")
 
         client.get_json("/api/model-config", got, cancellable)
+
+    def _ask_spend(self, client, cancellable) -> None:
+        """OpenRouter spend, every minute while the window is shown (cached a minute on the
+        server too); a server without the route is asked again only every half hour."""
+        now = time.monotonic()
+        # Only fork servers (they report the model in use) have the route.
+        if not self.workspace.active_model or self._spend_asking or now < self._spend_next:
+            return
+        self._spend_asking = True
+
+        def got(status, data, error) -> None:
+            self._spend_asking = False
+            if error is not None or cancellable.is_cancelled():
+                self._spend_next = 0.0     # asked again at the next poll
+                return
+            interval = self.SPEND_INTERVAL if self._fast else self.SPEND_IDLE_INTERVAL
+            spend = data if status == 200 and isinstance(data, dict) else None
+            if status == 404:
+                interval = self.UPDATE_INTERVAL
+            self._spend_next = time.monotonic() + interval
+            if spend != self.spend:
+                self.spend = spend
+                self.emit("spend-changed")
+
+        client.get_json("/api/spend", got, cancellable)
+
+    def refresh_spend(self) -> None:
+        """Ask again at the next poll (after a call ends, say)."""
+        self._spend_next = 0.0
 
     def set_model_config(self, data: dict | None) -> None:
         """A fresher answer from the Settings window (after a change made there)."""

@@ -2,7 +2,8 @@
 
 A Dot's name, job, instructions, permissions, Spaces and Automatic Learning live on the
 server and are saved together with an explicit Save (``PUT /api/dots/:id`` replaces the
-whole Dot). Its Connections (connections.py) are saved on the server one change at a time.
+whole Dot). Its Connections (connections.py) and call voice (dot_voice.py) are saved on
+the server one change at a time.
 Its pet, pinned and hidden flags and the Chief choice are Dotdeck's own and apply at
 once. The job has no field in OpenDots: it is the ``# Name — job`` first line of the
 instructions, the convention the owner's Dots follow.
@@ -22,6 +23,7 @@ from ...core.workspace import LEARNING_CONTAINER, LEARNING_CONTAINER_LIMIT, Dot,
 from ...i18n import _, ngettext
 from .common import SettingsPage, badge, escape
 from .connections import ConnectionsGroup
+from .dot_voice import DotVoiceGroup
 
 log = logging.getLogger(__name__)
 
@@ -448,6 +450,10 @@ class DotEditor:
                                             lambda: self.dot.name)
         prefs.add(self.connections)
 
+        # Its voice in calls, saved at once like the Connections (fork servers only).
+        self.voice = DotVoiceGroup(self.win, self.profile, self.dot.id)
+        prefs.add(self.voice)
+
         self.learning = Adw.PreferencesGroup(
             title=_("Automatic Learning"),
             description=_("New conversations add what they learn to a container of your "
@@ -859,6 +865,7 @@ class DotEditor:
 
     def close(self) -> None:
         self.connections.close()
+        self.voice.close()
         if self._prefs_handler:
             self._prefs.disconnect(self._prefs_handler)
             self._prefs_handler = 0

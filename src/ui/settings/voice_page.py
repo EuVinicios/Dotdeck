@@ -454,7 +454,8 @@ class VoicePage(SettingsPage):
         current = str(data.get("voiceName") or "marin")
         names = list(VOICES) if current in VOICES else [current, *VOICES]
         timbre = Adw.ComboRow(title=_("Voice"),
-                              subtitle=_("How every Dot sounds in calls on this server"),
+                              subtitle=_("For the Dots without a voice of their own "
+                                         "(each Dot's page has its own)"),
                               model=string_model([n.capitalize() for n in names]))
         timbre.set_selected(names.index(current))
         timbre.connect("notify::selected", lambda row, _p: self._on_voice(row, names))

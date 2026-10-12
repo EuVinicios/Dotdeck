@@ -3746,3 +3746,196 @@ msgstr "O ID do contêiner só pode ter letras minúsculas, números e hifens si
 #: src/ui/settings/connections.py:211
 msgid "Blocked"
 msgstr "Bloqueada"
+
+#: src/core/costs.py:24
+#, python-brace-format
+msgid "US$ {amount}"
+msgstr "US$ {amount}"
+
+#: src/core/costs.py:48
+#, python-brace-format
+msgid "≈ {cost} in this conversation"
+msgstr "≈ {cost} nesta conversa"
+
+#: src/core/costs.py:57
+#, python-brace-format
+msgid "This conversation: about {cost}"
+msgstr "Esta conversa: cerca de {cost}"
+
+#: src/core/costs.py:58
+#, python-brace-format
+msgid "{turns} reply · {input} tokens in · {output} tokens out"
+msgid_plural "{turns} replies · {input} tokens in · {output} tokens out"
+msgstr[0] "{turns} resposta · {input} tokens de entrada · {output} de saída"
+msgstr[1] "{turns} respostas · {input} tokens de entrada · {output} de saída"
+
+#: src/core/costs.py:63
+#, python-brace-format
+msgid "Includes the voice of {calls} call"
+msgid_plural "Includes the voice of {calls} calls"
+msgstr[0] "Inclui a voz de {calls} ligação"
+msgstr[1] "Inclui a voz de {calls} ligações"
+
+#: src/core/costs.py:65
+msgid "Approximate: tokens × the model's price."
+msgstr "Aproximado: tokens × o preço do modelo."
+
+#: src/core/costs.py:67
+msgid "Some replies used a model without a known price."
+msgstr "Algumas respostas usaram um modelo sem preço conhecido."
+
+#: src/core/costs.py:84
+#, python-brace-format
+msgid "This call so far: about {cost}"
+msgstr "Esta ligação até agora: cerca de {cost}"
+
+#: src/core/costs.py:86
+#, python-brace-format
+msgid "Voice and transcription: {cost}"
+msgstr "Voz e transcrição: {cost}"
+
+#: src/core/costs.py:88
+#, python-brace-format
+msgid "Research during the call: {cost}"
+msgstr "Pesquisas durante a ligação: {cost}"
+
+#: src/core/costs.py:115
+#, python-brace-format
+msgid "{left} left"
+msgstr "restam {left}"
+
+#: src/core/costs.py:117
+#, python-brace-format
+msgid "{month} this month"
+msgstr "{month} este mês"
+
+#: src/core/costs.py:118
+#, python-brace-format
+msgid "{month} this month · {left} left"
+msgstr "{month} este mês · restam {left}"
+
+#: src/core/costs.py:126
+msgid "OpenRouter spend (this server's key)"
+msgstr "Gasto no OpenRouter (chave deste servidor)"
+
+#: src/core/costs.py:127
+#, python-brace-format
+msgid "Today: {cost}"
+msgstr "Hoje: {cost}"
+
+#: src/core/costs.py:127
+#, python-brace-format
+msgid "This week: {cost}"
+msgstr "Esta semana: {cost}"
+
+#: src/core/costs.py:128
+#, python-brace-format
+msgid "This month: {cost}"
+msgstr "Este mês: {cost}"
+
+#: src/core/costs.py:129
+#, python-brace-format
+msgid "All time: {cost}"
+msgstr "Desde o início: {cost}"
+
+#: src/core/costs.py:135
+#, python-brace-format
+msgid "Key limit: {limit} ({left} left)"
+msgstr "Limite da chave: {limit} (restam {left})"
+
+#: src/core/costs.py:140
+#, python-brace-format
+msgid "Account credits: {left} of {total} left"
+msgstr "Créditos da conta: restam {left} de {total}"
+
+#: src/core/costs.py:142
+msgid "Includes chats, routines and voice calls. Click for AI Models."
+msgstr "Inclui conversas, rotinas e ligações. Clique para abrir Modelos de IA."
+
+#: src/ui/settings/dot_voice.py:17
+msgid "neutral and balanced"
+msgstr "neutra e equilibrada"
+
+#: src/ui/settings/dot_voice.py:17
+msgid "clear and confident"
+msgstr "clara e confiante"
+
+#: src/ui/settings/dot_voice.py:18
+msgid "soft and melodic"
+msgstr "suave e melódica"
+
+#: src/ui/settings/dot_voice.py:18
+msgid "natural and steady"
+msgstr "natural e firme"
+
+#: src/ui/settings/dot_voice.py:19
+msgid "warm and friendly"
+msgstr "calorosa e simpática"
+
+#: src/ui/settings/dot_voice.py:19
+msgid "calm and resonant"
+msgstr "calma e ressonante"
+
+#: src/ui/settings/dot_voice.py:20
+msgid "expressive, a storyteller"
+msgstr "expressiva, de contador de histórias"
+
+#: src/ui/settings/dot_voice.py:20
+msgid "natural and clear"
+msgstr "natural e clara"
+
+#: src/ui/settings/dot_voice.py:21
+msgid "bright and energetic"
+msgstr "viva e animada"
+
+#: src/ui/settings/dot_voice.py:21
+msgid "deep and authoritative"
+msgstr "grave e firme"
+
+#: src/ui/settings/dot_voice.py:22
+msgid "calm and thoughtful"
+msgstr "calma e ponderada"
+
+#: src/ui/settings/dot_voice.py:22
+msgid "soft and gentle"
+msgstr "suave e delicada"
+
+#: src/ui/settings/dot_voice.py:23
+msgid "expressive and versatile"
+msgstr "expressiva e versátil"
+
+#: src/ui/settings/dot_voice.py:43
+msgid "Call Voice"
+msgstr "Voz nas ligações"
+
+#: src/ui/settings/dot_voice.py:44
+msgid "How this Dot sounds in voice calls. Changes apply from the next call."
+msgstr "Como este Dot soa nas ligações. Vale a partir da próxima ligação."
+
+#: src/ui/settings/dot_voice.py:82
+#, python-brace-format
+msgid "Server voice ({name})"
+msgstr "Voz do servidor ({name})"
+
+#: src/ui/settings/dot_voice.py:88
+#, python-brace-format
+msgid "Dots without their own voice use {name}"
+msgstr "Dots sem voz própria usam {name}"
+
+#: src/ui/settings/dot_voice.py:108
+msgid "Voice saved. It applies from the next call."
+msgstr "Voz salva. Vale a partir da próxima ligação."
+
+#: src/ui/settings/voice_page.py:457
+msgid "For the Dots without a voice of their own (each Dot's page has its own)"
+msgstr "Para os Dots sem voz própria (a página de cada Dot tem a sua)"
+
+#: src/ui/sidebar.py:336
+#, python-brace-format
+msgid "OpenRouter spend: {spend}"
+msgstr "Gasto no OpenRouter: {spend}"
+
+#: src/ui/window.py:58
+#, python-brace-format
+msgid "In a call · {time} · {cost}"
+msgstr "Em chamada · {time} · {cost}"

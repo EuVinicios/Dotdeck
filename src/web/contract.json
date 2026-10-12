@@ -662,6 +662,41 @@
       "optional": "only servers set up with the Dotdeck guide"
     },
     {
+      "kind": "route",
+      "value": "GET /api/dot-voices",
+      "used_by": "src/core/api.py (Dot editor › Call Voice)",
+      "breaks": "the Call Voice row of each Dot stays hidden",
+      "optional": "only servers set up with the Dotdeck guide"
+    },
+    {
+      "kind": "route",
+      "value": "PUT /api/dots/:param/voice",
+      "used_by": "src/core/api.py (Dot editor › Call Voice)",
+      "breaks": "choosing a Dot's call voice",
+      "optional": "only servers set up with the Dotdeck guide"
+    },
+    {
+      "kind": "route",
+      "value": "GET /api/costs/threads/:param",
+      "used_by": "src/core/api.py (header: cost of the open conversation and of a call)",
+      "breaks": "the conversation and call costs in the header",
+      "optional": "only servers set up with the Dotdeck guide"
+    },
+    {
+      "kind": "route",
+      "value": "POST /api/costs/calls/:param",
+      "used_by": "src/core/api.py (a call's voice cost joins its conversation)",
+      "breaks": "calls missing from a conversation's cost",
+      "optional": "only servers set up with the Dotdeck guide"
+    },
+    {
+      "kind": "route",
+      "value": "GET /api/spend",
+      "used_by": "src/core/api.py, monitor.py (sidebar: OpenRouter spend)",
+      "breaks": "the spend line under the model stays hidden",
+      "optional": "only servers set up with the Dotdeck guide"
+    },
+    {
       "kind": "dialog",
       "value": "Leave your unsaved page draft\\?",
       "used_by": "webview.py (native dialog)",
@@ -716,6 +751,7 @@
     " ",
     "#",
     "${}\\n${}",
+    "${}\\n${}\\n${}",
     "${}px",
     "(prefers-color-scheme: dark)",
     "\\n",

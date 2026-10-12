@@ -4,6 +4,37 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+<!-- loja: Each Dot has its own voice in calls, and costs are in sight. -->
+<!-- loja: Choose the call voice of each Dot in its settings. -->
+<!-- loja: The cost of the open conversation and of a call in progress, in the header. -->
+<!-- loja: What your OpenRouter key spent this month, under the model in the sidebar. -->
+<!-- loja: Voice calls hear when you stop talking in noisy rooms. -->
+
+### Adicionado
+
+- **Uma voz para cada Dot** (Configurações › Dots › um Dot › Voz nas ligações): as 13 vozes
+  da ponte de voz, cada uma com o jeito dela ("Onyx — grave e firme"), ou a voz do servidor.
+  Vale a partir da próxima ligação. Precisa do servidor configurado com o guia do Dotdeck
+  (ADR-025).
+- **Custo à vista**: o cabeçalho mostra quanto a conversa aberta já custou ("≈ US$ 0,07
+  nesta conversa", com tokens e respostas na dica) e, durante uma ligação, o custo dela
+  junto do tempo ("Em chamada · 01:23 · US$ 0,004": voz, transcrição e as pesquisas do Dot).
+  Ao desligar, a voz da ligação entra no custo da conversa.
+- **Gasto no OpenRouter na barra lateral**, logo abaixo do modelo: "US$ 0,29 este mês ·
+  restam US$ 6,11", com hoje, semana, mês, total e créditos da conta na dica.
+
+### Corrigido
+
+- **A ponte de voz ouve quando você para de falar**, mesmo com o ganho automático do
+  microfone e um ventilador ligado: ela decide pelos últimos 100 ms (não por 20 ms), corta o
+  ronco abaixo de 200 Hz e só aceita sons perto do volume da sua voz. Antes, o ruído da sala
+  fazia a fala só terminar no corte de 15 s e cancelava todas as respostas, e o Dot ficava
+  mudo (ADR-024).
+- O Dot avisa ("vou verificar") antes de pesquisar, e duas pesquisas pedidas de uma vez viram
+  uma só: a segunda falhava no OpenDots e o Dot pedia um acesso que já tinha.
+
 ## [0.4.0] - 2026-10-12
 
 ### Adicionado

@@ -18,7 +18,7 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from .. import config
-from ..core import api, dotprefs, models, monitor, pets, server, voice
+from ..core import api, costs, dotprefs, models, monitor, pets, server, voice
 from ..core.call_sounds import CallSounds
 from ..core.store import MIC_ALLOW, MIC_DENY, Profile
 from ..core.workspace import Dot, Workspace
@@ -39,18 +39,24 @@ PHASE_WORDS = {"connecting": N_("Connecting…"), "listening": N_("Listening"),
                "thinking": N_("Thinking…"), "speaking": N_("Speaking")}
 
 
-def call_subtitle(phase: str, elapsed: str, *, connected: bool, compact: bool) -> str:
+def call_subtitle(phase: str, elapsed: str, *, connected: bool, compact: bool,
+                  cost: float | None = None) -> str:
     """The header's second line during a call with the open Dot.
 
     One width for the whole call ("In a call · 01:23", tabular digits): the pet shows
     whether the Dot listens, thinks or speaks, so the centred title stays put. Before the
-    call connects there is no time yet; ``compact`` windows keep just the time.
+    call connects there is no time yet; ``compact`` windows keep just the time. The cost
+    so far follows the time when the voice gateway reports it ("· US$ 0,004").
     """
     if phase == "ended":
         return _("Saving the call…")
     if phase == "connecting":
         return _("Reconnecting…") if connected else _("Calling…")
-    return elapsed if compact else _("In a call · {time}").format(time=elapsed)
+    if compact:
+        return elapsed
+    if cost is not None:
+        return _("In a call · {time} · {cost}").format(time=elapsed, cost=costs.usd(cost))
+    return _("In a call · {time}").format(time=elapsed)
 
 
 def ago(timestamp: float) -> str:
@@ -101,6 +107,15 @@ class MainWindow(Adw.ApplicationWindow):
         self._call_pending: str | None = None   # a call being set up with this Dot
         self._call_pending_timer = 0
         self._call_focus_back = False           # Call had the keyboard focus when it dimmed
+        # Costs (servers set up with the Dotdeck guide): the open conversation's, and the
+        # call's (its voice from the gateway, plus what its conversation spent meanwhile).
+        self._page_thread = ""                  # the conversation the page shows
+        self._thread_costs: dict[str, dict] = {}
+        self._costs_asked = 0.0
+        self._call_id: str | None = None
+        self._call_thread: str | None = None
+        self._call_voice_cost: float | None = None
+        self._call_base_cost: float | None = None   # its conversation's when it started
         self._very_narrow = False               # phone width: fewer buttons in the header
         self._prefs: dotprefs.DotPrefs | None = None
         self._prefs_handler = 0
@@ -424,10 +439,14 @@ class MainWindow(Adw.ApplicationWindow):
             if GObject.signal_lookup("call-phase", type(view.voice)):
                 view.voice.connect("call-phase", self._on_call_phase)
                 view.voice.connect("call-error", lambda _v, message: self.toast(message))
+            if GObject.signal_lookup("call-cost", type(view.voice)):
+                view.voice.connect("call-cost", self._on_call_cost)
             view.connect("state-changed", lambda *_: self.refresh_status())
             if hasattr(view, "set_focus_mode"):
                 view.connect("focus-changed", self._on_focus_changed)
                 view.connect("page-selection", self._on_page_selection)
+                if GObject.signal_lookup("page-thread", type(view)):
+                    view.connect("page-thread", self._on_page_thread)
                 view.connect("dot-state", self._on_dot_state)
                 view.set_focus_mode(bool(self.app.settings.get("native-sidebar")))
                 view.sync_color_scheme(self.app.settings.get("color-scheme"))
@@ -467,6 +486,8 @@ class MainWindow(Adw.ApplicationWindow):
                 self._mon_handlers = [
                     mon.connect("workspace-changed", lambda *_: self._refresh_workspace()),
                     mon.connect("status-changed", lambda *_: self._refresh_workspace()),
+                    mon.connect("spend-changed", lambda *_: self._refresh_spend()),
+                    mon.connect("changed", lambda *_: self._refresh_costs()),
                 ]
         prefs = dotprefs.for_profile(profile.id)
         if prefs is not self._prefs:
@@ -580,6 +601,12 @@ class MainWindow(Adw.ApplicationWindow):
         self.sidebar.set_model(models.at_a_glance(
             workspace.active_model, workspace.active_provider,
             getattr(self._mon, "model_config", None)))
+        self._refresh_spend()
+        if self.view is not None and self.view.voice.in_call and self._call_id is None:
+            call = workspace.active_call()
+            if call is not None:
+                self._call_id, self._call_thread = call.id, call.thread_id
+                self._refresh_costs(force=True)
         if self._place == "dot" and self._dot_id:
             self.sidebar.select_dot(self._dot_id)
         pending = getattr(self, "_pending_dot", None)
@@ -1142,6 +1169,8 @@ class MainWindow(Adw.ApplicationWindow):
         if in_call and not self._call_timer:
             self._call_started = time.monotonic()
             self._call_connected = False
+            self._call_id = self._call_thread = None
+            self._call_voice_cost = self._call_base_cost = None
             if self._call_dot is None:
                 dot = self.workspace.dot_in_call()
                 self._call_dot = dot.id if dot else self._dot_id
@@ -1150,6 +1179,7 @@ class MainWindow(Adw.ApplicationWindow):
             if self._call_timer:
                 GLib.source_remove(self._call_timer)
                 self._call_timer = 0
+                self._call_ended_costs()
             self._call_dot = None
             self._call_phase = ""
             self._call_connected = False
@@ -1167,6 +1197,10 @@ class MainWindow(Adw.ApplicationWindow):
             self._call_started = time.monotonic()
         self._refresh_header()
 
+    def _on_call_cost(self, _voice, cost: float) -> None:
+        self._call_voice_cost = cost
+        self._refresh_header()
+
     def _tick_call(self) -> bool:
         if not (self.view and self.view.voice.in_call):
             self._call_timer = 0
@@ -1177,6 +1211,68 @@ class MainWindow(Adw.ApplicationWindow):
     def _call_elapsed(self) -> str:
         seconds = int(time.monotonic() - self._call_started)
         return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+    # -- costs -----------------------------------------------------------------------------
+
+    COSTS_INTERVAL = 10       # seconds between asks for the open conversation's cost
+
+    def _refresh_spend(self) -> None:
+        spend = getattr(self._mon, "spend", None)
+        self.sidebar.set_spend(costs.spend_text(spend), costs.spend_tooltip(spend))
+
+    def _on_page_thread(self, _view, thread_id: str) -> None:
+        self._page_thread = thread_id
+        self._refresh_costs(force=True)
+        self._refresh_header()
+
+    def _refresh_costs(self, force: bool = False) -> None:
+        """Ask for the costs of the open conversation and of the call's, at most every
+        ``COSTS_INTERVAL`` seconds and only while the window is on screen."""
+        profile = self.app.profiles.active
+        wanted = [t for t in dict.fromkeys((self._page_thread, self._call_thread)) if t]
+        if profile is None or not wanted or not self.get_mapped():
+            return
+        now = time.monotonic()
+        if not force and now - self._costs_asked < self.COSTS_INTERVAL:
+            return
+        self._costs_asked = now
+
+        def ask(client) -> None:
+            for thread in wanted:
+                client.thread_cost(thread, lambda data, error, thread=thread:
+                                   self._got_thread_cost(profile.id, thread, data, error))
+        api.for_profile(self.app, profile, ask)
+
+    def _got_thread_cost(self, profile_id: str, thread: str, data, error) -> None:
+        if error is not None or not isinstance(data, dict) or \
+                getattr(self.app.profiles.active, "id", None) != profile_id:
+            return
+        self._thread_costs[thread] = data
+        if thread == self._call_thread and self._call_base_cost is None:
+            self._call_base_cost = costs.conversation_cost(data)
+        self._refresh_header()
+
+    def _call_compute_cost(self) -> float | None:
+        """What the call's conversation spent since the call began (its research)."""
+        now = costs.conversation_cost(self._thread_costs.get(self._call_thread or ""))
+        if now is None or self._call_base_cost is None:
+            return None
+        return max(0.0, now - self._call_base_cost)
+
+    def _call_ended_costs(self) -> None:
+        """The call is over: its voice joins its conversation's cost on the server."""
+        call_id, voice_cost = self._call_id, self._call_voice_cost
+        profile = self.app.profiles.active
+        if self._mon is not None:
+            self._mon.refresh_spend()
+        if profile is None or not call_id or voice_cost is None:
+            return
+
+        def report(client) -> None:
+            client.report_call_cost(call_id, voice_cost, lambda data, error: (
+                self._got_thread_cost(profile.id, data.get("threadId", ""), data, None)
+                if error is None and isinstance(data, dict) else None))
+        api.for_profile(self.app, profile, report)
 
     # -- header ----------------------------------------------------------------------------
 
@@ -1209,15 +1305,23 @@ class MainWindow(Adw.ApplicationWindow):
                                        else "call") if calling_here else "idle"
             self.title.set_title(dot.name)
             if calling_here:
+                compute = self._call_compute_cost()
                 self.title.set_subtitle(call_subtitle(
                     phase, self._call_elapsed(), connected=self._call_connected,
-                    compact=self._very_narrow))
-                if phase in PHASE_WORDS:
-                    self.title_box.set_tooltip_text(_(PHASE_WORDS[phase]))
+                    compact=self._very_narrow,
+                    cost=costs.call_cost(self._call_voice_cost, compute)))
+                tooltip = [_(PHASE_WORDS[phase])] if phase in PHASE_WORDS else []
+                spent = costs.call_tooltip(self._call_voice_cost, compute)
+                self.title_box.set_tooltip_text("\n\n".join(tooltip + ([spent] if spent
+                                                                          else [])) or None)
             elif pending and self._call_pending == dot.id:
                 self.title.set_subtitle(_("Calling…"))
             else:
-                self.title.set_subtitle(dot.job)
+                cost = self._thread_costs.get(self._page_thread) if self._page_thread else None
+                spent = costs.conversation_text(cost)
+                self.title.set_subtitle(" · ".join(p for p in (spent, dot.job) if p))
+                if spent:
+                    self.title_box.set_tooltip_text(costs.conversation_tooltip(cost))
         elif native and self._place in ("activity", "memories", "space"):
             space = self.workspace.space(self._space_id) if self._place == "space" else None
             self.title.set_title({"activity": _("Activity"), "memories": _("Memories")}.get(

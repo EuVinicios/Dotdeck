@@ -1,4 +1,5 @@
 src/core/api.py
+src/core/costs.py
 src/core/models.py
 src/core/pets.py
 src/core/server.py
@@ -12,6 +13,7 @@ src/ui/server_form.py
 src/ui/settings/app_pages.py
 src/ui/settings/common.py
 src/ui/settings/connections.py
+src/ui/settings/dot_voice.py
 src/ui/settings/dots.py
 src/ui/settings/model.py
 src/ui/settings/privacy.py

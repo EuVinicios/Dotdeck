@@ -227,10 +227,12 @@
     selectionTimer = 0;
     const selection = currentSelection();
     if (!selection) return;
-    const key = `${selection.view}\n${selection.dot}`;
+    // The open conversation, for its cost in Dotdeck's header.
+    const thread = selection.view === 'chat' ? openThreadId() : '';
+    const key = `${selection.view}\n${selection.dot}\n${thread}`;
     if (key !== lastSelection) {
       lastSelection = key;
-      post({ type: 'selection', dot: selection.dot, view: selection.view });
+      post({ type: 'selection', dot: selection.dot, view: selection.view, thread });
     }
     if (selection.view !== 'chat' && selection.view !== 'home') return;
     const state = openDotState();

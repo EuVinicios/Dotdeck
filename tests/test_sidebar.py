@@ -207,6 +207,24 @@ class SidebarTests(unittest.TestCase):
         self.sidebar.set_model("")
         self.assertFalse(self.sidebar.model_button.get_visible())
 
+    def test_the_openrouter_spend_sits_under_the_model(self):
+        self.assertFalse(self.sidebar.spend_button.get_visible())    # server did not say
+        keys = []
+        self.sidebar.connect("nav-activated", lambda _s, key: keys.append(key))
+        self.sidebar.set_model("Claude Haiku 5.5 · OpenRouter")
+        self.assertEqual(self.sidebar.model_button.get_margin_bottom(), 6)
+        self.sidebar.set_spend("US$ 0.29 this month · US$ 6.11 left", "Today: US$ 0.18")
+        self.assertTrue(self.sidebar.spend_button.get_visible())
+        self.assertEqual(self.sidebar.spend_label.get_label(),
+                         "US$ 0.29 this month · US$ 6.11 left")
+        self.assertEqual(self.sidebar.spend_button.get_tooltip_text(), "Today: US$ 0.18")
+        self.assertEqual(self.sidebar.model_button.get_margin_bottom(), 0)   # one gap
+        self.sidebar.spend_button.emit("clicked")
+        self.assertEqual(keys, ["model"])
+        self.sidebar.set_spend("")
+        self.assertFalse(self.sidebar.spend_button.get_visible())
+        self.assertEqual(self.sidebar.model_button.get_margin_bottom(), 6)
+
     def test_animations_off_stops_running_avatars(self):
         row = self.rows()[0]
         row.avatar.state = "working"

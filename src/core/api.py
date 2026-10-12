@@ -212,6 +212,44 @@ class OpenDotsAPI:
         self.request("POST", "/api/model-config/test", sent, got)
 
 
+    # -- voice of each Dot, costs and spend (servers set up with the Dotdeck guide) --------
+    #
+    # Servers without the fork routes answer a bare 404: error ``"unsupported"``. A 404
+    # that names what is missing (a Dot or a conversation that is gone) keeps its message.
+
+    @staticmethod
+    def _optional(callback: Callback) -> Callback:
+        def got(data, error):
+            if error in ("Not found.", "HTTP 404"):
+                callback(None, "unsupported")
+            else:
+                callback(data, error)
+        return got
+
+    def dot_voices(self, callback: Callback) -> None:
+        """``{"voices": {dot_id: voice}, "default": voice, "available": [voice, ...]}``."""
+        self.get("/api/dot-voices", self._optional(callback))
+
+    def set_dot_voice(self, dot_id: str, voice: str | None, callback: Callback) -> None:
+        """``None`` goes back to the server's voice. Answers like ``dot_voices``."""
+        self.request("PUT", f"/api/dots/{quote(dot_id)}/voice", {"voice": voice},
+                     self._optional(callback))
+
+    def thread_cost(self, thread_id: str, callback: Callback) -> None:
+        """``{"costUsd", "turns", "inputTokens", "outputTokens", "calls", "complete"}``."""
+        self.get(f"/api/costs/threads/{quote(thread_id)}", self._optional(callback))
+
+    def report_call_cost(self, call_id: str, cost_usd: float, callback: Callback) -> None:
+        """The voice cost of a call (from the gateway), added to its conversation."""
+        self.request("POST", f"/api/costs/calls/{quote(call_id)}",
+                     {"costUsd": round(max(0.0, float(cost_usd)), 6)}, self._optional(callback))
+
+    def spend(self, callback: Callback) -> None:
+        """What the OpenRouter key and account spent: ``{"available", "key": {...},
+        "credits": {...} | None}`` or ``{"available": False}`` without an OpenRouter key."""
+        self.get("/api/spend", self._optional(callback))
+
+
 def for_profile(app, profile, callback: Callable[[OpenDotsAPI], None]) -> None:
     """An API client for ``profile`` with its token from the keyring."""
     app.tokens.lookup(profile.id, profile.url,

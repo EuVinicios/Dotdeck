@@ -239,6 +239,21 @@ class Sidebar(Adw.Bin):
         self.model_button.add_css_class("model-glance")
         self.model_button.connect("clicked", lambda *_: self.emit("nav-activated", "model"))
         outer.append(self.model_button)
+
+        # What the OpenRouter key spent ("US$ 0,29 this month · US$ 6,11 left"), under the
+        # model, in the same quiet style; also opens AI Models.
+        self.spend_label = _label("", ("caption", "numeric"), hexpand=True,
+                                  ellipsize=Pango.EllipsizeMode.END)
+        box = Gtk.Box(spacing=8)
+        sign = _label("$", ("dim-label", "caption-heading"), xalign=0.5, width_chars=2)
+        box.append(sign)
+        box.append(self.spend_label)
+        self.spend_button = Gtk.Button(child=box, visible=False, margin_start=6, margin_end=6,
+                                       margin_bottom=6)
+        self.spend_button.add_css_class("flat")
+        self.spend_button.add_css_class("model-glance")
+        self.spend_button.connect("clicked", lambda *_: self.emit("nav-activated", "model"))
+        outer.append(self.spend_button)
         self.set_child(outer)
 
     @staticmethod
@@ -309,6 +324,16 @@ class Sidebar(Adw.Bin):
                 self._states[key] = "idle"
         if dot_id:
             self._states[dot_id] = state
+
+    def set_spend(self, text: str, tooltip: str = "") -> None:
+        """The OpenRouter spend line, or "" to hide it (no key, or an older server)."""
+        self.spend_label.set_label(text)
+        self.spend_button.set_visible(bool(text))
+        self.spend_button.set_tooltip_text(tooltip or None)
+        # One gap under the pair, not one under each line.
+        self.model_button.set_margin_bottom(0 if text else 6)
+        self.spend_button.update_property([Gtk.AccessibleProperty.LABEL],
+                                          [_("OpenRouter spend: {spend}").format(spend=text)])
 
     def set_model(self, text: str) -> None:
         """The chat model the Dots use, or "" to hide the line (servers that do not say)."""
