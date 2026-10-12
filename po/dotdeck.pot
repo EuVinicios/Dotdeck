@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Dotdeck 0.3.7\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-10 19:24-0300\n"
+"POT-Creation-Date: 2026-10-12 13:03+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -393,13 +393,13 @@ msgid "General"
 msgstr ""
 
 #: src/main.py:303 src/main.py:636 src/ui/settings/app_pages.py:51
-#: src/ui/settings/window.py:97 src/ui/settings/window.py:223
-#: src/ui/settings/window.py:230 src/ui/settings/window.py:233
-#: src/ui/sidebar.py:222 src/ui/window.py:215 src/ui/window.py:1487
+#: src/ui/settings/window.py:97 src/ui/settings/window.py:225
+#: src/ui/settings/window.py:232 src/ui/settings/window.py:235
+#: src/ui/sidebar.py:222 src/ui/window.py:216 src/ui/window.py:1505
 msgid "Settings"
 msgstr ""
 
-#: src/main.py:304 src/ui/settings/app_pages.py:52 src/ui/window.py:216
+#: src/main.py:304 src/ui/settings/app_pages.py:52 src/ui/window.py:217
 msgid "Keyboard Shortcuts"
 msgstr ""
 
@@ -407,12 +407,12 @@ msgstr ""
 msgid "Close Window"
 msgstr ""
 
-#: src/main.py:305 src/main.py:638 src/ui/window.py:220
+#: src/main.py:305 src/main.py:638 src/ui/window.py:221
 msgid "Quit"
 msgstr ""
 
 #: src/main.py:306 src/ui/settings/dots.py:162 src/ui/settings/dots.py:179
-#: src/ui/sidebar.py:167 src/ui/sidebar.py:286
+#: src/ui/sidebar.py:167 src/ui/sidebar.py:290
 msgid "Dots"
 msgstr ""
 
@@ -432,8 +432,8 @@ msgstr ""
 msgid "Next Dot"
 msgstr ""
 
-#: src/main.py:309 src/ui/settings/app_pages.py:48 src/ui/sidebar.py:513
-#: src/ui/window.py:156 src/ui/window.py:870
+#: src/main.py:309 src/ui/settings/app_pages.py:48 src/ui/sidebar.py:524
+#: src/ui/window.py:157 src/ui/window.py:879
 msgid "New Chat"
 msgstr ""
 
@@ -446,12 +446,12 @@ msgstr ""
 msgid "Talk to the Chief"
 msgstr ""
 
-#: src/main.py:311 src/main.py:621 src/ui/sidebar.py:220 src/ui/window.py:1207
+#: src/main.py:311 src/main.py:621 src/ui/sidebar.py:220 src/ui/window.py:1223
 msgid "Activity"
 msgstr ""
 
 #: src/main.py:312 src/ui/new_dot.py:450 src/ui/settings/dots.py:438
-#: src/ui/settings/privacy.py:36 src/ui/sidebar.py:221 src/ui/window.py:1207
+#: src/ui/settings/privacy.py:36 src/ui/sidebar.py:221 src/ui/window.py:1223
 msgid "Memories"
 msgstr ""
 
@@ -463,23 +463,23 @@ msgstr ""
 msgid "Show or Hide the Sidebar"
 msgstr ""
 
-#: src/main.py:314 src/ui/window.py:204
+#: src/main.py:314 src/ui/window.py:205
 msgid "Reload"
 msgstr ""
 
-#: src/main.py:314 src/ui/window.py:212
+#: src/main.py:314 src/ui/window.py:213
 msgid "Fullscreen"
 msgstr ""
 
-#: src/main.py:315 src/ui/window.py:209
+#: src/main.py:315 src/ui/window.py:210
 msgid "Zoom In"
 msgstr ""
 
-#: src/main.py:315 src/ui/window.py:210
+#: src/main.py:315 src/ui/window.py:211
 msgid "Zoom Out"
 msgstr ""
 
-#: src/main.py:316 src/ui/window.py:211
+#: src/main.py:316 src/ui/window.py:212
 msgid "Actual Size"
 msgstr ""
 
@@ -538,7 +538,7 @@ msgid ""
 msgstr ""
 
 #: src/main.py:471 src/ui/settings/dots.py:96 src/ui/settings/servers.py:35
-#: src/ui/sidebar.py:176 src/ui/window.py:38 src/ui/window.py:570
+#: src/ui/sidebar.py:176 src/ui/window.py:38 src/ui/window.py:571
 msgid "Connecting…"
 msgstr ""
 
@@ -565,7 +565,7 @@ msgid_plural "{n} Dots"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/main.py:481 src/ui/window.py:574
+#: src/main.py:481 src/ui/window.py:575
 msgid "No Dots yet"
 msgstr ""
 
@@ -841,8 +841,8 @@ msgid "Choose a Space."
 msgstr ""
 
 #: src/ui/new_dot.py:277 src/ui/pet_gallery.py:344 src/ui/pet_gallery.py:557
-#: src/ui/settings/common.py:37 src/ui/settings/window.py:791
-#: src/ui/updates.py:200 src/ui/window.py:1081 src/ui/window.py:1340
+#: src/ui/settings/common.py:37 src/ui/settings/window.py:793
+#: src/ui/updates.py:257 src/ui/window.py:1097 src/ui/window.py:1358
 msgid "Cancel"
 msgstr ""
 
@@ -1236,12 +1236,12 @@ msgstr ""
 msgid "{dot} and {other} swapped pets"
 msgstr ""
 
-#: src/ui/pet_gallery.py:594 src/ui/window.py:807
+#: src/ui/pet_gallery.py:594 src/ui/window.py:808
 msgid "Undo"
 msgstr ""
 
 #: src/ui/server_form.py:30 src/ui/settings/voice_page.py:56
-#: src/ui/settings/window.py:173 src/ui/settings/window.py:553
+#: src/ui/settings/window.py:175 src/ui/settings/window.py:555
 msgid "Server"
 msgstr ""
 
@@ -1377,7 +1377,7 @@ msgstr ""
 msgid "Style"
 msgstr ""
 
-#: src/ui/settings/app_pages.py:150 src/ui/settings/window.py:174
+#: src/ui/settings/app_pages.py:150 src/ui/settings/window.py:176
 msgid "System"
 msgstr ""
 
@@ -1658,7 +1658,7 @@ msgstr ""
 msgid "Access Token Needed"
 msgstr ""
 
-#: src/ui/settings/dots.py:104 src/ui/window.py:960 src/ui/window.py:1293
+#: src/ui/settings/dots.py:104 src/ui/window.py:969 src/ui/window.py:1311
 #, python-brace-format
 msgid "{name} needs a valid owner access token."
 msgstr ""
@@ -1680,7 +1680,7 @@ msgid "Check the server's address in Servers."
 msgstr ""
 
 #: src/ui/settings/dots.py:144 src/ui/settings/servers.py:72
-#: src/ui/window.py:372
+#: src/ui/window.py:373
 msgid "Add Server…"
 msgstr ""
 
@@ -1693,7 +1693,7 @@ msgid "Create a Dot on this server"
 msgstr ""
 
 #: src/ui/settings/dots.py:183 src/ui/settings/dots.py:221
-#: src/ui/sidebar.py:167 src/ui/window.py:157
+#: src/ui/sidebar.py:167 src/ui/window.py:158
 msgid "New Dot…"
 msgstr ""
 
@@ -1737,7 +1737,7 @@ msgstr ""
 msgid "That Dot is not on {name}."
 msgstr ""
 
-#: src/ui/settings/dots.py:387 src/ui/sidebar.py:522
+#: src/ui/settings/dots.py:387 src/ui/sidebar.py:533
 msgid "Change Pet…"
 msgstr ""
 
@@ -1761,7 +1761,7 @@ msgstr ""
 msgid "Permissions"
 msgstr ""
 
-#: src/ui/settings/dots.py:444 src/ui/sidebar.py:202 src/ui/window.py:1208
+#: src/ui/settings/dots.py:444 src/ui/sidebar.py:202 src/ui/window.py:1224
 msgid "Spaces"
 msgstr ""
 
@@ -1778,7 +1778,7 @@ msgstr ""
 msgid "Kept on this computer and applied right away."
 msgstr ""
 
-#: src/ui/settings/dots.py:457 src/ui/sidebar.py:524
+#: src/ui/settings/dots.py:457 src/ui/sidebar.py:535
 msgid "Pin to Top"
 msgstr ""
 
@@ -1799,11 +1799,11 @@ msgid "Connections and Tools…"
 msgstr ""
 
 #: src/ui/settings/dots.py:475 src/ui/settings/servers.py:142
-#: src/ui/settings/window.py:793
+#: src/ui/settings/window.py:795
 msgid "Save"
 msgstr ""
 
-#: src/ui/settings/dots.py:479 src/ui/settings/window.py:792
+#: src/ui/settings/dots.py:479 src/ui/settings/window.py:794
 msgid "Discard"
 msgstr ""
 
@@ -2197,7 +2197,7 @@ msgstr ""
 msgid "Dots can save what they learn about you and use it later"
 msgstr ""
 
-#: src/ui/settings/privacy.py:39 src/ui/window.py:206
+#: src/ui/settings/privacy.py:39 src/ui/window.py:207
 msgid "Pause All Dots"
 msgstr ""
 
@@ -2334,7 +2334,7 @@ msgid ""
 "now."
 msgstr ""
 
-#: src/ui/settings/privacy.py:169 src/ui/window.py:1338
+#: src/ui/settings/privacy.py:169 src/ui/window.py:1356
 msgid "Pause All Dots?"
 msgstr ""
 
@@ -2345,11 +2345,11 @@ msgid ""
 "call in progress ends."
 msgstr ""
 
-#: src/ui/settings/privacy.py:171 src/ui/window.py:1341
+#: src/ui/settings/privacy.py:171 src/ui/window.py:1359
 msgid "Pause"
 msgstr ""
 
-#: src/ui/settings/privacy.py:208 src/ui/window.py:1354
+#: src/ui/settings/privacy.py:208 src/ui/window.py:1372
 #, python-brace-format
 msgid "Could not change it: {error}"
 msgstr ""
@@ -2461,12 +2461,12 @@ msgid "Ask"
 msgstr ""
 
 #: src/ui/settings/servers.py:190 src/ui/settings/voice_page.py:130
-#: src/ui/window.py:1499
+#: src/ui/window.py:1517
 msgid "Allow"
 msgstr ""
 
 #: src/ui/settings/servers.py:190 src/ui/settings/voice_page.py:130
-#: src/ui/window.py:1498
+#: src/ui/window.py:1516
 msgid "Don't Allow"
 msgstr ""
 
@@ -2577,7 +2577,7 @@ msgid ""
 "calls, global shortcuts and a pet for every Dot."
 msgstr ""
 
-#: src/ui/settings/system.py:185 src/ui/window.py:217
+#: src/ui/settings/system.py:185 src/ui/window.py:218
 msgid "About Dotdeck"
 msgstr ""
 
@@ -2860,54 +2860,54 @@ msgstr ""
 msgid "Voice key saved on the server"
 msgstr ""
 
-#: src/ui/settings/window.py:171
+#: src/ui/settings/window.py:173
 msgid "App"
 msgstr ""
 
-#: src/ui/settings/window.py:172
+#: src/ui/settings/window.py:174
 msgid "Your Dots"
 msgstr ""
 
-#: src/ui/settings/window.py:191 src/ui/settings/window.py:193
+#: src/ui/settings/window.py:193 src/ui/settings/window.py:195
 msgid "Search settings"
 msgstr ""
 
-#: src/ui/settings/window.py:207
+#: src/ui/settings/window.py:209
 msgid "Search results"
 msgstr ""
 
-#: src/ui/settings/window.py:208
+#: src/ui/settings/window.py:210
 msgid "No Results"
 msgstr ""
 
-#: src/ui/settings/window.py:209
+#: src/ui/settings/window.py:211
 msgid "Try a different word."
 msgstr ""
 
-#: src/ui/settings/window.py:553
+#: src/ui/settings/window.py:555
 msgid "The settings below are for this server"
 msgstr ""
 
-#: src/ui/settings/window.py:702 src/ui/settings/window.py:751
+#: src/ui/settings/window.py:704 src/ui/settings/window.py:753
 msgid "No server"
 msgstr ""
 
-#: src/ui/settings/window.py:719
+#: src/ui/settings/window.py:721
 msgid ""
 "Changed, but the server could not save it in its .env file: it lasts until "
 "OpenDots restarts."
 msgstr ""
 
-#: src/ui/settings/window.py:789
+#: src/ui/settings/window.py:791
 msgid "Save Changes?"
 msgstr ""
 
-#: src/ui/settings/window.py:790
+#: src/ui/settings/window.py:792
 #, python-brace-format
 msgid "Your changes to {names} are not saved yet."
 msgstr ""
 
-#: src/ui/settings/window.py:890
+#: src/ui/settings/window.py:892
 msgid "Page"
 msgstr ""
 
@@ -2924,201 +2924,255 @@ msgstr ""
 msgid "{name}, {job}"
 msgstr ""
 
-#: src/ui/sidebar.py:283
+#: src/ui/sidebar.py:287
 #, python-brace-format
 msgid "{n} hidden Dot"
 msgid_plural "{n} hidden Dots"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/sidebar.py:313
+#: src/ui/sidebar.py:317
 #, python-brace-format
 msgid "Chat model: {model}. Click to change it in AI Models."
 msgstr ""
 
-#: src/ui/sidebar.py:317
+#: src/ui/sidebar.py:321
 #, python-brace-format
 msgid "Chat model: {model}"
 msgstr ""
 
-#: src/ui/sidebar.py:469
+#: src/ui/sidebar.py:480
 msgid "No Dots match your search"
 msgstr ""
 
-#: src/ui/sidebar.py:512
+#: src/ui/sidebar.py:523
 msgid "Open"
 msgstr ""
 
-#: src/ui/sidebar.py:514 src/ui/window.py:226 src/ui/window.py:1247
+#: src/ui/sidebar.py:525 src/ui/window.py:227 src/ui/window.py:1265
 msgid "Call"
 msgstr ""
 
-#: src/ui/sidebar.py:523
+#: src/ui/sidebar.py:534
 msgid "Edit Dot…"
 msgstr ""
 
-#: src/ui/sidebar.py:524
+#: src/ui/sidebar.py:535
 msgid "Unpin"
 msgstr ""
 
-#: src/ui/sidebar.py:525
+#: src/ui/sidebar.py:536
 msgid "Hide From Sidebar"
 msgstr ""
 
-#: src/ui/sidebar.py:530
+#: src/ui/sidebar.py:541
 msgid "Make Chief"
 msgstr ""
 
-#: src/ui/updates.py:22
-msgid "Downloading the news…"
-msgstr ""
-
-#: src/ui/updates.py:23
-msgid "Merging with your local commits…"
-msgstr ""
-
-#: src/ui/updates.py:24
-msgid "Installing dependencies…"
-msgstr ""
-
 #: src/ui/updates.py:25
-msgid "Building…"
+#, python-brace-format
+msgid "{files} and {n} more"
+msgid_plural "{files} and {n} more"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/ui/updates.py:34
+#, python-brace-format
+msgid "The server is on the branch {branch}, not {expected}."
 msgstr ""
 
-#: src/ui/updates.py:26
-msgid "Restarting OpenDots…"
-msgstr ""
-
-#: src/ui/updates.py:27
-msgid "Checking that OpenDots is back…"
-msgstr ""
-
-#: src/ui/updates.py:28
-msgid "Saving the backup…"
-msgstr ""
-
-#: src/ui/updates.py:29
-msgid "Restoring the previous version…"
-msgstr ""
-
-#: src/ui/updates.py:30
-msgid "Updating…"
-msgstr ""
-
-#: src/ui/updates.py:37
-msgid "OpenDots Updates"
+#: src/ui/updates.py:36
+#, python-brace-format
+msgid "The server is not on the branch {expected}."
 msgstr ""
 
 #: src/ui/updates.py:38
+#, python-brace-format
+msgid "Files that are not in git would be overwritten: {files}."
+msgstr ""
+
+#: src/ui/updates.py:42
+#, python-brace-format
+msgid ""
+"The official changes conflict with your local commits in {n} file: {files}."
+msgid_plural ""
+"The official changes conflict with your local commits in {n} files: {files}."
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/ui/updates.py:47
+msgid "Fix it on the server, then check again."
+msgstr ""
+
+#: src/ui/updates.py:53
+msgid "Downloading the news…"
+msgstr ""
+
+#: src/ui/updates.py:54
+msgid "Merging with your local commits…"
+msgstr ""
+
+#: src/ui/updates.py:55
+msgid "Installing dependencies…"
+msgstr ""
+
+#: src/ui/updates.py:56
+msgid "Running the OpenDots tests…"
+msgstr ""
+
+#: src/ui/updates.py:57
+msgid "Building…"
+msgstr ""
+
+#: src/ui/updates.py:58
+msgid "Restarting OpenDots…"
+msgstr ""
+
+#: src/ui/updates.py:59
+msgid "Checking that OpenDots is back…"
+msgstr ""
+
+#: src/ui/updates.py:60
+msgid "Saving the backup…"
+msgstr ""
+
+#: src/ui/updates.py:61
+msgid "Restoring the previous version…"
+msgstr ""
+
+#: src/ui/updates.py:62
+msgid "Updating…"
+msgstr ""
+
+#: src/ui/updates.py:69
+msgid "OpenDots Updates"
+msgstr ""
+
+#: src/ui/updates.py:70
 msgid ""
 "Compare this server with the official project and update it here. Your local "
 "changes are kept, and a failed update is undone automatically."
 msgstr ""
 
-#: src/ui/updates.py:48
+#: src/ui/updates.py:80
 msgid "Updater Not Found"
 msgstr ""
 
-#: src/ui/updates.py:49
+#: src/ui/updates.py:81
 msgid ""
 "Install the updater next to OpenDots to check and apply updates from Dotdeck."
 msgstr ""
 
-#: src/ui/updates.py:51
+#: src/ui/updates.py:83
+msgid ""
+"Install the updater next to OpenDots. It only answers on the server itself: "
+"to update from this device, reach it through an SSH tunnel or set it up to "
+"listen on the network, then enter its address below."
+msgstr ""
+
+#: src/ui/updates.py:86
 msgid "How to Install"
 msgstr ""
 
-#: src/ui/updates.py:55
+#: src/ui/updates.py:90
 msgid "Updater address (optional)"
 msgstr ""
 
-#: src/ui/updates.py:59
+#: src/ui/updates.py:94
 msgid "Installed Version"
 msgstr ""
 
-#: src/ui/updates.py:60
+#: src/ui/updates.py:95
 msgid "Official Project"
 msgstr ""
 
-#: src/ui/updates.py:62
+#: src/ui/updates.py:97
 msgid "Local Commits"
 msgstr ""
 
-#: src/ui/updates.py:63
+#: src/ui/updates.py:99
+msgid "Update Blocked"
+msgstr ""
+
+#: src/ui/updates.py:104
 msgid "Last Update"
 msgstr ""
 
-#: src/ui/updates.py:66
+#: src/ui/updates.py:108
 msgid "Check Now"
 msgstr ""
 
-#: src/ui/updates.py:69
+#: src/ui/updates.py:111 src/ui/updates.py:223
 msgid "Update Server…"
 msgstr ""
 
-#: src/ui/updates.py:103 src/ui/window.py:1314
+#: src/ui/updates.py:145 src/ui/window.py:1332
 #, python-brace-format
 msgid "{n} change in the official OpenDots"
 msgid_plural "{n} changes in the official OpenDots"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/updates.py:105
+#: src/ui/updates.py:147
 msgid "OpenDots is up to date"
 msgstr ""
 
-#: src/ui/updates.py:131
+#: src/ui/updates.py:174
 #, python-brace-format
 msgid "{n} change to install"
 msgid_plural "{n} changes to install"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/updates.py:140
+#: src/ui/updates.py:183
 #, python-brace-format
 msgid "Up to date (official version of {date})"
 msgstr ""
 
-#: src/ui/updates.py:141
+#: src/ui/updates.py:184
 msgid "Up to date"
 msgstr ""
 
-#: src/ui/updates.py:144
+#: src/ui/updates.py:187
 #, python-brace-format
 msgid "{n} commit of your own, kept when updating"
 msgid_plural "{n} commits of your own, kept when updating"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/updates.py:146
+#: src/ui/updates.py:189
 msgid "None"
 msgstr ""
 
-#: src/ui/updates.py:155
+#: src/ui/updates.py:198
 #, python-brace-format
 msgid "Finished on {date}: {message}"
 msgstr ""
 
-#: src/ui/updates.py:158
+#: src/ui/updates.py:201
 #, python-brace-format
 msgid "The update failed and the previous version was restored. {message}"
 msgstr ""
 
-#: src/ui/updates.py:161
+#: src/ui/updates.py:204
 #, python-brace-format
 msgid "Could not update: {message}"
 msgstr ""
 
-#: src/ui/updates.py:166
+#: src/ui/updates.py:219
 msgid "Update Server… (uncommitted changes on the server)"
 msgstr ""
 
-#: src/ui/updates.py:191
+#: src/ui/updates.py:221
+msgid "Update Server… (blocked, see above)"
+msgstr ""
+
+#: src/ui/updates.py:248
 #, python-brace-format
 msgid "Update {name}?"
 msgstr ""
 
-#: src/ui/updates.py:193
+#: src/ui/updates.py:250
 #, python-brace-format
 msgid ""
 "{n} official change will be merged with your local commits. OpenDots "
@@ -3131,24 +3185,24 @@ msgid_plural ""
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/updates.py:201
+#: src/ui/updates.py:258
 msgid "Update"
 msgstr ""
 
-#: src/ui/updates.py:212
+#: src/ui/updates.py:269
 #, python-brace-format
 msgid "Could not start the update: {error}"
 msgstr ""
 
-#: src/ui/updates.py:228
+#: src/ui/updates.py:285
 msgid "OpenDots was updated"
 msgstr ""
 
-#: src/ui/updates.py:229
+#: src/ui/updates.py:286
 msgid "The update failed; the previous version is back"
 msgstr ""
 
-#: src/ui/updates.py:230
+#: src/ui/updates.py:287
 msgid "The update did not finish"
 msgstr ""
 
@@ -3168,8 +3222,8 @@ msgstr ""
 msgid "Reconnecting…"
 msgstr ""
 
-#: src/ui/window.py:52 src/ui/window.py:228 src/ui/window.py:1202
-#: src/ui/window.py:1242
+#: src/ui/window.py:52 src/ui/window.py:229 src/ui/window.py:1218
+#: src/ui/window.py:1260
 msgid "Calling…"
 msgstr ""
 
@@ -3200,308 +3254,308 @@ msgstr[1] ""
 msgid "Yesterday"
 msgstr ""
 
-#: src/ui/window.py:147
+#: src/ui/window.py:148
 msgid "Switch Server"
 msgstr ""
 
-#: src/ui/window.py:159
+#: src/ui/window.py:160
 msgid "New"
 msgstr ""
 
-#: src/ui/window.py:162
+#: src/ui/window.py:163
 msgid "Search (Ctrl+K)"
 msgstr ""
 
-#: src/ui/window.py:177
+#: src/ui/window.py:178
 msgid "Show Sidebar (F9)"
 msgstr ""
 
-#: src/ui/window.py:186
+#: src/ui/window.py:187
 msgid "Reload (F5)"
 msgstr ""
 
-#: src/ui/window.py:201 src/ui/window.py:255
+#: src/ui/window.py:202 src/ui/window.py:256
 msgid "Conversations"
 msgstr ""
 
-#: src/ui/window.py:205
+#: src/ui/window.py:206
 msgid "Show Computer"
 msgstr ""
 
-#: src/ui/window.py:223
+#: src/ui/window.py:224
 msgid "Main Menu"
 msgstr ""
 
-#: src/ui/window.py:242 src/ui/window.py:1121
+#: src/ui/window.py:243 src/ui/window.py:1137
 msgid "Mute Microphone (Ctrl+Shift+M)"
 msgstr ""
 
-#: src/ui/window.py:259
+#: src/ui/window.py:260
 msgid "New Chat (Ctrl+N)"
 msgstr ""
 
-#: src/ui/window.py:267
+#: src/ui/window.py:268
 msgid "Show Activity"
 msgstr ""
 
-#: src/ui/window.py:373
+#: src/ui/window.py:374
 msgid "Manage Servers…"
 msgstr ""
 
-#: src/ui/window.py:443
+#: src/ui/window.py:444
 msgid "The call was ended."
 msgstr ""
 
-#: src/ui/window.py:526
+#: src/ui/window.py:527
 msgid ""
 "This server's page has a different layout, so it shows its own navigation."
 msgstr ""
 
-#: src/ui/window.py:570
+#: src/ui/window.py:571
 msgid "No connection to the server"
 msgstr ""
 
-#: src/ui/window.py:571
+#: src/ui/window.py:572
 msgid "An access token is needed to see the Dots"
 msgstr ""
 
-#: src/ui/window.py:572
+#: src/ui/window.py:573
 msgid "This server only accepts connections from its own computer"
 msgstr ""
 
-#: src/ui/window.py:573
+#: src/ui/window.py:574
 msgid "This address is not an OpenDots server"
 msgstr ""
 
-#: src/ui/window.py:608
+#: src/ui/window.py:609
 msgid "End the Call?"
 msgstr ""
 
-#: src/ui/window.py:609
+#: src/ui/window.py:610
 #, python-brace-format
 msgid "This ends the call with {name}."
 msgstr ""
 
-#: src/ui/window.py:610
+#: src/ui/window.py:611
 msgid "this Dot"
 msgstr ""
 
-#: src/ui/window.py:611
+#: src/ui/window.py:612
 msgid "Stay"
 msgstr ""
 
-#: src/ui/window.py:612
+#: src/ui/window.py:613
 msgid "End Call and Continue"
 msgstr ""
 
-#: src/ui/window.py:653
+#: src/ui/window.py:654
 #, python-brace-format
 msgid "Could not open {name} on the page."
 msgstr ""
 
-#: src/ui/window.py:767
+#: src/ui/window.py:768
 msgid "Could not start a new chat."
 msgstr ""
 
-#: src/ui/window.py:807
+#: src/ui/window.py:808
 #, python-brace-format
 msgid "{name} is hidden from the sidebar."
 msgstr ""
 
-#: src/ui/window.py:816
+#: src/ui/window.py:817
 #, python-brace-format
 msgid "{name} is now the Chief."
 msgstr ""
 
-#: src/ui/window.py:876
+#: src/ui/window.py:885
 msgid "Save Conversation as Page…"
 msgstr ""
 
-#: src/ui/window.py:878
+#: src/ui/window.py:887
 msgid "Schedule a Task…"
 msgstr ""
 
-#: src/ui/window.py:895
+#: src/ui/window.py:904
 msgid "Conversation"
 msgstr ""
 
-#: src/ui/window.py:907
+#: src/ui/window.py:916
 msgid "No conversations yet"
 msgstr ""
 
-#: src/ui/window.py:941
+#: src/ui/window.py:950
 msgid "Open a conversation first, and wait until the Dot is not working."
 msgstr ""
 
-#: src/ui/window.py:955
+#: src/ui/window.py:964
 msgid "Open a Dot first."
 msgstr ""
 
-#: src/ui/window.py:958
+#: src/ui/window.py:967
 #, python-brace-format
 msgid "No connection to {name}."
 msgstr ""
 
-#: src/ui/window.py:962
+#: src/ui/window.py:971
 msgid "A call is already starting."
 msgstr ""
 
-#: src/ui/window.py:964
+#: src/ui/window.py:973
 #, python-brace-format
 msgid "Voice calls are not set up on {name}."
 msgstr ""
 
-#: src/ui/window.py:966 src/ui/window.py:1302
+#: src/ui/window.py:975 src/ui/window.py:1320
 msgid "Your Dots are paused."
 msgstr ""
 
-#: src/ui/window.py:968
+#: src/ui/window.py:977
 #, python-brace-format
 msgid "The voice engine is missing on this computer: {parts}."
 msgstr ""
 
-#: src/ui/window.py:972
+#: src/ui/window.py:981
 msgid "Another call is in progress on this server."
 msgstr ""
 
-#: src/ui/window.py:990
+#: src/ui/window.py:999
 msgid "Allow the microphone first: snap connect dotdeck:audio-record"
 msgstr ""
 
-#: src/ui/window.py:1025
+#: src/ui/window.py:1034
 #, python-brace-format
 msgid "The call with {name} could not start."
 msgstr ""
 
-#: src/ui/window.py:1037
+#: src/ui/window.py:1046
 #, python-brace-format
 msgid "Could not start a conversation with {name}: {error}"
 msgstr ""
 
-#: src/ui/window.py:1045
+#: src/ui/window.py:1054
 msgid "Voice call"
 msgstr ""
 
-#: src/ui/window.py:1078
+#: src/ui/window.py:1094
 msgid "No Microphone Found"
 msgstr ""
 
-#: src/ui/window.py:1079
+#: src/ui/window.py:1095
 msgid ""
 "This computer has no default microphone, so the Dot would not hear you. Plug "
 "in a headset, or choose a microphone in Settings."
 msgstr ""
 
-#: src/ui/window.py:1082
+#: src/ui/window.py:1098
 msgid "Call Anyway"
 msgstr ""
 
-#: src/ui/window.py:1083
+#: src/ui/window.py:1099
 msgid "Choose Microphone…"
 msgstr ""
 
-#: src/ui/window.py:1118
+#: src/ui/window.py:1134
 msgid "Hold to Talk"
 msgstr ""
 
-#: src/ui/window.py:1120
+#: src/ui/window.py:1136
 msgid "Unmute Microphone (Ctrl+Shift+M)"
 msgstr ""
 
-#: src/ui/window.py:1223
+#: src/ui/window.py:1239
 msgid "Saving…"
 msgstr ""
 
-#: src/ui/window.py:1227
+#: src/ui/window.py:1243
 msgid "Saving the call's summary"
 msgstr ""
 
 #. TRANSLATORS: the button that hangs up a voice call.
-#: src/ui/window.py:1232
+#: src/ui/window.py:1248
 msgid "End"
 msgstr ""
 
-#: src/ui/window.py:1235
+#: src/ui/window.py:1251
 msgid "End the Call (Ctrl+Shift+L)"
 msgstr ""
 
-#: src/ui/window.py:1251
+#: src/ui/window.py:1269
 #, python-brace-format
 msgid "Call {name} (Ctrl+Shift+L)"
 msgstr ""
 
-#: src/ui/window.py:1288
+#: src/ui/window.py:1306
 #, python-brace-format
 msgid "{n} task"
 msgid_plural "{n} tasks"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/ui/window.py:1294
+#: src/ui/window.py:1312
 msgid "Update Token"
 msgstr ""
 
-#: src/ui/window.py:1296 src/ui/window.py:1319
+#: src/ui/window.py:1314 src/ui/window.py:1337
 msgid "Edit Server"
 msgstr ""
 
-#: src/ui/window.py:1299
+#: src/ui/window.py:1317
 #, python-brace-format
 msgid "No connection to {name}. Trying again…"
 msgstr ""
 
-#: src/ui/window.py:1300
+#: src/ui/window.py:1318
 msgid "Retry Now"
 msgstr ""
 
-#: src/ui/window.py:1302
+#: src/ui/window.py:1320
 msgid "Resume"
 msgstr ""
 
-#: src/ui/window.py:1316
+#: src/ui/window.py:1334
 msgid "See Updates"
 msgstr ""
 
-#: src/ui/window.py:1318
+#: src/ui/window.py:1336
 #, python-brace-format
 msgid "The connection to {name} is not encrypted."
 msgstr ""
 
-#: src/ui/window.py:1339
+#: src/ui/window.py:1357
 msgid "Work in progress stops and scheduled tasks wait until you resume."
 msgstr ""
 
-#: src/ui/window.py:1392
+#: src/ui/window.py:1410
 #, python-brace-format
 msgid "Could not find {name} on the page."
 msgstr ""
 
-#: src/ui/window.py:1423
+#: src/ui/window.py:1441
 #, python-brace-format
 msgid "Zoom {percent}%"
 msgstr ""
 
-#: src/ui/window.py:1431
+#: src/ui/window.py:1449
 msgid "Press F11 to leave fullscreen"
 msgstr ""
 
-#: src/ui/window.py:1486
+#: src/ui/window.py:1504
 #, python-brace-format
 msgid "The microphone is blocked for {name}."
 msgstr ""
 
-#: src/ui/window.py:1492
+#: src/ui/window.py:1510
 msgid "Use the Microphone?"
 msgstr ""
 
-#: src/ui/window.py:1493
+#: src/ui/window.py:1511
 #, python-brace-format
 msgid ""
 "{name} wants to start a voice call with a Dot. Dotdeck only listens while "
 "the call is open."
 msgstr ""
 
-#: src/ui/window.py:1495
+#: src/ui/window.py:1513
 msgid "Remember for this server"
 msgstr ""
 

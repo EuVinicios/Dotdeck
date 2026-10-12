@@ -496,3 +496,114 @@ telemetria em Privacidade e as mensagens de erro do servidor em inglês nos avis
 **Pedido do dono:** "Outro ponto, ao clicar com o botão direito sobre os dots aparece um menu
 de interação, mas tenho que rolar para ver todas as opções. Faz um polimento final desses
 detalhes de layout e UX."
+
+## ADR-021 — Novidades do OpenDots oficial: testes antes de reiniciar, prévia de conflitos e contrato diário (12/10/2026)
+
+**Contexto.** O Dotdeck publicado depende do OpenDots oficial em dois pontos.
+- **A página.** O modo foco e os comandos da barra nativa acham os elementos da página pelas
+  classes, pelos rótulos acessíveis em inglês e por algumas palavras visíveis (ADR-012). Se o
+  oficial muda esses nomes, o modo foco se desliga sozinho e a página volta a ser mostrada
+  como é, mas os comandos da barra nativa (abrir um Dot, Atividade, ligar…) param. Um PR
+  aberto no projeto oficial (CopilotKit/OpenDots#121, interface em pt-BR, en, es e fr) troca
+  vários desses rótulos ("Dots" vira "Agents", "Open activity" vira "Activity", "Edit X
+  settings" vira "Edit settings for X"…) e passa a escolher o idioma pelo navegador. Os
+  testes do Dotdeck só rodavam contra uma imitação da página (`tests/fake_server.py`); nada
+  conferia o OpenDots de verdade.
+- **O servidor.** O atualizador (ADR-009) só fazia `git fetch` a cada 6 horas. Ao clicar em
+  Atualizar, mesclava, compilava e reiniciava sem rodar teste nenhum, só descobria um
+  conflito tentando o merge, enviava `HEAD:main` ao backup sem olhar a branch, não via
+  arquivos fora do git que o merge sobrescreveria (o git sobrescreve os ignorados sem avisar)
+  e escutava em `0.0.0.0:4311`, porque herdava o `HOST` do `.env` do OpenDots.
+
+**Pergunta ao dono:** "Atualizações do OpenDots oficial: como proteger o Dotdeck publicado e
+o nosso servidor?" **Resposta:** "Alerta + teste contra o oficial (Recomendado)": um aviso
+diário quando o oficial tiver novidade, já dizendo se vai dar conflito; um teste diário do
+Dotdeck contra o OpenDots oficial; e o atualizador rodando os testes antes de reiniciar e
+deixando de escutar em todas as redes. O aviso diário fica fora deste repositório e usa o
+`GET /status` descrito abaixo.
+
+**Decisão.**
+- **Testes antes de reiniciar.** Depois do merge (e do `npm ci`, se as dependências mudaram)
+  o atualizador roda os testes do próprio OpenDots no código mesclado: `npm run typecheck` e
+  `npm test`, os que o `package.json` tiver (`--checks`/`UPDATER_CHECKS` escolhem outros
+  comandos, `none` desliga). Se falham, o merge é desfeito (`reset` ao ponto anterior e
+  `npm ci` de volta, se preciso) e a atualização termina como falha, com as últimas linhas da
+  saída. Os testes rodam **antes** do `npm run build`, e não depois: o build reescreve o
+  `dist/`, de onde o OpenDots em execução serve a página; assim, um teste vermelho não
+  recompila nem reinicia nada e o servidor em uso nem percebe. Build, reinício, checagem de
+  saúde e volta ao ponto anterior seguem como na ADR-009.
+- **Prévia sem tocar no checkout.** O `GET /status` passa a dizer, a cada consulta (e depois
+  de cada `fetch` automático), o que um merge faria agora: `conflicts` (arquivos que vão dar
+  conflito com os commits locais, por `git merge-tree --write-tree --name-only`, do git 2.38;
+  `null` num git mais antigo), `untracked` (arquivos que o oficial acrescenta e que já existem
+  no servidor fora do git, ignorados ou não), `branch` e `expected_branch`, além do `behind`
+  que já existia. O formato vai para a versão 2; os campos antigos não mudam.
+- **Recusas que não mudam nada.** O atualizador não começa se o checkout não estiver na
+  branch `main` (`--branch` muda), num HEAD destacado, com mudanças não salvas ou com arquivos
+  fora do git no caminho, e confere de novo depois do `fetch`. O backup recebe
+  `refs/heads/main`, e não mais o `HEAD`.
+- **Só 127.0.0.1.** O endereço vem de `--host`, senão de `UPDATER_HOST` (no ambiente ou no
+  `.env` do OpenDots), senão `127.0.0.1`; o `HOST` do OpenDots não conta mais. O
+  `server/install.sh` grava `--host` no serviço; `--updater-host` expõe o atualizador de
+  propósito, com um aviso. O `--update` passa a renovar também o atualizador já instalado
+  (código e serviço, com cópia dos anteriores, e nunca no meio de uma atualização), e a
+  simulação mostra a troca: "escuta em 127.0.0.1:4311 (hoje: 0.0.0.0:4311)". Um Dotdeck em
+  outro aparelho chega ao atualizador por um túnel SSH ou por um endereço exposto de
+  propósito, informado em **Endereço do atualizador** (`server/README.md`).
+- **Na interface.** Em Preferências → Servidores, **Atualização bloqueada** diz o porquê
+  (conflito em quais arquivos, arquivos fora do git, outra branch) e o botão Atualizar fica
+  apagado; o progresso mostra "Rodando os testes do OpenDots…"; a dica da última atualização
+  traz a saída do teste que falhou. Num servidor de outro aparelho sem atualizador à vista, o
+  texto explica o túnel e a exposição.
+- **Contrato.** `src/web/contract.json` lista os 104 itens que o Dotdeck usa do OpenDots:
+  classes, ids, rótulos acessíveis, atributos, palavras visíveis, chaves de armazenamento,
+  formatos de link, props do React lidas pelas fibras, o `__reactFiber$` do cliente
+  compilado, as rotas da API, as perguntas da página (`window.confirm`/`prompt`) e uma
+  suposição: o cliente não ter `opendots-language` (a escolha de idioma do PR de tradução).
+  Cinco são opcionais, porque só existem em alguns servidores (as rotas de `/api/model-config`
+  do guia do Dotdeck e a lista de Dots recolhível de alguns forks). `tests/test_contract.py`
+  confere a lista nos dois sentidos contra `focus.js`, `focus.css`, `webview.py` e o cliente
+  da API: uma string nova nesses arquivos precisa ser classificada (da página → contrato; do
+  Dotdeck → `not_upstream`), e um item que o Dotdeck deixou de usar sai da lista. Com
+  `OPENDOTS_SRC`, o mesmo teste procura cada item num checkout do OpenDots;
+  `tools/upstream_contract.py` faz isso na linha de comando e escreve o resumo.
+- **Teste diário.** `.github/workflows/upstream.yml` roda todo dia às 06:17 UTC, à mão e nos
+  PRs que mexem em `src/web/**`, `src/core/api.py` ou `server/**`: clona o `main` oficial,
+  usa o Node que o `engines` dele pede, roda `npm ci && npm run build`, o contrato e o teste
+  de fumaça da interface no cliente oficial compilado (`make smoke OPENDOTS_CLIENT=…`, no
+  mesmo contêiner e com o mesmo xvfb do CI). Se falhar, o resumo do job lista os itens que
+  sumiram e o que cada um quebra.
+
+**Prova.**
+- `tests/test_updater.py`: 15 testes (8 novos), com repositórios git temporários e `npm` e
+  `systemctl` falsos: teste vermelho desfaz o merge sem build nem reinício e mostra a saída
+  sem cores; dependências voltam quando o teste falha depois de um `npm ci`; comandos
+  escolhidos e desligados; prévia de conflito sem `MERGE_HEAD` nem mudança no checkout;
+  arquivos fora do git, inclusive ignorados, recusados; outra branch e HEAD destacado
+  recusados e só a `main` enviada ao backup; endereço de escuta.
+- `tests/test_gateway.py`: 4 testes novos do instalador (simulação com a troca de endereço,
+  `--host 127.0.0.1` no serviço, `--update` que renova o atualizador mantendo o `--repo` e o
+  `--updater-host` escolhido, nada reiniciado durante uma atualização).
+- `tests/test_updates_ui.py`: 4 testes novos (bloqueio com arquivos e branch, saída do teste
+  na dica, leitura do `/status` antigo e novo, servidor local ou remoto).
+- `tests/test_contract.py`: 6 testes. Contra o `main` oficial (`625452e`, 06/10/2026), os 99
+  itens obrigatórios estão lá. Contra o PR #121 (`664f86d`), 14 quebram, entre eles `Dots`,
+  `Open activity`, `Edit ${name} settings`, `New chat` e o `opendots-language` que apareceu.
+- Teste de fumaça no cliente compilado (contêiner do CI, 4 GB): passa no `main` oficial e
+  falha no PR #121 ("the page could not open Study"), que a versão anterior do teste de
+  fumaça deixava passar, porque só conferia o modo foco e as Configurações. Com a imitação da
+  página (`make smoke`, o caminho do CI) também passa.
+- Suíte inteira, um módulo por vez no contêiner do CI, antes e depois: 379 → 401 testes e as
+  mesmas 4 falhas nos dois (chamadas WebRTC em loopback num contêiner sem rede).
+- No `main` oficial, `npm run typecheck` leva 6,5 s e `npm test` (302 testes) 12 s nesta
+  máquina, com Node 22. Numa cópia do OpenDots deste servidor, com os commits locais, os
+  dois passam (463 testes em 13 s): os testes padrão não travariam a próxima atualização.
+
+**Limites.** O contrato é textual: mostra que os nomes estão no código, não que a página
+funciona. O teste de fumaça cobre o caminho principal (reconhecer a página, ligar o modo foco,
+abrir dois Dots, Atividade e Memórias pelos comandos da barra nativa, com a página
+confirmando cada um, e abrir as Configurações), sobre a API fictícia do
+`tools/demo_server.py`; mudanças na API real só aparecem pelas rotas do contrato. O GitHub desliga workflows
+agendados de repositórios públicos depois de 60 dias sem atividade. E os testes do OpenDots
+rodam no código do servidor, com os commits locais: se um commit local quebrar um teste, o
+atualizador recusa toda atualização até que ele seja corrigido (ou `UPDATER_CHECKS=none`).

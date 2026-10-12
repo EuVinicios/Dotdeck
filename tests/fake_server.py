@@ -720,6 +720,7 @@ class FakeUpdater:
         self.polls_until_done = 2
         self.updates_started = 0
         self.job = {"state": "idle", "log": []}
+        self.extra: dict = {}     # more /status fields (conflicts, untracked, branch…)
         fake = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -769,13 +770,14 @@ class FakeUpdater:
     def status(self) -> dict:
         news = [{"short": "c0ffee1", "subject": "feat: dark mode", "date": "2026-10-09T12:00:00+00:00"},
                 {"short": "c0ffee2", "subject": "fix: voice receipts", "date": "2026-10-08T12:00:00+00:00"}]
-        return {"version": 1, "behind": self.behind, "ahead": 5, "dirty": False,
+        return {"version": 2, "behind": self.behind, "ahead": 5, "dirty": False,
+                "branch": "main", "expected_branch": "main", "conflicts": [], "untracked": [],
                 "news": news[:self.behind],
                 "current": {"short": "083a6b4", "subject": "fix(telegram): tokens",
                             "date": "2026-10-09T22:00:00+00:00"},
                 "upstream": {"short": "c0ffee1", "subject": "feat: dark mode",
                              "date": "2026-10-09T12:00:00+00:00"},
-                "job": self.job}
+                "job": self.job, **self.extra}
 
     def stop(self) -> None:
         self._httpd.shutdown()

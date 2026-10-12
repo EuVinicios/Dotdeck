@@ -2,7 +2,9 @@
 #
 #   make run            run from the source tree
 #   make test           unit, WebKit and voice tests (under xvfb + dbus when available)
-#   make smoke          drive the UI once and fail on errors
+#   make smoke          drive the UI once and fail on errors (OPENDOTS_CLIENT=<OpenDots>/dist/client
+#                       uses the real web client instead of the stand-in page)
+#   make contract       check src/web/contract.json against OPENDOTS=<an OpenDots checkout>
 #   make screenshots    refresh data/screenshots (OPENDOTS_CLIENT=<OpenDots>/dist/client)
 #   make store-assets   the Snap Store icon, banner and slides (data/store)
 #   make site           the website in build/website (build-aux/website.sh)
@@ -31,7 +33,7 @@ FLATPAK_BUILDER ?= $(shell command -v flatpak-builder 2>/dev/null || echo flatpa
 HEADLESS := $(shell command -v dbus-run-session >/dev/null 2>&1 && echo "dbus-run-session --") \
             $(shell command -v xvfb-run >/dev/null 2>&1 && echo "xvfb-run -a -s '-screen 0 1600x1000x24'")
 
-.PHONY: all run test smoke screenshots store-assets site icon validate privacy locale install uninstall \
+.PHONY: all run test smoke contract screenshots store-assets site icon validate privacy locale install uninstall \
 	deb flatpak flatpak-lint snap pot clean version
 
 all: locale
@@ -47,7 +49,14 @@ test:
 		$(PYTHON) -W ignore::DeprecationWarning -m unittest discover -s tests -t . -v
 
 smoke:
-	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py --smoke --out build/smoke
+	$(HEADLESS) env GDK_BACKEND=x11 $(PYTHON) -W ignore tools/screenshots.py --smoke --out build/smoke \
+		$(if $(OPENDOTS_CLIENT),--demo "$(OPENDOTS_CLIENT)")
+
+# The classes, labels, words and routes Dotdeck needs, looked up in an OpenDots checkout
+# (build it first for the checks on the bundle: npm ci && npm run build).
+contract:
+	@test -d "$(OPENDOTS)/src/client" || { echo "Use: make contract OPENDOTS=<OpenDots>"; exit 1; }
+	OPENDOTS_SRC="$(OPENDOTS)" $(PYTHON) -m unittest -v tests.test_contract
 
 # English for AppStream (data/screenshots), Brazilian Portuguese for the site and the
 # store (data/screenshots/pt_BR), light and dark, all with fictional Dots on the real

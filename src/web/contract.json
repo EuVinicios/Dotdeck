@@ -1,0 +1,710 @@
+{
+  "about": "What Dotdeck's page integration (src/web/focus.js, focus.css, the page scripts in webview.py) and API client (src/core) need from the OpenDots web client and server. tests/test_contract.py keeps this list in sync with that code and, with OPENDOTS_SRC, checks it against an OpenDots checkout; tools/upstream_contract.py --help explains the kinds. The official OpenDots is checked every day by .github/workflows/upstream.yml.",
+  "kinds": {
+    "class": "a CSS class of the page's elements (src/client)",
+    "id": "an element id",
+    "label": "an accessible label (aria-label); ${…} is a placeholder",
+    "attribute": "an attribute (name or name=\"value\")",
+    "text": "a visible word or alt text, as a whole string or element text",
+    "storage": "a localStorage/sessionStorage key",
+    "hash": "a link format of the page",
+    "prop": "a prop of a React component, read through React",
+    "bundle": "text in the built client (dist/client), e.g. React internals",
+    "server-text": "text in the server code (src/server)",
+    "route": "an API route (METHOD /api/path) registered in src/server",
+    "dialog": "a window.confirm/prompt question (the regular expression webview.py matches)",
+    "absent": "must NOT be in the client: it would break an assumption"
+  },
+  "tokens": [
+    {
+      "kind": "class",
+      "value": "template-app",
+      "used_by": "focus.js (every command, recognizing the page), focus.css",
+      "breaks": "focus mode: the page is not recognized, focus mode stays off and the native sidebar steps aside"
+    },
+    {
+      "kind": "class",
+      "value": "app",
+      "used_by": "focus.css (content starts at the left edge)",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "icon-rail",
+      "used_by": "focus.js (recognizing the page, Activity, new chat), focus.css",
+      "breaks": "focus mode: the page is not recognized, focus mode stays off and the native sidebar steps aside"
+    },
+    {
+      "kind": "id",
+      "value": "workspace-sidebar",
+      "used_by": "focus.js (recognizing the page, new chat), focus.css",
+      "breaks": "focus mode: the page is not recognized, focus mode stays off and the native sidebar steps aside"
+    },
+    {
+      "kind": "class",
+      "value": "dot-nav-row",
+      "used_by": "focus.js (the list of Dots)",
+      "breaks": "opening a Dot, new chat, editing a Dot, the Dots' pets on the page"
+    },
+    {
+      "kind": "class",
+      "value": "dot-nav",
+      "used_by": "focus.js, webview.py (opening a Dot)",
+      "breaks": "opening a Dot from the native sidebar"
+    },
+    {
+      "kind": "class",
+      "value": "active",
+      "used_by": "focus.js (which Dot, conversation or view is open)",
+      "breaks": "selection sync and opening a Dot (the command never confirms)"
+    },
+    {
+      "kind": "class",
+      "value": "dot-settings",
+      "used_by": "focus.js (editing a Dot in the page)",
+      "breaks": "Edit in the page from a Dot's menu"
+    },
+    {
+      "kind": "class",
+      "value": "rail-brand",
+      "used_by": "focus.js (new chat)",
+      "breaks": "New chat (the Dot's empty composer)"
+    },
+    {
+      "kind": "class",
+      "value": "wordmark",
+      "used_by": "focus.js (new chat, without the rail)",
+      "breaks": "New chat when the rail is missing"
+    },
+    {
+      "kind": "class",
+      "value": "rail-settings",
+      "used_by": "focus.js (the page's settings)",
+      "breaks": "the page's own settings dialog"
+    },
+    {
+      "kind": "class",
+      "value": "sidebar-bottom",
+      "used_by": "focus.js (Activity and Memories)",
+      "breaks": "opening Activity and Memories, selection sync"
+    },
+    {
+      "kind": "class",
+      "value": "nav-item",
+      "used_by": "focus.js (Activity, Memories, conversations)",
+      "breaks": "opening Activity, Memories and conversations"
+    },
+    {
+      "kind": "class",
+      "value": "thread-list",
+      "used_by": "focus.js (conversations)",
+      "breaks": "opening a conversation from the native sidebar"
+    },
+    {
+      "kind": "class",
+      "value": "chat-workspace",
+      "used_by": "focus.js (what the page shows), focus.css",
+      "breaks": "selection sync, new chat, calls; the chat does not fill the window"
+    },
+    {
+      "kind": "class",
+      "value": "live-chat",
+      "used_by": "focus.js (an open conversation), focus.css",
+      "breaks": "opening a conversation, starting a call"
+    },
+    {
+      "kind": "class",
+      "value": "new-conversation",
+      "used_by": "focus.js (a Dot's empty composer)",
+      "breaks": "new chat, selection sync"
+    },
+    {
+      "kind": "class",
+      "value": "chat-persona",
+      "used_by": "focus.js (the open Dot, pets), focus.css (hides the page's header)",
+      "breaks": "selection sync and the Dot's state; the page's header shows twice"
+    },
+    {
+      "kind": "class",
+      "value": "chat-persona-actions",
+      "used_by": "focus.js (call button), webview.py (save as page, schedule)",
+      "breaks": "calls, Save as Page and Schedule from the native header"
+    },
+    {
+      "kind": "class",
+      "value": "empty-chat-persona",
+      "used_by": "focus.js (the Dot's home, job line, pets), focus.css",
+      "breaks": "selection sync, the Dot's job line and pet on its home"
+    },
+    {
+      "kind": "class",
+      "value": "chat-welcome",
+      "used_by": "focus.css (shorter instructions)",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "muted",
+      "used_by": "focus.css (keeps the welcome note)",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "call-view",
+      "used_by": "focus.js (a call in progress), focus.css",
+      "breaks": "starting and ending calls from Dotdeck"
+    },
+    {
+      "kind": "class",
+      "value": "call-end",
+      "used_by": "focus.js (hanging up)",
+      "breaks": "ending a call from Dotdeck"
+    },
+    {
+      "kind": "class",
+      "value": "call-persona",
+      "used_by": "focus.js (the pet in the call sheet)",
+      "breaks": "the Dot's pet in calls"
+    },
+    {
+      "kind": "class",
+      "value": "minimized",
+      "used_by": "focus.css (the call sheet's position)",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "mascot",
+      "used_by": "focus.js (pets)",
+      "breaks": "the Dots' pets on the page"
+    },
+    {
+      "kind": "class",
+      "value": "dot-body",
+      "used_by": "focus.js (unlock screen), webview.py (pets style sheet)",
+      "breaks": "recognizing the unlock screen; pets on the page"
+    },
+    {
+      "kind": "class",
+      "value": "working",
+      "used_by": "focus.js (the open Dot's state)",
+      "breaks": "the working indicator in the native header"
+    },
+    {
+      "kind": "class",
+      "value": "paused",
+      "used_by": "focus.js (the open Dot's state)",
+      "breaks": "the paused indicator in the native header"
+    },
+    {
+      "kind": "class",
+      "value": "unlock",
+      "used_by": "focus.js (the unlock and loading screens)",
+      "breaks": "the unlock screen is not recognized (the native sidebar steps aside)"
+    },
+    {
+      "kind": "class",
+      "value": "large-empty",
+      "used_by": "focus.js (pets of empty states)",
+      "breaks": "the brand pet on empty states"
+    },
+    {
+      "kind": "class",
+      "value": "topbar",
+      "used_by": "focus.js (breadcrumb), focus.css (hides the top bar)",
+      "breaks": "selection sync of Activity, Memories and Pages; the page's top bar shows"
+    },
+    {
+      "kind": "class",
+      "value": "breadcrumbs",
+      "used_by": "focus.js (what the page shows)",
+      "breaks": "selection sync of Activity, Memories and Pages"
+    },
+    {
+      "kind": "class",
+      "value": "modal",
+      "used_by": "focus.js (a dialog opened)",
+      "breaks": "the page's settings and Edit in the page never confirm"
+    },
+    {
+      "kind": "class",
+      "value": "workspace",
+      "used_by": "focus.css (banners above the chat)",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "mobile-menu",
+      "used_by": "focus.css",
+      "breaks": "focus mode: the page's own navigation shows next to Dotdeck's"
+    },
+    {
+      "kind": "class",
+      "value": "nav-scrim",
+      "used_by": "focus.css",
+      "breaks": "focus mode: the page's own navigation shows next to Dotdeck's"
+    },
+    {
+      "kind": "class",
+      "value": "desktop-nav-toggle",
+      "used_by": "focus.css",
+      "breaks": "focus mode: the page's own navigation shows next to Dotdeck's"
+    },
+    {
+      "kind": "class",
+      "value": "nav-collapsed",
+      "used_by": "focus.css",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "split",
+      "used_by": "focus.css (narrow windows with the computer)",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "computer-overlay",
+      "used_by": "focus.css",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "result-pane",
+      "used_by": "focus.css",
+      "breaks": "focus mode: layout only (the chat does not fill the window)"
+    },
+    {
+      "kind": "class",
+      "value": "error-banner",
+      "used_by": "focus.css (hidden while Dotdeck says the server is offline)",
+      "breaks": "the page's own error bar repeats Dotdeck's offline banner"
+    },
+    {
+      "kind": "class",
+      "value": "new-chat",
+      "used_by": "webview.py (New chat shortcut)",
+      "breaks": "the New Chat shortcut without focus mode"
+    },
+    {
+      "kind": "label",
+      "value": "Dots",
+      "used_by": "focus.js (recognizing the page, the list of Dots), webview.py",
+      "breaks": "focus mode: the page is not recognized, focus mode stays off and the native sidebar steps aside"
+    },
+    {
+      "kind": "label",
+      "value": "Expand dots list",
+      "used_by": "focus.js, webview.py (a collapsed list of Dots)",
+      "breaks": "opening a Dot while the list is collapsed",
+      "optional": "only some forks collapse the list of Dots"
+    },
+    {
+      "kind": "label",
+      "value": "Edit ${name} settings",
+      "used_by": "focus.js (editing a Dot in the page)",
+      "breaks": "Edit in the page from a Dot's menu"
+    },
+    {
+      "kind": "label",
+      "value": "Start a conversation",
+      "used_by": "focus.js (focus the composer of a new chat)",
+      "breaks": "the composer is not focused after New chat"
+    },
+    {
+      "kind": "label",
+      "value": "Open activity",
+      "used_by": "focus.js, webview.py (Activity)",
+      "breaks": "opening Activity"
+    },
+    {
+      "kind": "label",
+      "value": "Open settings",
+      "used_by": "focus.js, webview.py (the page's settings)",
+      "breaks": "the page's own settings dialog"
+    },
+    {
+      "kind": "label",
+      "value": "New chat",
+      "used_by": "webview.py (New chat shortcut)",
+      "breaks": "the New Chat shortcut without focus mode"
+    },
+    {
+      "kind": "label",
+      "value": "Show computer",
+      "used_by": "focus.js (computer panel)",
+      "breaks": "showing the Dot's computer from Dotdeck"
+    },
+    {
+      "kind": "label",
+      "value": "Hide computer",
+      "used_by": "focus.js (computer panel)",
+      "breaks": "hiding the Dot's computer from Dotdeck"
+    },
+    {
+      "kind": "label",
+      "value": "Start voice call",
+      "used_by": "focus.js (calls)",
+      "breaks": "calling a Dot from Dotdeck"
+    },
+    {
+      "kind": "label",
+      "value": "End voice call",
+      "used_by": "focus.js (calls)",
+      "breaks": "hanging up from Dotdeck"
+    },
+    {
+      "kind": "label",
+      "value": "Mute microphone",
+      "used_by": "webview.py (mute shortcut)",
+      "breaks": "the mute shortcut keeps the page's button out of sync"
+    },
+    {
+      "kind": "label",
+      "value": "Unmute microphone",
+      "used_by": "webview.py (mute shortcut)",
+      "breaks": "the mute shortcut keeps the page's button out of sync"
+    },
+    {
+      "kind": "label",
+      "value": "Save conversation as page",
+      "used_by": "webview.py (native header)",
+      "breaks": "Save as Page from the native header"
+    },
+    {
+      "kind": "label",
+      "value": "Schedule a task in this conversation",
+      "used_by": "webview.py (native header)",
+      "breaks": "Schedule from the native header"
+    },
+    {
+      "kind": "attribute",
+      "value": "role=\"dialog\"",
+      "used_by": "focus.js (a dialog opened)",
+      "breaks": "the page's settings and Edit in the page never confirm"
+    },
+    {
+      "kind": "attribute",
+      "value": "aria-expanded",
+      "used_by": "focus.js (computer panel state)",
+      "breaks": "showing and hiding the Dot's computer"
+    },
+    {
+      "kind": "attribute",
+      "value": "name=\"theme-color\"",
+      "used_by": "focus.js (colour scheme)",
+      "breaks": "the window colour does not follow Dotdeck's scheme"
+    },
+    {
+      "kind": "attribute",
+      "value": "data-theme",
+      "used_by": "focus.js (colour scheme)",
+      "breaks": "the page does not follow Dotdeck's colour scheme live",
+      "pattern": "data-theme|dataset\\.theme"
+    },
+    {
+      "kind": "text",
+      "value": "Scheduled & activity",
+      "used_by": "focus.js (Activity without the rail)",
+      "breaks": "opening Activity when the rail is missing"
+    },
+    {
+      "kind": "text",
+      "value": "Memories",
+      "used_by": "focus.js (Memories, breadcrumb)",
+      "breaks": "opening Memories, selection sync"
+    },
+    {
+      "kind": "text",
+      "value": "Activity",
+      "used_by": "focus.js (breadcrumb)",
+      "breaks": "selection sync of Activity"
+    },
+    {
+      "kind": "text",
+      "value": "Pages",
+      "used_by": "focus.js (breadcrumb)",
+      "breaks": "selection sync of Spaces"
+    },
+    {
+      "kind": "text",
+      "value": "Dot",
+      "used_by": "focus.js (the mascot of no Dot)",
+      "breaks": "the brand pet on the loading screen"
+    },
+    {
+      "kind": "text",
+      "value": "${name} is ${state}",
+      "used_by": "focus.js (pets: the mascot's alt text names its Dot)",
+      "breaks": "pets on mascots outside the sidebar and the chat",
+      "dotdeck": [
+        " is "
+      ]
+    },
+    {
+      "kind": "text",
+      "value": "dark",
+      "used_by": "focus.js (colour scheme)",
+      "breaks": "the page does not follow Dotdeck's colour scheme"
+    },
+    {
+      "kind": "text",
+      "value": "light",
+      "used_by": "focus.js (colour scheme)",
+      "breaks": "the page does not follow Dotdeck's colour scheme"
+    },
+    {
+      "kind": "text",
+      "value": "#1b1b1b",
+      "used_by": "focus.js (dark window colour)",
+      "breaks": "the window colour in dark mode"
+    },
+    {
+      "kind": "text",
+      "value": "#f8f7f4",
+      "used_by": "focus.js (light window colour)",
+      "breaks": "the window colour in light mode"
+    },
+    {
+      "kind": "storage",
+      "value": "opendots-token",
+      "used_by": "src/config.py, bridge.js (the owner token from the keyring)",
+      "breaks": "Dotdeck cannot sign the page in: it asks for the token every time"
+    },
+    {
+      "kind": "storage",
+      "value": "opendots-theme",
+      "used_by": "focus.js (colour scheme)",
+      "breaks": "the page does not follow Dotdeck's colour scheme"
+    },
+    {
+      "kind": "storage",
+      "value": "opendots_dots_collapsed",
+      "used_by": "focus.js (keeps the list of Dots expanded)",
+      "breaks": "opening a Dot while the list is collapsed",
+      "optional": "only some forks collapse the list of Dots"
+    },
+    {
+      "kind": "hash",
+      "value": "#/spaces/${space}",
+      "used_by": "focus.js (opening a Space)",
+      "breaks": "opening Spaces and pages from the native sidebar",
+      "pattern": "#/spaces/\\$\\{[^}]+\\}",
+      "dotdeck": [
+        "#/spaces/${}${}"
+      ]
+    },
+    {
+      "kind": "hash",
+      "value": "/pages/${page}",
+      "used_by": "focus.js (opening a page of a Space)",
+      "breaks": "opening pages from the native sidebar",
+      "pattern": "/pages/\\$\\{[^}]+\\}",
+      "dotdeck": [
+        "/pages/${}"
+      ]
+    },
+    {
+      "kind": "prop",
+      "value": "onSelect",
+      "used_by": "focus.js (ThreadList's props, read through React)",
+      "breaks": "opening a conversation falls back to clicking it by position",
+      "files": [
+        "src/client/ThreadList.tsx"
+      ]
+    },
+    {
+      "kind": "prop",
+      "value": "local",
+      "used_by": "focus.js (ThreadList's props, read through React)",
+      "breaks": "opening a conversation falls back to clicking it by position",
+      "files": [
+        "src/client/ThreadList.tsx"
+      ]
+    },
+    {
+      "kind": "bundle",
+      "value": "__reactFiber$",
+      "used_by": "focus.js (React's fiber on DOM nodes)",
+      "breaks": "opening a conversation falls back to clicking it by position"
+    },
+    {
+      "kind": "server-text",
+      "value": "Bearer",
+      "used_by": "src/core/server.py, focus.js (the owner token)",
+      "breaks": "Dotdeck cannot read anything from the server",
+      "dotdeck": [
+        "Bearer ${}"
+      ]
+    },
+    {
+      "kind": "route",
+      "value": "GET /api/state",
+      "used_by": "src/core/monitor.py, server.py (status, tasks, memories)",
+      "breaks": "Dotdeck cannot connect or show the server's state"
+    },
+    {
+      "kind": "route",
+      "value": "GET /api/workspace",
+      "used_by": "src/core/monitor.py, server.py, focus.js (Dots, Spaces, conversations)",
+      "breaks": "the native sidebar stays empty"
+    },
+    {
+      "kind": "route",
+      "value": "PATCH /api/settings",
+      "used_by": "src/core/api.py (pause, privacy)",
+      "breaks": "pausing the Dots and the privacy switches"
+    },
+    {
+      "kind": "route",
+      "value": "POST /api/dots",
+      "used_by": "src/core/api.py (New Dot)",
+      "breaks": "creating a Dot"
+    },
+    {
+      "kind": "route",
+      "value": "PUT /api/dots/:id",
+      "used_by": "src/core/api.py (Settings → Dots)",
+      "breaks": "saving a Dot's settings"
+    },
+    {
+      "kind": "route",
+      "value": "POST /api/conversations",
+      "used_by": "src/core/api.py (new conversation)",
+      "breaks": "starting a conversation from Dotdeck"
+    },
+    {
+      "kind": "route",
+      "value": "GET /api/copilotkit/threads",
+      "used_by": "src/core/api.py (a Dot's conversations)",
+      "breaks": "listing a Dot's conversations",
+      "pattern": "\\.all\\(\\s*['\"`](?:/api)?/copilotkit/\\*"
+    },
+    {
+      "kind": "route",
+      "value": "POST /api/memories",
+      "used_by": "src/core/api.py (Memories)",
+      "breaks": "adding a memory"
+    },
+    {
+      "kind": "route",
+      "value": "PUT /api/memories/:id",
+      "used_by": "src/core/api.py (Memories)",
+      "breaks": "editing a memory"
+    },
+    {
+      "kind": "route",
+      "value": "DELETE /api/memories/:id",
+      "used_by": "src/core/api.py (Memories)",
+      "breaks": "deleting a memory"
+    },
+    {
+      "kind": "route",
+      "value": "GET /api/model-config",
+      "used_by": "src/core/api.py, monitor.py (AI Models)",
+      "breaks": "the AI Models page stays hidden",
+      "optional": "only servers set up with the Dotdeck guide"
+    },
+    {
+      "kind": "route",
+      "value": "POST /api/model-config",
+      "used_by": "src/core/api.py (AI Models)",
+      "breaks": "changing the model from Dotdeck",
+      "optional": "only servers set up with the Dotdeck guide"
+    },
+    {
+      "kind": "route",
+      "value": "POST /api/model-config/test",
+      "used_by": "src/core/api.py (AI Models)",
+      "breaks": "testing a model from Dotdeck",
+      "optional": "only servers set up with the Dotdeck guide"
+    },
+    {
+      "kind": "dialog",
+      "value": "Leave your unsaved page draft\\?",
+      "used_by": "webview.py (native dialog)",
+      "breaks": "the question shows with the page's English wording"
+    },
+    {
+      "kind": "dialog",
+      "value": "Page title",
+      "used_by": "webview.py (native dialog)",
+      "breaks": "the question shows with the page's English wording",
+      "pattern": "['\"`]Page title['\"`]"
+    },
+    {
+      "kind": "dialog",
+      "value": "Repeat interval in minutes \\(0 removes the schedule\\)",
+      "used_by": "webview.py (native dialog)",
+      "breaks": "the question shows with the page's English wording"
+    },
+    {
+      "kind": "dialog",
+      "value": "Link URL \\(https:// or an internal page link\\)",
+      "used_by": "webview.py (native dialog)",
+      "breaks": "the question shows with the page's English wording"
+    },
+    {
+      "kind": "dialog",
+      "value": "Load the latest saved page and replace this draft\\?.*",
+      "used_by": "webview.py (native dialog)",
+      "breaks": "the question shows with the page's English wording"
+    },
+    {
+      "kind": "dialog",
+      "value": "Delete \"(?P<title>.*)\"\\? This can.t be undone\\..*",
+      "used_by": "webview.py (native dialog)",
+      "breaks": "the question shows with the page's English wording"
+    },
+    {
+      "kind": "dialog",
+      "value": "Remove (?P<name>.+) from this Dot\\?",
+      "used_by": "webview.py (native dialog)",
+      "breaks": "the question shows with the page's English wording"
+    },
+    {
+      "kind": "absent",
+      "value": "opendots-language",
+      "used_by": "focus.js, webview.py (labels and words above are English)",
+      "breaks": "a translated page (it follows the browser's language) no longer matches the English labels: commands and focus mode break"
+    }
+  ],
+  "not_upstream": [
+    "",
+    " ",
+    "#",
+    "${}\\n${}",
+    "(prefers-color-scheme: dark)",
+    "\\n",
+    "__dotdeck",
+    "alt",
+    "aria-current",
+    "aria-label",
+    "change",
+    "chat",
+    "class",
+    "content",
+    "data-dotdeck-focus",
+    "data-dotdeck-offline",
+    "data-dotdeck-pet",
+    "data-dotdeck-summary",
+    "disabled",
+    "dot-state",
+    "false",
+    "focus",
+    "function",
+    "hashchange",
+    "home",
+    "idle",
+    "memories",
+    "no-store",
+    "probe",
+    "selection",
+    "set",
+    "sky",
+    "space",
+    "string",
+    "tasks",
+    "use strict"
+  ]
+}

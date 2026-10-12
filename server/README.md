@@ -4,7 +4,7 @@ Dois serviços pequenos que rodam **ao lado do OpenDots**, no mesmo computador:
 
 | Serviço | Para quê | Onde escuta |
 |---|---|---|
-| `opendots-updater` | o botão **Atualizar** do Dotdeck: compara o servidor com o OpenDots oficial e aplica as novidades | porta 4311 (mesmo `HOST` do OpenDots), exige o `OWNER_TOKEN` |
+| `opendots-updater` | o botão **Atualizar** do Dotdeck: compara o servidor com o OpenDots oficial, roda os testes dele e aplica as novidades | `127.0.0.1:4311` (só este computador; veja [Dotdeck em outro aparelho](#dotdeck-em-outro-aparelho)), exige o `OWNER_TOKEN` |
 | `opendots-voice-gateway` | chamadas de voz com os Dots usando a chave do **OpenRouter** (sem conta na OpenAI) | `127.0.0.1:4320`, só o OpenDots fala com ele |
 
 ## Instalar
@@ -25,24 +25,28 @@ O instalador:
 
 1. guarda uma cópia do `.env` do OpenDots em `~/work/backups/dotdeck-server-<data>/`;
 2. copia o código para `~/.local/share/dotdeck-server/` (os serviços não dependem do checkout);
-3. cria os serviços de usuário em `~/.config/systemd/user/`;
+3. cria os serviços de usuário em `~/.config/systemd/user/` (o atualizador escuta só em
+   `127.0.0.1`, mesmo que o OpenDots sirva a rede toda com `HOST=0.0.0.0`);
 4. gera um token só da ponte de voz e escreve `~/.config/dotdeck-server/voice-gateway.env`
    (permissão 600; a chave do OpenRouter é copiada de `OPENAI_API_KEY`, nunca exibida);
 5. aponta a voz do OpenDots para a ponte (`VOICE_REALTIME_URL`, `VOICE_API_KEY`,
    `VOICE_MODEL=openai/gpt-audio-mini`, `VOICE_NAME`), compila o OpenDots e o reinicia;
 6. confere que OpenDots, atualizador e ponte respondem.
 
-Atualizar só a ponte de voz depois de baixar uma versão nova do Dotdeck (copia o código,
-reescreve o serviço e o reinicia; o OpenDots, o `.env` dele e o atualizador não são tocados,
-e nada acontece se houver uma chamada em andamento):
+Atualizar a ponte de voz e o atualizador depois de baixar uma versão nova do Dotdeck (copia o
+código, reescreve os serviços que já estão instalados e os reinicia; o OpenDots e o `.env`
+dele não são tocados, e nada acontece se houver uma chamada ou uma atualização do OpenDots em
+andamento; `--no-voice` ou `--no-updater` deixam um dos dois de fora). A simulação mostra onde
+o atualizador vai escutar e onde escuta hoje:
 
 ```bash
 server/install.sh --update            # simula
 server/install.sh --update --apply    # aplica
 ```
 
-Antes de trocar, o `--update` guarda o serviço e o código em uso em
-`~/work/backups/dotdeck-server-<data>/`. Para voltar ao código anterior, copie só o código (o
+Antes de trocar, o `--update` guarda os serviços e o código em uso em
+`~/work/backups/dotdeck-server-<data>/` (`*.service.before`, `voice_gateway.before` e
+`updater.before`). Para voltar ao código anterior, copie só o código (o
 serviço antigo pode trazer de volta o defeito do reinício descrito em [Logs](#logs)):
 
 ```bash
@@ -58,22 +62,64 @@ Desfazer tudo (os serviços param e as configurações de voz originais voltam a
 server/install.sh --opendots ~/github/OpenDots --uninstall
 ```
 
-Opções: `--no-voice`, `--no-updater`, `--voice marin|coral|nova|…`, `--model openai/gpt-audio`.
+Opções: `--no-voice`, `--no-updater`, `--voice marin|coral|nova|…`, `--model openai/gpt-audio`,
+`--updater-host ENDEREÇO` (veja [Dotdeck em outro aparelho](#dotdeck-em-outro-aparelho)).
 
 ## Atualizador
 
 Ao clicar em **Atualizar** no Dotdeck (Preferências → Servidores → seu servidor):
 
 1. `git fetch` do projeto oficial (`origin/main`);
-2. ponto de restauração em `refs/updater/before-<data>`;
-3. `git merge` do oficial **mantendo os commits locais** — se houver conflito, nada muda;
-4. `npm ci` (só se `package.json`/`package-lock.json` mudaram) e `npm run build`;
-5. `systemctl --user restart opendots.service` e espera o `/api/state` responder;
-6. se algo falhar entre 4 e 5, volta ao ponto de restauração, recompila e reinicia;
-7. se existir o remoto `backup`, envia a nova versão para ele.
+2. recusa, sem mudar nada, se o checkout não estiver na branch `main`, se tiver mudanças não
+   salvas ou se o oficial trouxer arquivos que já existem no servidor fora do git (o merge os
+   sobrescreveria ou pararia no meio);
+3. ponto de restauração em `refs/updater/before-<data>`;
+4. `git merge` do oficial **mantendo os commits locais** — se houver conflito, nada muda;
+5. `npm ci` (só se `package.json`/`package-lock.json` mudaram);
+6. **os testes do OpenDots** no código já mesclado: `npm run typecheck` e `npm test` (os que o
+   `package.json` tiver). Se falharem, o merge é desfeito (e as dependências antigas voltam)
+   **antes** de compilar: o OpenDots em uso não é recompilado nem reiniciado, e o motivo, com
+   as últimas linhas da saída do teste, aparece no Dotdeck;
+7. `npm run build`, `systemctl --user restart opendots.service` e espera o `/api/state`
+   responder;
+8. se algo falhar entre 7 e o `/api/state`, volta ao ponto de restauração, recompila e reinicia;
+9. se existir o remoto `backup`, envia a branch `main` para ele.
 
 Ele também verifica novidades sozinho a cada 6 horas; o Dotdeck avisa com uma notificação e
 uma faixa na janela. Estado e histórico: `~/.local/state/opendots-updater/state.json`.
+
+Antes de atualizar, o `GET /status` (com o `OWNER_TOKEN`) já diz o que vai acontecer, sem
+tocar no checkout: `behind` (novidades oficiais), `conflicts` (arquivos que vão dar conflito
+com os commits locais, calculados com `git merge-tree`; `null` num git anterior ao 2.38),
+`untracked` (arquivos fora do git que o oficial sobrescreveria), `branch` e
+`expected_branch`. O Dotdeck mostra isso em **Atualização bloqueada** e não deixa começar;
+outras ferramentas (um aviso diário, por exemplo) podem ler o mesmo `/status`.
+
+| Opção | Padrão |
+|---|---|
+| `--checks "cmd; cmd"` ou `UPDATER_CHECKS` | `npm run typecheck; npm test` (os que existirem no `package.json`); `none` desliga |
+| `--no-checks` | atualiza sem testes |
+| `--checks-timeout` | 1200 s por comando |
+| `--branch` | `main` (a branch que é atualizada e enviada ao `backup`) |
+| `--host` ou `UPDATER_HOST` | `127.0.0.1`; o `HOST` do OpenDots não é usado |
+
+`UPDATER_CHECKS` e `UPDATER_HOST` podem ficar no ambiente do serviço ou no `.env` do OpenDots.
+O serviço criado pelo instalador já grava o endereço com `--host`, que vale mais que os dois;
+para mudá-lo, use `--updater-host` (abaixo).
+
+### Dotdeck em outro aparelho
+
+O atualizador recompila e reinicia o OpenDots, então escuta só no próprio servidor. Um Dotdeck
+no mesmo computador (endereço `http://localhost:4310` ou `http://127.0.0.1:4310`) o encontra
+sozinho. Um Dotdeck em outro aparelho mostra **Atualizador não encontrado** até que você
+escolha um caminho:
+
+- **Túnel SSH (sem abrir porta):** `ssh -N -L 4311:127.0.0.1:4311 <servidor>` no aparelho e,
+  no Dotdeck, **Endereço do atualizador** = `http://127.0.0.1:4311`.
+- **Expor de propósito:** `server/install.sh --update --updater-host <IP do servidor na rede
+  confiável> --apply` (o IP do Tailscale, por exemplo) e, no Dotdeck, **Endereço do
+  atualizador** = `http://<esse IP>:4311`. O instalador avisa que qualquer aparelho que
+  alcance esse endereço pode tentar o `OWNER_TOKEN`.
 
 ## Ponte de voz
 

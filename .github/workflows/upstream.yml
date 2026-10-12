@@ -1,0 +1,107 @@
+name: OpenDots oficial
+
+# Dotdeck drives the OpenDots page through its classes, accessible labels and words, and
+# talks to its API (the list is src/web/contract.json). Every day, and on pull requests
+# that touch that code, this builds the official main branch and checks Dotdeck against
+# it: first the contract (is every name still there?), then the UI smoke test on the real
+# web client. A red run means an OpenDots update would break part of Dotdeck; the job
+# summary lists the tokens that disappeared.
+on:
+  schedule:
+    - cron: "17 6 * * *"   # every day at 06:17 UTC (03:17 in Brasília)
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src/web/**"
+      - "src/core/api.py"
+      - "server/**"
+      - "tools/upstream_contract.py"
+      - "tools/screenshots.py"
+      - "tools/demo_server.py"
+      - "tests/test_contract.py"
+      - ".github/workflows/upstream.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upstream:
+    name: Dotdeck contra o OpenDots oficial (main)
+    runs-on: ubuntu-latest
+    container: ubuntu:26.04
+    timeout-minutes: 30
+    env:
+      # WebKit cannot build its bubblewrap sandbox inside an unprivileged container.
+      WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: "1"
+      LC_ALL: C.UTF-8
+      OPENDOTS_SRC: /tmp/opendots
+    defaults:
+      run:
+        shell: bash   # -eo pipefail: the smoke test's exit code survives the tee
+    steps:
+      # The same packages as the CI workflow, which runs the GUI tests the same way.
+      - name: Instalar dependências
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git make gettext python3 python3-gi python3-gi-cairo python3-cairo \
+            gir1.2-gtk-4.0 gir1.2-adw-1 gir1.2-webkit-6.0 gir1.2-soup-3.0 gir1.2-secret-1 \
+            gir1.2-gstreamer-1.0 gir1.2-gst-plugins-base-1.0 gir1.2-gst-plugins-bad-1.0 \
+            gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+            gstreamer1.0-nice adwaita-icon-theme fonts-cantarell librsvg2-common \
+            xvfb xauth dbus dbus-x11
+
+      - uses: actions/checkout@v7
+
+      - name: Baixar o OpenDots oficial (main)
+        id: opendots
+        run: |
+          git clone --depth 1 https://github.com/CopilotKit/OpenDots.git "$OPENDOTS_SRC"
+          commit="$(git -C "$OPENDOTS_SRC" rev-parse HEAD)"
+          # The Node version OpenDots asks for: .nvmrc, else the major of engines.node.
+          if [ -f "$OPENDOTS_SRC/.nvmrc" ]; then
+            node="$(tr -d ' v\n' < "$OPENDOTS_SRC/.nvmrc")"
+          else
+            node="$(python3 -c 'import json, re, sys
+          wanted = json.load(open(sys.argv[1])).get("engines", {}).get("node", "")
+          match = re.search(r"\d+", wanted)
+          print(match.group(0) if match else "lts/*")' "$OPENDOTS_SRC/package.json")"
+          fi
+          echo "node=$node" >> "$GITHUB_OUTPUT"
+          echo "OpenDots oficial: [\`${commit:0:12}\`](https://github.com/CopilotKit/OpenDots/commit/$commit) (Node $node)" >> "$GITHUB_STEP_SUMMARY"
+          echo >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ steps.opendots.outputs.node }}
+
+      - name: Compilar o OpenDots
+        id: build
+        run: |
+          cd "$OPENDOTS_SRC"
+          npm ci --no-audit --no-fund
+          npm run build
+
+      # Lists what disappeared in the job summary (tests/test_contract.py).
+      - name: Contrato (classes, rótulos, palavras e rotas que o Dotdeck usa)
+        run: python3 -m unittest -v tests.test_contract
+
+      - name: Interface com o cliente oficial (teste de fumaça)
+        id: smoke
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: make smoke OPENDOTS_CLIENT="$OPENDOTS_SRC/dist/client" 2>&1 | tee smoke.log
+
+      - name: Resumo do teste de fumaça
+        if: ${{ failure() && steps.smoke.outcome == 'failure' }}
+        run: |
+          {
+            echo "### O teste de fumaça falhou no cliente oficial"
+            echo
+            echo '```'
+            grep -E "smoke: FAILED|failures:|Traceback|Error" smoke.log | tail -n 20 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

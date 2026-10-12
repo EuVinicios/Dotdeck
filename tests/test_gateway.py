@@ -894,10 +894,15 @@ class InstallScriptTest(unittest.TestCase):
         self.fake(fakes / "curl", f'echo "curl $*" >> "{self.commands}"\n'
                   'case " $* " in *" -w "*) printf 200 ;; '
                   f'*) cat "{self.health}" ;; esac')
+        self.listening = self.root / "listening"    # what ss says listens on :4311 now
+        self.listening.write_text("LISTEN 0      5            0.0.0.0:4311      0.0.0.0:*\n")
+        self.fake(fakes / "ss", f'cat "{self.listening}"')
         self.path = f"{fakes}:/usr/bin:/bin"
         self.share = self.home / ".local" / "share" / "dotdeck-server"
         self.unit = self.home / ".config" / "systemd" / "user" / "opendots-voice-gateway.service"
         self.gateway_env = self.home / ".config" / "dotdeck-server" / "voice-gateway.env"
+        self.updater_unit = self.unit.parent / "opendots-updater.service"
+        self.updater_state = self.home / ".local" / "state" / "opendots-updater" / "state.json"
 
     @staticmethod
     def fake(path: Path, body: str) -> None:
@@ -1027,6 +1032,82 @@ class InstallScriptTest(unittest.TestCase):
         self.assertIn("chamada(s) em andamento", result.stdout)
         self.assertTrue((self.share / "voice_gateway" / "stale.py").exists())
         self.assertEqual(self.ran("systemctl"), [])
+
+    def test_the_updater_listens_only_on_the_server(self):
+        dry = self.run_script("--no-voice")
+        self.assertEqual(dry.returncode, 0, dry.stdout + dry.stderr)
+        # The simulation shows the change from an updater that followed OpenDots' HOST.
+        self.assertIn("escuta em 127.0.0.1:4311 (hoje: 0.0.0.0:4311)", dry.stdout)
+        self.assertFalse(self.updater_unit.exists())
+
+        result = self.run_script("--apply", "--no-voice")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        unit = self.updater_unit.read_text()
+        self.assertIn(f" --repo {self.opendots} --service opendots.service --host 127.0.0.1 "
+                      "--port 4311\n", unit)
+        self.assertTrue((self.share / "updater" / "opendots_updater.py").is_file())
+        # Restarted, not just enabled: a new version of the updater takes over at once.
+        self.assertIn("--user restart opendots-updater.service", self.ran("systemctl"))
+        self.assertIn("http://127.0.0.1:4311/status", " ".join(self.ran("curl")))
+        self.assertNotIn("Atenção", result.stdout)
+
+    def test_listening_on_the_network_is_a_choice_that_updates_keep(self):
+        result = self.run_script("--apply", "--no-voice", "--updater-host", "192.168.0.10")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("--host 192.168.0.10 --port 4311", self.updater_unit.read_text())
+        self.assertIn("Atenção: o atualizador vai escutar em 192.168.0.10:4311", result.stdout)
+        self.assertIn("http://192.168.0.10:4311/status", " ".join(self.ran("curl")))
+        update = self.run_script("--update", "--apply")
+        self.assertEqual(update.returncode, 0, update.stdout + update.stderr)
+        self.assertIn("--host 192.168.0.10 --port 4311", self.updater_unit.read_text())
+
+    def installed_updater(self) -> None:
+        """An older updater: it followed OpenDots' HOST and ran no tests."""
+        (self.share / "updater").mkdir(parents=True)
+        (self.share / "updater" / "opendots_updater.py").write_text("old = True\n")
+        self.updater_unit.parent.mkdir(parents=True, exist_ok=True)
+        self.updater_unit.write_text(
+            "[Service]\nExecStart=/usr/bin/python3 /old/opendots_updater.py --repo "
+            "/srv/OpenDots --service opendots.service --port 4311\n")
+
+    def test_update_refreshes_the_updater_and_keeps_its_checkout(self):
+        self.installed_updater()
+        env_before = self.env_file.read_text()
+        dry = self.run_script("--update")
+        self.assertEqual(dry.returncode, 0, dry.stdout + dry.stderr)
+        self.assertIn("reescrever opendots-updater.service: escuta em 127.0.0.1:4311 "
+                      "(hoje: 0.0.0.0:4311)", dry.stdout)
+        self.assertIn("/old/opendots_updater.py", self.updater_unit.read_text())
+        self.assertEqual(self.ran("systemctl"), [])
+
+        result = self.run_script("--update", "--apply")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        unit = self.updater_unit.read_text()
+        self.assertIn(" --repo /srv/OpenDots --service opendots.service --host 127.0.0.1 "
+                      "--port 4311\n", unit)
+        self.assertIn("def listen_host", (self.share / "updater" / "opendots_updater.py")
+                      .read_text())
+        self.assertEqual(self.ran("systemctl"), ["--user daemon-reload",
+                                                 "--user restart opendots-updater.service"])
+        self.assertEqual(self.ran("npm") + self.ran("git"), [])          # OpenDots untouched
+        self.assertEqual(self.env_file.read_text(), env_before)
+        self.assertFalse(self.unit.exists())                             # no gateway here
+        backup = next((self.home / "work" / "backups").glob("*/opendots-updater.service.before"))
+        self.assertIn("/old/opendots_updater.py", backup.read_text())
+        self.assertEqual((backup.parent / "updater.before" / "opendots_updater.py").read_text(),
+                         "old = True\n")
+        self.assertIn("✔ Atualizador respondendo em 127.0.0.1:4311", result.stdout)
+
+    def test_the_updater_is_not_restarted_during_an_update(self):
+        self.installed_updater()
+        self.updater_state.parent.mkdir(parents=True)
+        self.updater_state.write_text('{"job": {"state": "running", "step": "checks"}}')
+        for args in (("--update", "--apply"), ("--apply", "--no-voice")):
+            result = self.run_script(*args)
+            self.assertEqual(result.returncode, 1, args)
+            self.assertIn("aplicando uma atualização do OpenDots", result.stdout)
+        self.assertEqual(self.ran("systemctl"), [])
+        self.assertIn("/old/opendots_updater.py", self.updater_unit.read_text())
 
     def test_update_needs_an_installed_gateway(self):
         result = self.run_script("--update", "--apply")
