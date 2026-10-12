@@ -38,14 +38,46 @@ No GitHub, em **Settings → Secrets and variables → Actions → New repositor
 | Evento | Canal da loja |
 |---|---|
 | push na `main` | `edge` (testes) |
-| tag `v*` (ex.: `v0.1.0`) | `candidate` |
+| tag `v*` (ex.: `v0.1.0`) | `stable` (o público) |
 
-Teste o `candidate` (`sudo snap install dotdeck --candidate`) e promova para o público em
-<https://snapcraft.io/dotdeck/releases> ou com:
+As tags saem sozinhas do workflow [Lançamento](../.github/workflows/auto-release.yml) (veja
+abaixo). O snap da tag só é publicado depois de instalar e passar no `--self-test`, nas duas
+arquiteturas.
+
+## 2b. Lançamento automático (uma vez)
+
+Todo PR integrado à `main` que acrescenta uma linha em `## [Não lançado]` no `CHANGELOG.md`
+vira versão sozinho. Quando o CI passa naquele commit, o workflow **Lançamento** roda
+`tools/release.py`, que sobe a versão em `src/config.py`, `po/dotdeck.pot`, `CHANGELOG.md` e na
+metainfo. Depois faz o commit `chore(release): X.Y.Z` na `main` e envia a tag `vX.Y.Z`. A tag
+dispara o **Release** (a release no GitHub, com o `.deb` e o Flatpak) e o **Snap** (canal
+`stable`). Um PR sem linha em "Não lançado" (CI, documentação, testes) não lança nada.
+
+- **Número da versão.** Sobe o patch (`0.3.8` → `0.3.9`). Se a seção tem `### Adicionado`,
+  sobe o minor (`0.3.8` → `0.4.0`).
+- **Texto da loja, em inglês.** Vem dos comentários `<!-- loja: … -->` da seção, um por
+  linha: o primeiro é o resumo, os outros viram a lista. Sem nenhum, o resumo fica "Fixes and
+  improvements.". Os comentários saem do changelog no lançamento.
+- **Versão preparada à mão.** Se `src/config.py` tem uma versão que ainda não tem tag, o
+  workflow só cria a tag.
+
+Para o workflow poder enviar a tag, crie um token. O `GITHUB_TOKEN` do Actions não serve: o que
+ele envia não dispara outros workflows.
+
+1. Em <https://github.com/settings/personal-access-tokens/new>, crie um **fine-grained token**
+   com acesso **só ao repositório Dotdeck**, permissão **Contents: Read and write** e validade
+   de até um ano.
+2. Em **Settings → Secrets and variables → Actions → New repository secret** do Dotdeck, crie
+   `RELEASE_TOKEN` com o token.
+
+Sem o segredo, o workflow só avisa e não lança. Para conferir o que ele faria:
 
 ```bash
-snapcraft promote dotdeck --from-channel candidate --to-channel stable
+python3 tools/release.py --dry-run
 ```
+
+Para tirar uma versão do ar, volte o canal para a revisão anterior em
+<https://snapcraft.io/dotdeck/releases> ou com `snapcraft release dotdeck <revisão> stable`.
 
 > **Snapcraft 9.2:** a extensão `gnome` com `core26` chega ao canal estável na versão 9.2.
 > Até lá o workflow usa `latest/edge` e aplica a correção da extensão sozinho (o mesmo

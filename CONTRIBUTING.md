@@ -25,6 +25,11 @@ No Ubuntu 26.04 também dá para usar os pacotes da distribuição; a lista est�
   `make contract OPENDOTS=<um checkout do OpenDots>` confere contra o projeto oficial (o
   workflow [OpenDots oficial](.github/workflows/upstream.yml) faz isso todo dia).
 - Textos novos usam `_()`; rode `make pot` e, se puder, traduza em `po/pt_BR.po`.
+- Mudou algo que o usuário percebe? Acrescente uma linha em `## [Não lançado]` no
+  `CHANGELOG.md` (em `### Corrigido`, `### Mudado` ou `### Adicionado`) e, para a loja, um
+  `<!-- loja: … -->` em inglês. Ao integrar o PR, isso vira versão e vai para a loja sozinho;
+  sem linha em "Não lançado", nada é lançado
+  ([como funciona](docs/publicar-na-central-de-apps.md#2b-lançamento-automático-uma-vez)).
 - Siga o estilo do código ao redor e as diretrizes de interface do GNOME (HIG).
 
 ## Traduções
