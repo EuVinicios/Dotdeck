@@ -1,14 +1,13 @@
 name: OpenDots oficial
 
 # Dotdeck drives the OpenDots page through its classes, accessible labels and words, and
-# talks to its API (the list is src/web/contract.json). Every day, and on pull requests
-# that touch that code, this builds the official main branch and checks Dotdeck against
-# it: first the contract (is every name still there?), then the UI smoke test on the real
-# web client. A red run means an OpenDots update would break part of Dotdeck; the job
-# summary lists the tokens that disappeared.
+# talks to its API (the list is src/web/contract.json). On pull requests that touch that
+# code (or by hand), this builds the official main branch and checks Dotdeck against it:
+# first the contract (is every name still there?), then the UI smoke test on the real web
+# client. A red run means an OpenDots update would break part of Dotdeck; the job summary
+# lists the tokens that disappeared. The daily run is not here: it runs on the maintainer's
+# own server overnight, with the same two checks (ADR-021, amendment of 2026-10-12).
 on:
-  schedule:
-    - cron: "17 6 * * *"   # every day at 06:17 UTC (03:17 in Brasília)
   workflow_dispatch:
   pull_request:
     paths:

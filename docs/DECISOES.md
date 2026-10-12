@@ -607,3 +607,12 @@ confirmando cada um, e abrir as Configurações), sobre a API fictícia do
 agendados de repositórios públicos depois de 60 dias sem atividade. E os testes do OpenDots
 rodam no código do servidor, com os commits locais: se um commit local quebrar um teste, o
 atualizador recusa toda atualização até que ele seja corrigido (ou `UPDATER_CHECKS=none`).
+
+**Emenda de 12/10/2026 — o teste diário saiu do GitHub Actions.** O mantenedor pediu que tudo o
+que puder rode na máquina dele, em horário que não atrapalhe o servidor. O agendamento diário do
+workflow "OpenDots oficial" saiu. No GitHub ele roda só nos pull requests que mexem no código do
+contrato, e à mão (`workflow_dispatch`). O teste diário roda de madrugada no servidor do mantenedor,
+com as mesmas duas checagens: `tools/upstream_contract.py --opendots <checkout>` e
+`make smoke OPENDOTS_CLIENT=<dist/client>` na imagem de CI. Ele roda contra o `main` oficial e
+contra o OpenDots que o servidor usa, e só avisa quando o resultado muda. Quem não tem esse
+servidor pode rodar o mesmo pelo `workflow_dispatch`.
