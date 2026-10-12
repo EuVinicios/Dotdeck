@@ -116,3 +116,13 @@ html[data-dotdeck-focus] .template-app .empty-chat-persona > p[data-dotdeck-summ
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
+
+/* The message boxes grow with the text (focus.js marks them and sets their height) up to
+ * this cap, then scroll. The page caps the chat's at 120 px, about five lines. */
+html[data-dotdeck-focus] .template-app textarea[data-dotdeck-grow] {
+  max-height: min(40dvh, 320px) !important;
+  overflow-y: hidden !important;
+}
+html[data-dotdeck-focus] .template-app textarea[data-dotdeck-grow="scroll"] {
+  overflow-y: auto !important;
+}

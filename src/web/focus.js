@@ -311,12 +311,76 @@
     }
   };
 
+  // -- the message boxes -----------------------------------------------------------------
+
+  // The page's message boxes keep the height of one line (the chat's) or of two (a new
+  // chat's) whatever is typed. In focus mode they grow with the text, line by line, up to
+  // the cap focus.css sets on the boxes marked here, and scroll past it, as chat apps do.
+  // The conversation above keeps its place: at its end it stays at its end.
+  const GROW = 'data-dotdeck-grow';
+  const COMPOSERS =
+    '.template-app textarea[aria-label="Message your Dot"], .template-app textarea[aria-label="Start a conversation"]';
+  const boxes = new Map(); // box -> { value, width } it was last fitted to
+
+  const fitBox = (box) => {
+    const transcript = $('.chat-transcript', box.closest('.live-chat') || box.parentNode);
+    const top = transcript ? transcript.scrollTop : 0;
+    const atEnd = transcript && transcript.scrollHeight - top - transcript.clientHeight < 4;
+    const style = window.getComputedStyle(box);
+    const cap = parseFloat(style.maxHeight) || Infinity;
+    const borders = (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
+    box.style.height = 'auto';
+    const wanted = box.scrollHeight + borders;
+    box.style.height = `${Math.min(wanted, cap)}px`;
+    const mode = wanted > cap + 1 ? 'scroll' : '';
+    if (box.getAttribute(GROW) !== mode) box.setAttribute(GROW, mode);
+    if (transcript) transcript.scrollTop = atEnd ? transcript.scrollHeight : top;
+    boxes.set(box, { value: box.value, width: box.clientWidth });
+  };
+
+  // Another width wraps the text again (window resized, computer shown or hidden).
+  const boxResized = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const last = boxes.get(entry.target);
+      if (last && entry.target.clientWidth !== last.width) fitBox(entry.target);
+    }
+  });
+
+  const stampBoxes = () => {
+    const on = html().hasAttribute(FOCUS);
+    const shown = on ? new Set($$(COMPOSERS)) : new Set();
+    for (const box of boxes.keys()) {
+      if (shown.has(box)) continue;
+      boxResized.unobserve(box);
+      boxes.delete(box);
+      box.removeAttribute(GROW);
+      box.style.height = '';
+    }
+    for (const box of shown) {
+      if (!boxes.has(box)) {
+        box.setAttribute(GROW, ''); // Measured under focus.css's cap from the start.
+        boxResized.observe(box);
+      }
+      // The page sets the value itself too: emptied once sent, a draft brought back.
+      const last = boxes.get(box);
+      if (!last || last.value !== box.value) fitBox(box);
+    }
+  };
+  document.addEventListener(
+    'input',
+    (event) => {
+      if (boxes.has(event.target)) fitBox(event.target);
+    },
+    true,
+  );
+
   // -- watching the page -----------------------------------------------------------------
 
   const observer = new MutationObserver(() => {
     checkRecognized();
     if (petsOn || stamped) stampPets();
     if (recognized) stampSummaries();
+    if (recognized || boxes.size) stampBoxes();
     scheduleSelection();
   });
   observer.observe(document, {
@@ -636,7 +700,9 @@
         checkRecognized();
         // Before the probe settles the answer is not known yet: the probe gives it.
         if (wasSettled) reportFocus('set');
-        return { active: applyFocus(), recognized, settled };
+        const active = applyFocus();
+        stampBoxes();
+        return { active, recognized, settled };
       },
       setTheme(value) {
         scheme = value;

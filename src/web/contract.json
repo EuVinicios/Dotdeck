@@ -114,6 +114,12 @@
     },
     {
       "kind": "class",
+      "value": "chat-transcript",
+      "used_by": "focus.js (the conversation keeps its place while the message box grows)",
+      "breaks": "growing message box: the conversation above may lose its end while typing"
+    },
+    {
+      "kind": "class",
       "value": "new-conversation",
       "used_by": "focus.js (a Dot's empty composer)",
       "breaks": "new chat, selection sync"
@@ -308,8 +314,14 @@
     {
       "kind": "label",
       "value": "Start a conversation",
-      "used_by": "focus.js (focus the composer of a new chat)",
-      "breaks": "the composer is not focused after New chat"
+      "used_by": "focus.js (focus the composer of a new chat, the growing message box)",
+      "breaks": "the composer is not focused after New chat and keeps its height"
+    },
+    {
+      "kind": "label",
+      "value": "Message your Dot",
+      "used_by": "focus.js (the growing message box)",
+      "breaks": "the chat's message box keeps the page's height (one line, up to 120 px)"
     },
     {
       "kind": "label",
@@ -674,17 +686,20 @@
     " ",
     "#",
     "${}\\n${}",
+    "${}px",
     "(prefers-color-scheme: dark)",
     "\\n",
     "__dotdeck",
     "alt",
     "aria-current",
     "aria-label",
+    "auto",
     "change",
     "chat",
     "class",
     "content",
     "data-dotdeck-focus",
+    "data-dotdeck-grow",
     "data-dotdeck-offline",
     "data-dotdeck-pet",
     "data-dotdeck-summary",
@@ -699,6 +714,7 @@
     "memories",
     "no-store",
     "probe",
+    "scroll",
     "selection",
     "set",
     "sky",

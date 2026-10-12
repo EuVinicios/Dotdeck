@@ -438,6 +438,40 @@ class FocusModeTest(unittest.TestCase):
                 self.assertTrue(self.command(view.toggle_computer))   # The split view.
                 self.assertEqual(self.js(bottoms), [True, True, True, True])
 
+    def test_the_message_boxes_grow_with_the_text(self):
+        view = self.open_app(width=1000, height=700)
+        self.assertTrue(self.command(view.open_dot, 0, "Assistente"))
+        type_in = """const box = document.querySelector(`textarea[aria-label="${label}"]`);
+            box.value = text; box.dispatchEvent(new Event('input', { bubbles: true }));
+            const style = getComputedStyle(box);
+            return [Math.round(box.getBoundingClientRect().height), style.overflowY];"""
+        one = self.js(type_in, label="Message your Dot", text="Oi")
+        three = self.js(type_in, label="Message your Dot", text="um\ndois\ntrês")
+        long = self.js(type_in, label="Message your Dot", text="linha\n" * 40)
+        self.assertEqual(one, [43, "hidden"])
+        self.assertGreater(three[0], 80)
+        self.assertEqual(three[1], "hidden")
+        self.assertEqual(long, [min(320, 700 * 40 // 100), "auto"])   # The cap, then it scrolls.
+        # The conversation above stays at its end.
+        self.assertTrue(self.js("""const t = document.querySelector('.chat-transcript');
+            return t.scrollHeight - t.scrollTop - t.clientHeight < 4;"""))
+        # The page empties it once sent, without an input event: it shrinks back.
+        self.js("""document.querySelector('textarea[aria-label="Message your Dot"]').value = '';
+            document.body.appendChild(document.createElement('i')); return true;""")
+        self.assertTrue(run_until(lambda: self.js(
+            """return document.querySelector('textarea[aria-label="Message your Dot"]')
+                .getBoundingClientRect().height;""") == 43, 5))
+        # The composer of a new chat too.
+        self.assertTrue(self.command(view.new_chat, 0, "Assistente"))
+        empty = self.js(type_in, label="Start a conversation", text="")
+        more = self.js(type_in, label="Start a conversation", text="a\nb\nc\nd")
+        self.assertGreater(more[0], empty[0])
+        # Without focus mode the page keeps its own sizes.
+        view.set_focus_mode(False)
+        self.assertTrue(run_until(lambda: self.js(
+            """const box = document.querySelector('textarea[aria-label="Start a conversation"]');
+            return !box.hasAttribute('data-dotdeck-grow') && !box.style.height;"""), 5))
+
     # -- selection sync --------------------------------------------------------------------
 
     def test_the_page_reports_what_it_shows(self):

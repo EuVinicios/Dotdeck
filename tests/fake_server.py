@@ -123,6 +123,9 @@ button { font: inherit; }
 .empty-chat-persona p { font-size: 13px; color: #777; max-width: 420px; margin: 0 auto 8px; }
 .composer { margin-top: auto; border: 1px solid #dedede; border-radius: 22px; padding: 12px; }
 .composer textarea, .chat-composer textarea { width: 100%; border: 0; resize: none; }
+.chat-composer textarea { padding: 10px 3px; font-size: 14px; line-height: 1.65; min-height: 43px;
+  max-height: 120px; }
+.composer textarea { line-height: 1.65; min-height: 47px; }
 .chat-workspace > .result-pane { width: 400px; background: #fafafa; flex-shrink: 0; }
 .chat-workspace.split .chat-column { flex: 1; }
 .computer-overlay { position: fixed; top: 64px; right: 0; bottom: 0; width: 460px;
