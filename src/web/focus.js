@@ -42,7 +42,24 @@
   };
   const $ = (selector, scope) => (scope || document).querySelector(selector);
   const $$ = (selector, scope) => Array.from((scope || document).querySelectorAll(selector));
-  const text = (node) => ((node && node.textContent) || '').replace(/\s+/g, ' ').trim();
+  // What a text node says as the page wrote it, before any translation (see "language").
+  const SOURCES = new WeakMap(); // text node -> { source, shown }
+  const sourceOf = (node) => {
+    const seen = SOURCES.get(node);
+    return seen && seen.shown === node.nodeValue ? seen.source : node.nodeValue;
+  };
+  // An element's text as the page wrote it, so the page's words found here stay English.
+  const text = (node) => {
+    if (!node) return '';
+    let all = '';
+    if (node.nodeType === Node.TEXT_NODE) {
+      all = sourceOf(node);
+    } else {
+      const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+      for (let item = walker.nextNode(); item; item = walker.nextNode()) all += sourceOf(item);
+    }
+    return all.replace(/\s+/g, ' ').trim();
+  };
   const html = () => document.documentElement;
   const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -381,6 +398,147 @@
     true,
   );
 
+  // -- language --------------------------------------------------------------------------
+
+  // The page speaks English. With Dotdeck in another language, the words a recognized page
+  // shows are swapped for that language's as they render (src/web/translations): the
+  // element texts, placeholders and tooltips that match one of the catalog, whole. What
+  // people wrote (editors, fields, messages, memories, tasks) is never touched, and neither
+  // are the accessible labels, by which focus.js and webview.py find the page's controls.
+  // The page keeps its own text nodes: only their value changes, and SOURCES keeps what the
+  // page wrote, which text() reads.
+
+  // The page editor (ProseMirror) would take a changed text for an edit and save it.
+  const EDITOR = '.document-prose';
+  const KEEP_TEXT =
+    '.document-prose, textarea, input, pre, code, script, style, ' +
+    '.chat-bubble > :not(.scheduled-message-label), .memory-card > p, .task-row strong, ' +
+    '.task-detail-card > h2, .empty-chat-persona > p, .chat-welcome > h1 + p, ' +
+    // Dot names: a Dot called "Computer" keeps its name.
+    'button.dot-nav, .chat-persona strong, .empty-chat-persona > h2, .call-persona h2';
+  const TRANSLATED_ATTRIBUTES = ['placeholder', 'title'];
+  const ATTRIBUTE_SOURCES = new WeakMap(); // element -> { name: { source, shown } }
+  const exact = new Map();
+  const patterns = [];
+  for (const [key, value] of Object.entries(config.translations || {})) {
+    if (!/\{\w+\}/.test(key)) {
+      exact.set(key, value);
+      continue;
+    }
+    // "{name}’s computer": every {…} stands for any text, given back where the value has it.
+    const names = [];
+    const body = key
+      .split(/(\{\w+\})/)
+      .map((part, index) => {
+        if (index % 2 === 0) return part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        names.push(part.slice(1, -1));
+        return '(.+?)';
+      })
+      .join('');
+    patterns.push({ match: new RegExp(`^${body}$`), names, value });
+  }
+  const translating = exact.size > 0 || patterns.length > 0;
+
+  const translationOf = (source) => {
+    const key = source.replace(/\s+/g, ' ').trim();
+    if (!key) return null;
+    if (exact.has(key)) return exact.get(key);
+    for (const { match, names, value } of patterns) {
+      const found = match.exec(key);
+      if (found) return value.replace(/\{(\w+)\}/g, (all, name) => {
+        const at = names.indexOf(name);
+        return at < 0 ? all : found[at + 1];
+      });
+    }
+    return null;
+  };
+  // The translation with the spaces around the source, which separate it from its neighbours.
+  const dressed = (source, value) => source.match(/^\s*/)[0] + value + source.match(/\s*$/)[0];
+
+  const showText = (node, source, value) => {
+    if (value === source && !SOURCES.has(node)) return;
+    SOURCES.set(node, { source, shown: value });
+    if (node.nodeValue !== value) node.nodeValue = value;
+  };
+
+  // Neighbouring text nodes are one text on screen ("3", " saved runs"): translated whole
+  // when the catalog knows it, into the first node, or else one by one.
+  const translateRun = (run) => {
+    const sources = run.map(sourceOf);
+    const joined = sources.join('');
+    const whole = run.length > 1 ? translationOf(joined) : null;
+    run.forEach((node, index) => {
+      if (whole !== null) {
+        showText(node, sources[index], index ? '' : dressed(joined, whole));
+        return;
+      }
+      const value = translationOf(sources[index]);
+      showText(node, sources[index], value === null ? sources[index] : dressed(sources[index], value));
+    });
+  };
+
+  const translateAttributes = (element) => {
+    for (const name of TRANSLATED_ATTRIBUTES) {
+      if (!element.hasAttribute(name)) continue;
+      const current = element.getAttribute(name);
+      const seen = ATTRIBUTE_SOURCES.get(element) || {};
+      const source = seen[name] && seen[name].shown === current ? seen[name].source : current;
+      const value = translationOf(source);
+      if (value === null) continue;
+      seen[name] = { source, shown: dressed(source, value) };
+      ATTRIBUTE_SOURCES.set(element, seen);
+      if (current !== seen[name].shown) element.setAttribute(name, seen[name].shown);
+    }
+  };
+
+  const translateElement = (element) => {
+    if (element.closest(EDITOR)) return;
+    translateAttributes(element);
+    if (element.closest(KEEP_TEXT)) return;
+    let run = [];
+    for (const child of element.childNodes) {
+      if (child.nodeType === Node.TEXT_NODE) {
+        run.push(child);
+      } else if (run.length) {
+        translateRun(run);
+        run = [];
+      }
+    }
+    if (run.length) translateRun(run);
+  };
+
+  const translateTree = (root) => {
+    if (!root || root.nodeType !== Node.ELEMENT_NODE) return;
+    translateElement(root);
+    for (const element of root.querySelectorAll('*')) translateElement(element);
+  };
+
+  let translatedOnce = false;
+  const translatePage = (records) => {
+    if (!recognized) return;
+    if (!translatedOnce) {
+      translatedOnce = true;
+      translateTree(document.body);
+      return;
+    }
+    // Elements whose own text or attributes changed, and new elements with all they hold.
+    const changed = new Set();
+    const added = new Set();
+    for (const record of records) {
+      const target = record.type === 'characterData' ? record.target.parentElement : record.target;
+      if (target && target.nodeType === Node.ELEMENT_NODE) changed.add(target);
+      for (const node of record.addedNodes || []) {
+        if (node.nodeType === Node.ELEMENT_NODE) added.add(node);
+      }
+    }
+    for (const element of added) {
+      if (element.isConnected) translateTree(element);
+    }
+    for (const element of changed) {
+      if (element.isConnected && !added.has(element)) translateElement(element);
+    }
+  };
+
   // -- watching the page -----------------------------------------------------------------
 
   const observer = new MutationObserver(() => {
@@ -398,6 +556,16 @@
     attributeFilter: ['class', 'alt', 'aria-current', 'aria-label', 'disabled'],
   });
   window.addEventListener('hashchange', scheduleSelection);
+  // Its own observer, created after the one above: by its turn the page is recognized.
+  if (translating) {
+    new MutationObserver(translatePage).observe(document, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: TRANSLATED_ATTRIBUTES,
+    });
+  }
 
   // -- commands --------------------------------------------------------------------------
 

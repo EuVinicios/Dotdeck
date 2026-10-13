@@ -31,7 +31,7 @@ gi.require_version("WebKit", "6.0")
 gi.require_version("JavaScriptCore", "6.0")
 from gi.repository import Adw, Gio, GLib, GObject, Gtk, JavaScriptCore, WebKit  # noqa: E402
 
-from .. import config  # noqa: E402
+from .. import config, i18n  # noqa: E402
 from ..core import pets, server, voice  # noqa: E402
 from ..core.store import Profile  # noqa: E402
 from ..i18n import N_, _  # noqa: E402
@@ -45,6 +45,30 @@ _WEB_DIR = Path(__file__).resolve().parent
 def _script(name: str) -> str:
     """A file of src/web (read once: the scripts are installed again on every change)."""
     return (_WEB_DIR / name).read_text("utf-8")
+
+
+@functools.lru_cache(maxsize=None)
+def page_translations(language: str | None) -> dict[str, str]:
+    """The page's words in Dotdeck's language (translations/<language>.json), or none.
+
+    "pt_BR" falls back to "pt". English, a language without a catalog and an unreadable
+    catalog leave the page as it is.
+    """
+    if not language:
+        return {}
+    for name in dict.fromkeys((language, language.split("_")[0])):
+        path = _WEB_DIR / "translations" / f"{name}.json"
+        try:
+            strings = json.loads(path.read_text("utf-8"))["strings"]
+        except FileNotFoundError:
+            continue
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            log.warning("Ignoring the page translations in %s: %s", path, error)
+            return {}
+        if isinstance(strings, dict):
+            return {key: value for key, value in strings.items()
+                    if isinstance(key, str) and isinstance(value, str)}
+    return {}
 
 
 def _index(value: int | None) -> int | None:
@@ -837,7 +861,8 @@ class ServerView(Adw.Bin):
             "origin": self.profile.url, "focus": self._focus_wanted, "theme": self._scheme,
             "offline": self._offline, "pets": self._pets, "petsEnabled": self._pets_enabled,
             "brandPet": self.BRAND_PET, "probeTimeout": self.PROBE_TIMEOUT_MS,
-            "storageKey": config.TOKEN_STORAGE_KEY}))
+            "storageKey": config.TOKEN_STORAGE_KEY,
+            "translations": page_translations(i18n.language())}))
         self.content.add_script(WebKit.UserScript.new(focus, frames, start, allow, None))
         if not getattr(self, "_handlers_ready", False):
             self.content.register_script_message_handler("dotdeck", None)

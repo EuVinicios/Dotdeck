@@ -26,3 +26,8 @@ def N_(message: str) -> str:
 def translating() -> bool:
     """Dotdeck speaks a language other than English (a catalog in src/locale was found)."""
     return isinstance(_translation, gettext.GNUTranslations)
+
+
+def language() -> str | None:
+    """The language Dotdeck speaks, as its catalog names it ("pt_BR"), or None for English."""
+    return _translation.info().get("language") or None if translating() else None

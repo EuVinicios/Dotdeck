@@ -507,6 +507,89 @@ class FocusModeTest(unittest.TestCase):
         self.assertEqual([s for s in self.states if s[0] == "Dot"],
                          [("Dot", "idle"), ("Dot", "working"), ("Dot", "idle")])
 
+    # -- language --------------------------------------------------------------------------
+
+    def open_in_portuguese(self, **kwargs):
+        with mock.patch("src.web.webview.i18n.language", return_value="pt_BR"):
+            return self.open_app(**kwargs)
+
+    def test_the_page_speaks_dotdecks_language_and_still_obeys(self):
+        view = self.open_in_portuguese()
+        bottom = """return [...document.querySelectorAll('.sidebar-bottom > button.nav-item > span')]
+                    .map((span) => span.textContent);"""
+        self.assertTrue(run_until(lambda: self.js(bottom) == [
+            "Agendamentos e atividade", "Memórias", "Configurações"], 10), self.js(bottom))
+        self.assertTrue(self.selection_is("Assistente", "home"))
+        # Placeholders follow; what the Dot's owner wrote and the accessible labels do not.
+        home = self.js("""const box = document.querySelector('textarea');
+            return [box.placeholder, box.getAttribute('aria-label'),
+                    document.querySelector('.empty-chat-persona > h2').textContent,
+                    document.querySelector('.empty-chat-persona > p').textContent.slice(0, 12),
+                    document.querySelector('.empty-chat-persona button').textContent];""")
+        self.assertEqual(home, ["Mensagem para Assistente…", "Start a conversation", "Assistente",
+                                "# Assistente", "Editar especialista"])
+        # The commands find the page's words under the translation.
+        self.assertTrue(self.command(view.open_activity))
+        self.assertTrue(self.selection_is("", "tasks"))
+        self.assertEqual(self.js("""return [document.querySelector('.page-heading h1').textContent,
+            document.querySelector('.breadcrumbs strong').textContent];"""),
+            ["Nada fica pela metade.", "Atividade"])
+        self.assertTrue(self.command(view.open_memories))
+        self.assertTrue(self.selection_is("", "memories"))
+        self.assertTrue(self.command(view.open_dot, 1, "Manutenção"))
+        self.assertTrue(self.selection_is("Manutenção", "chat"))
+        self.assertTrue(run_until(lambda: self.js(
+            "return document.querySelector('.chat-persona strong + span').textContent;") ==
+            "Aqui com você", 5))
+        self.assertTrue(self.command(view.toggle_computer))
+        self.assertTrue(self.command(view.open_dot, 0, "Assistente"))
+
+    def test_the_translation_follows_the_page_and_spares_what_people_wrote(self):
+        self.open_in_portuguese()
+        self.assertTrue(run_until(lambda: self.js(
+            "return document.querySelector('.page-heading h1, .new-conversation') !== null;"), 5))
+        self.js("""
+            const probe = document.createElement('div');
+            probe.id = 'probe';
+            const runs = document.createElement('small');
+            runs.append(document.createTextNode('3'), document.createTextNode(' saved runs'));
+            probe.append(runs);
+            probe.insertAdjacentHTML('beforeend',
+              '<div class="chat-bubble scheduled"><span class="scheduled-message-label">Scheduled'
+              + '</span><p>Done</p></div><div class="document-prose"><p>Done</p></div>'
+              + '<button title="Undo">  Cancel  </button><button>Dot</button>');
+            document.body.append(probe);
+            return true;""")
+        state = """const probe = document.getElementById('probe');
+            const button = probe.querySelector('button');
+            return [probe.querySelector('small').textContent,
+                    probe.querySelector('.scheduled-message-label').textContent,
+                    probe.querySelector('.chat-bubble p').textContent,
+                    probe.querySelector('.document-prose p').textContent,
+                    button.title, button.textContent, probe.lastChild.textContent];"""
+        self.assertTrue(run_until(lambda: self.js(state) == [
+            "3 execuções salvas", "Agendada", "Done", "Done", "Desfazer", "  Cancelar  ", "Dot"],
+            5), self.js(state))
+        # The page changes its own text nodes and attributes in place, as React does.
+        self.js("""const small = document.querySelector('#probe small');
+                   small.firstChild.nodeValue = '1';
+                   document.querySelector('#probe button').setAttribute('title', 'Redo');
+                   return true;""")
+        self.assertTrue(run_until(lambda: self.js(state)[0] == "1 execução salva"
+                                  and self.js(state)[4] == "Refazer", 5), self.js(state))
+        self.js("document.querySelector('#probe small').firstChild.nodeValue = '12'; return true;")
+        self.assertTrue(run_until(lambda: self.js(state)[0] == "12 execuções salvas", 5))
+        # A text the catalog does not know is shown as the page wrote it, spaces and all.
+        self.js("""document.querySelector('#probe small').lastChild.nodeValue = ' saved';
+                   return true;""")
+        self.assertTrue(run_until(lambda: self.js(state)[0] == "12 saved", 5), self.js(state))
+
+    def test_in_english_the_page_is_left_as_it_is(self):
+        self.open_app()
+        self.assertTrue(self.command(self.view.open_activity))
+        self.assertEqual(self.js("return document.querySelector('.page-heading h1').textContent;"),
+                         "A little follow-through.")
+
     # -- pets ------------------------------------------------------------------------------
 
     def test_pets_replace_the_mascots(self):

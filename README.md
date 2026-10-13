@@ -31,7 +31,7 @@ conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailsca
   função, no estilo do Grok Bot. Logo abaixo ficam os Espaços, e no rodapé Atividade,
   Memórias, Configurações e o modelo que os Dots estão usando. Você pode buscar (`Ctrl+K`),
   fixar e ocultar Dots, e trocar de Dot com `Ctrl+1…9` ou `Alt+↑/↓`. A página do OpenDots
-  aparece limpa, sem a barra dela.
+  aparece limpa, sem a barra dela, e em português quando o Dotdeck está em português.
 - **12 pets de pelúcia**, um diferente para cada Dot, escolhidos pela função. Dá para trocar
   na galeria, e o mesmo pet aparece na conversa e na chamada.
 - **Configurações avançadas** com seções e busca:
