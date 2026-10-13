@@ -9,7 +9,7 @@ from gi.repository import GLib
 
 APP_ID = "io.github.euvinicios.Dotdeck"
 APP_NAME = "Dotdeck"
-VERSION = "0.5.1"
+VERSION = "0.6.0"
 GETTEXT_DOMAIN = "dotdeck"
 DEVELOPER = "EuVinicios"
 REPOSITORY = "https://github.com/EuVinicios/Dotdeck"

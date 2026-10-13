@@ -4,9 +4,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
-
-<!-- loja: The OpenDots page now speaks Portuguese along with Dotdeck. -->
+## [0.6.0] - 2026-10-13
 
 ### Adicionado
 
