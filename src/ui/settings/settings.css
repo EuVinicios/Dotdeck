@@ -112,3 +112,9 @@ levelbar.mic-level {
 levelbar.mic-level block.filled {
   background-color: var(--success-color);
 }
+
+/* A change that did not save says so in its own row (common.row_failed). */
+row.save-failed .subtitle {
+  color: var(--error-color);
+  opacity: 1;
+}

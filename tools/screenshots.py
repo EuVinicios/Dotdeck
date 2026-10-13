@@ -203,6 +203,16 @@ def run(args) -> int:
                 failures.append(f"the page did not show {dots[0].name} "
                                 f"(it shows {window.view.page_selection})")
             capture(window, out / f"workspace{suffix}.png")
+            if args.smoke:
+                # Ctrl+B: the sidebar becomes a rail of pets, then comes back.
+                window.activate_action("win.toggle-rail", None)
+                pump(0.5)
+                if not (window.sidebar.rail and window.split.get_max_sidebar_width() == 88):
+                    failures.append("Ctrl+B did not turn the sidebar into a rail")
+                window.activate_action("win.toggle-rail", None)
+                pump(0.5)
+                if window.sidebar.rail:
+                    failures.append("Ctrl+B did not bring the sidebar back")
 
             if dots and not args.smoke:
                 window.change_pet(dots[0].id)

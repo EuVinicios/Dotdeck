@@ -126,3 +126,83 @@ html[data-dotdeck-focus] .template-app textarea[data-dotdeck-grow] {
 html[data-dotdeck-focus] .template-app textarea[data-dotdeck-grow="scroll"] {
   overflow-y: auto !important;
 }
+
+/* The conversation in the Grok Bot app's manner (ADR-028): neutral greys instead of the
+ * page's teal, 18 px corners and 22 px lines. Your own messages are a solid dark bubble
+ * (a light veil in dark), the Dot's answers stay plain text in the main ink, and the
+ * message box is a quiet card. The dark variants follow the page's data-theme, which
+ * focus.js keeps in step with Dotdeck. */
+html[data-dotdeck-focus] .template-app .chat-bubble,
+html[data-dotdeck-focus] .template-app .chat-bubble p {
+  line-height: 22px !important;
+}
+html[data-dotdeck-focus] .template-app .chat-bubble.user {
+  padding: 7px 14px !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+}
+html[data-dotdeck-focus]:not([data-theme="dark"]) .template-app .chat-bubble.user {
+  background: #1c1c1c !important;
+  color: #ffffff !important;
+}
+html[data-dotdeck-focus]:not([data-theme="dark"]) .template-app .chat-bubble.assistant {
+  color: #1c1c1c !important;
+}
+html[data-dotdeck-focus][data-theme="dark"] .template-app .chat-bubble.user {
+  background: rgb(245 245 245 / 0.18) !important;
+  color: #f5f5f5 !important;
+}
+html[data-dotdeck-focus] .template-app .chat-bubble.user.scheduled {
+  border-color: rgb(255 255 255 / 0.3) !important;
+}
+
+/* The message boxes (a new chat's and the conversation's): a card with a hairline edge
+ * and a soft shadow, none in dark. */
+html[data-dotdeck-focus] .template-app .composer,
+html[data-dotdeck-focus] .template-app .chat-composer {
+  border-radius: 18px !important;
+}
+html[data-dotdeck-focus]:not([data-theme="dark"]) .template-app .composer,
+html[data-dotdeck-focus]:not([data-theme="dark"]) .template-app .chat-composer {
+  border: 1px solid rgb(28 28 28 / 0.12) !important;
+  box-shadow: 0 2px 8px rgb(28 28 28 / 0.035) !important;
+}
+html[data-dotdeck-focus][data-theme="dark"] .template-app .composer,
+html[data-dotdeck-focus][data-theme="dark"] .template-app .chat-composer {
+  border: 1px solid rgb(245 245 245 / 0.1) !important;
+  box-shadow: none !important;
+}
+html[data-dotdeck-focus]:not([data-theme="dark"]) .template-app .send-button:not(:disabled) {
+  background: #1c1c1c !important;
+  color: #ffffff !important;
+}
+html[data-dotdeck-focus][data-theme="dark"] .template-app .send-button:not(:disabled) {
+  background: #f5f5f5 !important;
+  color: #1b1b1b !important;
+}
+
+/* The suggestions under a new chat: pills that take a grey veil on hover. */
+html[data-dotdeck-focus] .template-app .starter-suggestions button {
+  border-radius: 999px !important;
+  padding: 7px 12px !important;
+}
+html[data-dotdeck-focus]:not([data-theme="dark"]) .template-app .starter-suggestions button {
+  border-color: rgb(28 28 28 / 0.12) !important;
+  color: rgb(28 28 28 / 0.68) !important;
+}
+html[data-dotdeck-focus]:not([data-theme="dark"]) .template-app .starter-suggestions button:hover {
+  background: rgb(28 28 28 / 0.06) !important;
+}
+html[data-dotdeck-focus][data-theme="dark"] .template-app .starter-suggestions button {
+  border-color: rgb(245 245 245 / 0.1) !important;
+  color: rgb(245 245 245 / 0.66) !important;
+}
+html[data-dotdeck-focus][data-theme="dark"] .template-app .starter-suggestions button:hover {
+  background: rgb(245 245 245 / 0.06) !important;
+}
+@media (prefers-reduced-motion: no-preference) {
+  html[data-dotdeck-focus] .template-app .starter-suggestions button,
+  html[data-dotdeck-focus] .template-app .send-button {
+    transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+  }
+}

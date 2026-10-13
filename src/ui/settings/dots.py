@@ -482,13 +482,18 @@ class DotEditor:
         self.chief_row.connect("notify::active", self._on_chief)
         local.add(self.chief_row)
         self.pin_row = Adw.SwitchRow(title=_("Pin to Top"),
-                                     subtitle=_("First in the sidebar"))
+                                     subtitle=_("In the grid of pets at the top of the sidebar"))
         self.pin_row.connect("notify::active", self._on_pinned)
         local.add(self.pin_row)
-        self.hide_row = Adw.SwitchRow(title=_("Hide From the Sidebar"),
-                                      subtitle=_("Hidden Dots wait at the end of the list"))
+        self.hide_row = Adw.SwitchRow(
+            title=_("Hide From the Sidebar"),
+            subtitle=_("Folded in Hidden Dots, at the end of the sidebar"))
         self.hide_row.connect("notify::active", self._on_hidden)
         local.add(self.hide_row)
+        self.notify_row = Adw.SwitchRow(title=_("Notifications"),
+                                        subtitle=_("Tell me when this Dot finishes replying"))
+        self.notify_row.connect("notify::active", self._on_notifications)
+        local.add(self.notify_row)
         prefs.add(local)
 
         # Save and Discard appear when something changed.
@@ -719,6 +724,7 @@ class DotEditor:
             self.avatar.set_property("pet", self._prefs.pet(self.dot.id) or "")
             self.pin_row.set_active(self._prefs.is_pinned(self.dot.id))
             self.hide_row.set_active(self._prefs.is_hidden(self.dot.id))
+            self.notify_row.set_active(self._prefs.wants_notifications(self.dot.id))
             self.chief_row.set_active(profile.chief == self.dot.name)
             automatic = chief_of(self.app, profile)
             if profile.chief == self.dot.name:
@@ -752,6 +758,10 @@ class DotEditor:
         self.app.profiles.update(profile)
         self.refresh_local()
         self.win.schedule_refresh()
+
+    def _on_notifications(self, row, _pspec) -> None:
+        if not self._loading:
+            self._prefs.set_notifications(self.dot.id, row.get_active())
 
     def _on_pinned(self, row, _pspec) -> None:
         if not self._loading:

@@ -8,7 +8,7 @@ from gi.repository import Adw, GLib, Gtk
 
 from ...core import secrets
 from ...i18n import _, ngettext
-from .common import SettingsPage, confirm, escape, status_icon
+from .common import SettingsPage, confirm, escape, row_failed, row_saving, status_icon
 
 # How long a change we made wins over an older server state (until the next poll).
 PENDING_SECONDS = 15
@@ -199,13 +199,14 @@ class PrivacyPage(SettingsPage):
             self._asking.discard(key)
             return
         row.set_sensitive(False)
+        row_saving(row)
 
         def done(data, error) -> None:
             self._asking.discard(key)
             row.set_sensitive(True)
             if error is not None:
                 self._revert(row, not value)
-                self.win.toast(_("Could not change it: {error}").format(error=error))
+                row_failed(row, str(error))
                 return
             self._pending[key] = (value, time.monotonic())
             self._revert(row, value)

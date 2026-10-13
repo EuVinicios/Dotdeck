@@ -172,12 +172,15 @@ class Settings(GObject.Object):
         # Workspace layout (0.3)
         "native-sidebar": True,          # Dotdeck's own sidebar; the page's is hidden
         "sidebar-visible": True,
+        "sidebar-width": 300,            # px, 240–400, dragged at its edge (0.6)
+        "sidebar-rail": False,           # only the pets, 88 px wide (Ctrl+B)
         "density": "comfortable",        # comfortable | compact
         "show-jobs": True,               # the "what it does" line under each Dot
         "pet-animations": "full",        # full | subtle | off
         "pets-in-page": True,            # the page's mascots become the Dots' pets
         "confirm-call-end": True,        # ask before leaving a Dot while in a call
         # Notifications, per event
+        "notify-dot-done": True,         # the open Dot finished replying (0.6)
         "notify-task-completed": True,
         "notify-task-failed": True,
         "notify-task-started": True,

@@ -20,7 +20,8 @@ from .common import SettingsPage, call_with_parent, confirm  # noqa: E402
 
 log = logging.getLogger(__name__)
 
-GEOMETRY = ("window-width", "window-height", "window-maximized")
+GEOMETRY = ("window-width", "window-height", "window-maximized", "sidebar-width",
+            "sidebar-rail")
 XML_LANG = "{http://www.w3.org/XML/1998/namespace}lang"
 
 

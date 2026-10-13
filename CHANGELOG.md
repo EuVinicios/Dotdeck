@@ -4,6 +4,73 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+<!-- loja: A new sidebar and a calmer look, inspired by the Grok Bot desktop app. -->
+<!-- loja: Each Dot shows when its latest conversation began and marks the ones you have not seen. -->
+<!-- loja: Pinned Dots in a grid of pets, hidden ones folded at the end, and a compact rail (Ctrl+B). -->
+<!-- loja: A resizable sidebar, and Ctrl+Tab to switch between Dots. -->
+<!-- loja: A call panel with both voices as waves and what each side said. -->
+<!-- loja: A notification when a Dot finishes replying, which each Dot can turn off. -->
+<!-- loja: Neutral grey surfaces in light and dark, and fewer places to look in Settings. -->
+
+### Adicionado
+
+- **A barra lateral do Grok Bot** (ADR-029):
+  - **Cada Dot diz o que está acontecendo**: à direita do nome, há quanto tempo começou a
+    última conversa ("3 min", "2 h", "ontem"). Embaixo, "Em chamada", "Trabalhando…" ou
+    "Nova: {título}" quando chegou uma conversa que você ainda não viu; senão, a função.
+  - **Marcas no pet**: um ponto para conversa nova (com o nome em negrito) e uma estrela para
+    o Chefe, cada um num recorte do pet. O ponto some quando você abre o Dot.
+  - **Fixados numa grade de pets** no alto da barra, com o nome embaixo.
+  - **Ocultos num grupo recolhido no fim**, com quantos são. Dá para abrir um Dot oculto
+    dali, e o menu dele tem "Mostrar na barra lateral".
+  - **Barra redimensionável**: arraste a borda (de 240 a 400 px; clique duplo volta ao
+    tamanho padrão). Mais estreita que 210 px, ela vira um **trilho só com os pets**, que
+    `Ctrl+B` também liga e desliga.
+  - **`Ctrl+Tab`** percorre os Dots na ordem da barra enquanto o Ctrl está apertado e abre o
+    escolhido ao soltar (`Ctrl+Shift+Tab` volta).
+- **Painel da chamada**: abre sob o título quando a chamada começa e não tira o teclado da
+  conversa. Mostra:
+  - o pet ouvindo, pensando ou falando;
+  - uma barra enquanto conecta;
+  - duas ondas de nível, a do Dot na cor do pet e a sua;
+  - o que cada um disse, ao vivo;
+  - botões redondos de configurações de voz, mudo e desligar.
+
+  Clicar no título reabre o painel depois de ocultado. Na barra lateral, o Dot em chamada
+  ganha uma onda pequena no lugar do telefone.
+- **Aviso quando um Dot termina de responder**, como no Grok Bot: só quando você não está
+  olhando para aquele Dot e no máximo um a cada 5 s por Dot. A mensagem diz em qual
+  conversa. Cada Dot pode desligar os dele (Configurações › Dots › um Dot › Notificações).
+
+### Mudado
+
+- **Visual mais calmo, no estilo do app Grok Bot** (ADR-028). Li o pacote do Grok Bot 0.70.2
+  e trouxe as soluções de design dele:
+  - **Superfícies em cinzas neutros e em degraus**: a barra lateral fica um tom abaixo da
+    janela, e o cabeçalho tem a mesma cor da página. No escuro, o cinza azulado do Adwaita
+    dava uma emenda visível entre o cabeçalho e a conversa; agora tudo parte do #1b1b1b da
+    página.
+  - **Linha do Dot com 54 px**, cantos de 10 px, nome em peso médio e função um pouco maior.
+    Passar o mouse e selecionar usam um véu cinza, sem a cor de destaque.
+  - **O menu do Dot separa as ações por tipo**: conversar, organizar (fixar, chefe),
+    personalizar (pet, editar), e "Ocultar da barra lateral" por último, sozinho.
+  - **Conversa**: suas mensagens numa bolha escura com cantos de 18 px (um véu claro no
+    escuro), no lugar do verde-azulado da página. As respostas usam a cor principal do
+    texto. As caixas de mensagem viraram cartões discretos, e as sugestões, pílulas.
+- **Um só vocabulário de permissão**: as ferramentas das Conexões e o acesso ao microfone
+  dizem "Sempre permitir", "Perguntar sempre" ou "Nunca permitir". Antes eram
+  "Permitida/Pedir antes/Bloqueada" num lugar e "Perguntar/Permitir/Não permitir" no outro.
+- Ao fechar Configurações com mudanças não salvas, o botão que volta se chama "Continuar
+  editando" em vez de "Cancelar".
+- **Configurações com menos lugares para procurar** (ADR-029):
+  - Aparência, Notificações e Atalhos viraram seções da página Geral. Os links e a busca
+    levam direto à seção.
+  - A lista de páginas ficou mais estreita e sem títulos de grupo.
+  - Quando um interruptor de Privacidade não consegue salvar, a própria linha diz "Não foi
+    possível salvar. Tente de novo.".
+
 ## [0.6.0] - 2026-10-13
 
 ### Adicionado

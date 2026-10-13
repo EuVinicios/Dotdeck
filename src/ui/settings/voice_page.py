@@ -127,7 +127,7 @@ class VoicePage(SettingsPage):
                     ("mute", "silent"))
         self.permission = Adw.ComboRow(
             title=_("Microphone Access"),
-            model=string_model([_("Ask"), _("Allow"), _("Don't Allow")]))
+            model=string_model([_("Ask Every Time"), _("Always Allow"), _("Never Allow")]))
         self.permission.connect("notify::selected", self._on_permission)
         self.add(mic, self.permission, ("permission", "allow", "deny", "ask", "microphone"))
 

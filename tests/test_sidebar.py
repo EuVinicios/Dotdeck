@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import unittest
 
 from tests.helpers import run_until
@@ -15,7 +16,7 @@ from gi.repository import Adw, Graphene, Gtk  # noqa: E402
 
 from src.core.workspace import Workspace  # noqa: E402
 from src.ui import pet as pet_ui  # noqa: E402
-from src.ui.sidebar import DotRow, Sidebar, dot_menu  # noqa: E402
+from src.ui.sidebar import DotRow, Sidebar, compact_age, dot_menu  # noqa: E402
 
 WORKSPACE = Workspace.from_json({
     "spaces": [{"id": "s1", "name": "Everyday"}],
@@ -39,12 +40,12 @@ class SidebarTests(unittest.TestCase):
     def tearDown(self):
         self.window.destroy()
 
-    def fill(self, pinned=frozenset(), in_call=None, hidden=()):
+    def fill(self, pinned=frozenset(), in_call=None, hidden=(), **extra):
         dots = [d for d in WORKSPACE.dots if d.id not in hidden]
         self.sidebar.set_dots(WORKSPACE, sorted(dots, key=lambda d: d.id not in pinned),
                               [d for d in WORKSPACE.dots if d.id in hidden],
                               {"a": "sky", "b": "bolt"}, density="comfortable", show_job=True,
-                              pinned=set(pinned), in_call=in_call, offline=False)
+                              pinned=set(pinned), in_call=in_call, offline=False, **extra)
         run_until(lambda: False, 0.1)
 
     def rows(self):
@@ -63,12 +64,119 @@ class SidebarTests(unittest.TestCase):
         self.sidebar.dots.select_row(self.rows()[1])
         self.assertEqual(self.opened, ["b"])
 
+    def tiles(self):
+        return list(self.sidebar._iter_tiles())
+
     def test_call_badge_and_pin(self):
+        """A pinned Dot leaves the list for the grid of pets; the one in a call shows it."""
         self.fill(pinned={"b"}, in_call="a")
+        self.assertEqual([t.dot.id for t in self.tiles()], ["b"])
         rows = self.rows()
-        self.assertEqual([r.dot.id for r in rows], ["b", "a"])
-        self.assertEqual(rows[1].status.get_visible_child_name(), "call")
-        self.assertEqual(rows[0].status.get_visible_child_name(), "pinned")
+        self.assertEqual([r.dot.id for r in rows], ["a"])
+        self.assertEqual(rows[0].status.get_visible_child_name(), "call")
+        self.assertEqual(rows[0].subtitle.get_label(), "In a call")
+        self.assertEqual(self.sidebar.visible_dot_ids(), ["b", "a"])     # Ctrl+1…9 order
+        self.assertTrue(self.sidebar.pinned_header.get_visible())
+
+    def test_choosing_a_pinned_pet_opens_its_dot(self):
+        self.fill(pinned={"a"})
+        tile, = self.tiles()
+        self.sidebar.select_dot("a")                  # programmatic: opens nothing
+        self.assertEqual(self.opened, [])
+        self.assertEqual(self.sidebar.selected_dot(), "a")
+        self.sidebar.select_dot("b")                  # one selection between grid and list
+        self.assertEqual(self.sidebar.pinned.get_selected_children(), [])
+        self.sidebar.pinned.select_child(tile)        # what a click or the arrows do
+        self.assertEqual(self.opened, ["a"])
+        self.assertIsNone(self.sidebar.dots.get_selected_row())
+
+    def test_every_dot_pinned_leaves_no_empty_list(self):
+        self.fill(pinned={"a", "b"})
+        self.assertFalse(self.sidebar.dots.get_visible())
+        self.fill()
+        self.assertTrue(self.sidebar.dots.get_visible())
+        self.assertFalse(self.sidebar.pinned.get_visible())
+
+    def test_a_pinned_pet_has_the_dot_menu(self):
+        menus = []
+        self.sidebar.menu_for_dot = lambda dot_id: (menus.append(dot_id), dot_menu(
+            WORKSPACE.dot(dot_id), pinned=True, chief=False, can_call=True))[1]
+        self.fill(pinned={"a"})
+        tile, = self.tiles()
+        _ok, bounds = tile.compute_bounds(self.sidebar.pinned)
+        x, y = bounds.get_x() + 10, bounds.get_y() + 10
+        self.sidebar._on_tile_context(Gtk.GestureClick(), 1, x, y)
+        self.assertEqual(menus, ["a"])
+        popover, = self.menus()
+        self.assertTrue(tile.has_css_class("menu-open"))
+        popover.popdown()
+        self.assertTrue(run_until(lambda: not self.menus(), 2))
+        self.assertFalse(tile.has_css_class("menu-open"))
+
+    def test_hidden_dots_fold_at_the_end(self):
+        self.fill(hidden={"b"})
+        self.assertTrue(self.sidebar.hidden_expander.get_visible())
+        self.assertFalse(self.sidebar.hidden_expander.get_expanded())
+        self.assertEqual(self.sidebar.hidden_count.get_label(), "1")
+        self.assertEqual(self.sidebar.visible_dot_ids(), ["a"])
+        hidden, = self.sidebar._iter_hidden_rows()
+        self.sidebar.hidden_list.select_row(hidden)  # opening a hidden Dot still works
+        self.assertEqual(self.opened, ["b"])
+        self.assertIsNone(self.sidebar.dots.get_selected_row())
+        self.fill()
+        self.assertFalse(self.sidebar.hidden_expander.get_visible())
+
+    def test_a_hidden_dots_menu_brings_it_back(self):
+        actions = _menu_actions(dot_menu(WORKSPACE.dot("b"), pinned=False, chief=False,
+                                         can_call=True, hidden=True))
+        self.assertIn("win.dot-unhide", actions)
+        self.assertNotIn("win.dot-hide", actions)
+        self.assertNotIn("win.dot-pin", actions)
+        actions = _menu_actions(dot_menu(WORKSPACE.dot("b"), pinned=False, chief=False,
+                                         can_call=True))
+        self.assertEqual(actions[-1], "win.dot-hide")    # last, in a section of its own
+
+    def test_the_second_line_says_what_is_new_and_the_pet_is_marked(self):
+        now = time.time()
+        self.fill(chief="b", unread={"a"},
+                  activity={"a": (now - 300, "Backup report"), "b": (now - 1800, "Plan")})
+        a, b = self.rows()
+        self.assertEqual(a.subtitle.get_label(), "New: Backup report")
+        self.assertEqual(a.when.get_label(), "5 min")
+        self.assertEqual(a.avatar.badge, "unread")
+        self.assertTrue(a.has_css_class("unread"))
+        self.assertFalse(a.avatar.star)
+        self.assertEqual(b.subtitle.get_label(), "backups e o servidor de casa")
+        self.assertEqual(b.when.get_label(), "30 min")
+        self.assertEqual(b.avatar.badge, "")
+        self.assertTrue(b.avatar.star)                 # the Chief
+        self.sidebar.set_dot_state("b", "working")
+        self.fill(chief="b")
+        a, b = self.rows()
+        self.assertEqual(b.subtitle.get_label(), "Working…")
+        self.assertEqual(a.subtitle.get_label(), "organiza o dia e os outros Dots")
+        self.assertFalse(a.when.get_visible())         # no conversation, no age
+
+    def test_the_rail_keeps_only_the_pets(self):
+        self.sidebar.set_model("Claude Haiku 5.5 · OpenRouter")
+        self.fill(pinned={"b"}, hidden={"a"})
+        self.sidebar.set_rail(True)
+        tile, = self.tiles()
+        self.assertFalse(tile.name.get_visible())
+        self.assertFalse(self.sidebar.dots_header.get_visible())
+        self.assertFalse(self.sidebar.pinned_header.get_visible())
+        self.assertFalse(self.sidebar.hidden_expander.get_visible())
+        self.assertFalse(self.sidebar.model_button.get_visible())
+        self.assertFalse(self.sidebar.nav_rows["settings"].label.get_visible())
+        self.assertEqual(self.sidebar.nav_rows["settings"].get_tooltip_text(), "Settings")
+        self.fill(hidden={"a"})                         # rows made while in the rail
+        row, = self.rows()
+        self.assertFalse(row.texts.get_visible())
+        self.sidebar.set_rail(False)
+        self.assertTrue(row.texts.get_visible())
+        self.assertTrue(self.sidebar.model_button.get_visible())
+        self.assertTrue(self.sidebar.hidden_expander.get_visible())
+        self.assertIsNone(self.sidebar.nav_rows["settings"].get_tooltip_text())
 
     def menus(self):
         """The Dot menus open now."""
@@ -168,14 +276,13 @@ class SidebarTests(unittest.TestCase):
         popover.popdown()
         self.assertTrue(run_until(lambda: not self.menus(), 2))
         self.assertIs(self.window.get_focus(), row)
-        # Pin to Top from the keyboard rebuilds the rows: the new row of that Dot keeps it.
+        # Pin to Top from the keyboard moves the Dot to the grid: its pet keeps the focus.
         self.fill(pinned={"b"})
-        new_row = self.rows()[0]
-        self.assertIsNot(new_row, row)
-        self.assertEqual(new_row.dot.id, "b")
-        self.assertIs(self.window.get_focus(), new_row)
-        # Hide From Sidebar: the Dot is gone, the list keeps the focus.
-        self.fill(pinned={"b"}, hidden={"b"})
+        tile, = self.tiles()
+        self.assertEqual(tile.dot.id, "b")
+        self.assertIs(self.window.get_focus(), tile)
+        # Hide From Sidebar: the Dot is folded away, the list keeps the focus.
+        self.fill(hidden={"b"})
         self.assertIs(self.window.get_focus(), self.sidebar.dots)
         self.assertEqual(self.opened, [])          # the focus alone opens no Dot
 
@@ -184,14 +291,24 @@ class SidebarTests(unittest.TestCase):
                      if isinstance(c, Gtk.GestureLongPress))
         self.assertTrue(press.get_touch_only())
 
-    def test_hidden_count_and_search(self):
-        self.fill(hidden={"b"})
-        self.assertTrue(self.sidebar.hidden_button.get_visible())
-        self.fill()
+    def test_search(self):
         self.sidebar.search.set_text("backups")
         run_until(lambda: False, 0.3)
         visible = [r.dot.id for r in self.rows() if r.get_child_visible()]
         self.assertEqual(visible, ["b"])
+
+    def test_search_finds_pinned_and_hidden_dots(self):
+        self.fill(pinned={"a"}, hidden={"b"})
+        self.sidebar.search.set_text("organiza")
+        run_until(lambda: False, 0.3)
+        self.assertEqual(self.sidebar.visible_dot_ids(), ["a"])
+        self.assertEqual(self.sidebar.placeholder.get_label(), "")   # found, in the grid
+        self.sidebar.search.set_text("backups")
+        run_until(lambda: False, 0.3)
+        self.assertEqual(self.sidebar.visible_dot_ids(), [])
+        self.assertTrue(self.sidebar.hidden_expander.get_expanded())
+        self.sidebar.search.emit("activate")
+        self.assertEqual(self.opened, ["b"])
 
     def test_the_model_at_a_glance_opens_ai_models(self):
         self.assertFalse(self.sidebar.model_button.get_visible())    # server did not say
@@ -234,6 +351,29 @@ class SidebarTests(unittest.TestCase):
             self.assertFalse(row.avatar._tick)
         finally:
             pet_ui.set_animations("full")
+
+
+class CompactAgeTests(unittest.TestCase):
+    def test_ages(self):
+        now = time.mktime((2026, 10, 12, 15, 0, 0, 0, 0, -1))
+        self.assertEqual(compact_age(0, now), "")
+        self.assertEqual(compact_age(now - 20, now), "now")
+        self.assertEqual(compact_age((now - 180) * 1000, now), "3 min")   # milliseconds too
+        self.assertEqual(compact_age(now - 2 * 3600, now), "2 h")
+        self.assertEqual(compact_age(now - 16 * 3600, now), "Yesterday")  # 23:00 the day before
+        self.assertEqual(compact_age(now - 4 * 86400, now), "4 d")
+        self.assertEqual(compact_age(now - 15 * 86400, now), "2 wk")
+        self.assertEqual(compact_age(now - 70 * 86400, now), "2 mo")
+        self.assertEqual(compact_age(now - 800 * 86400, now), "2 yr")
+
+
+def _menu_actions(menu) -> list[str]:
+    actions = []
+    for section in range(menu.get_n_items()):
+        items = menu.get_item_link(section, "section")
+        for index in range(items.get_n_items()):
+            actions.append(items.get_item_attribute_value(index, "action").unpack())
+    return actions
 
 
 def _children(widget):

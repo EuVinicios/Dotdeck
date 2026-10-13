@@ -4,6 +4,10 @@ States: ``idle``, ``working`` (bobs, accent ring), ``listening``/``speaking``/``
 (in a call: green ring; speaking pulses), ``paused`` and ``offline`` (desaturated),
 ``error`` (red ring). Animations follow the "pet-animations" setting and are skipped
 entirely when off, so idle rows cost nothing.
+
+A ``badge`` sits in the bottom corner (``unread``: something new since the owner last
+looked) and a ``star`` in the top one (the Chief), each in a hole cut out of the tile, as
+the Grok Bot app marks its bots (ADR-029).
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from gi.repository import Adw, Gdk, GLib, GObject, Graphene, Gsk, Gtk  # noqa: E
 from ..core import pets  # noqa: E402
 
 ANIMATED = {"working", "speaking", "thinking"}
+BADGES = {"", "unread"}
 CALL_STATES = {"listening", "speaking", "thinking", "call"}
 GREYED = {"paused", "offline"}
 
@@ -110,6 +115,8 @@ class PetAvatar(Gtk.Widget):
         self._size = size
         self._state = state
         self._tile = tile
+        self._badge = ""
+        self._star = False
         self._tick = 0
         self._start = 0
         self.set_overflow(Gtk.Overflow.VISIBLE)
@@ -146,6 +153,27 @@ class PetAvatar(Gtk.Widget):
         if value != self._state:
             self._state = value or "idle"
             self._sync_animation()
+            self.queue_draw()
+
+    @GObject.Property(type=str, default="")
+    def badge(self) -> str:
+        return self._badge
+
+    @badge.setter
+    def badge(self, value: str) -> None:
+        value = value if value in BADGES else ""
+        if value != self._badge:
+            self._badge = value
+            self.queue_draw()
+
+    @GObject.Property(type=bool, default=False)
+    def star(self) -> bool:
+        return self._star
+
+    @star.setter
+    def star(self, value: bool) -> None:
+        if bool(value) != self._star:
+            self._star = bool(value)
             self.queue_draw()
 
     @GObject.Property(type=int, default=36)
@@ -239,10 +267,68 @@ class PetAvatar(Gtk.Widget):
             return accent
         return None
 
+    def _marks(self, x: float, y: float, size: float) -> list[tuple[str, float, float, float]]:
+        """``(kind, centre x, centre y, radius)`` of the badge and the star, if any."""
+        radius = max(4.0, size * 0.115)
+        marks = []
+        if self._badge:
+            marks.append((self._badge, x + size - radius, y + size - radius, radius))
+        if self._star:
+            star = max(5.5, size * 0.17)
+            marks.append(("star", x + size - star, y + star, star))
+        return marks
+
     def do_snapshot(self, snapshot: Gtk.Snapshot) -> None:
         width, height = self.get_width(), self.get_height()
         size = min(width, height, self._size)
         x, y = (width - size) / 2, (height - size) / 2
+        marks = self._marks(x, y, size)
+        if not marks:
+            self._draw_pet(snapshot, x, y, size)
+            return
+        # The pet with a hole around each mark (the mask's circles are cut out), then the
+        # marks in the holes: they read on any background without a border of their own.
+        gap = max(1.5, size * 0.06)
+        snapshot.push_mask(Gsk.MaskMode.INVERTED_ALPHA)
+        for _kind, cx, cy, r in marks:
+            hole = Gsk.RoundedRect()
+            hole.init_from_rect(Graphene.Rect().init(cx - r - gap, cy - r - gap,
+                                                     2 * (r + gap), 2 * (r + gap)), r + gap)
+            snapshot.push_rounded_clip(hole)
+            snapshot.append_color(_rgba(0, 0, 0, 1), hole.bounds)
+            snapshot.pop()
+        snapshot.pop()
+        self._draw_pet(snapshot, x, y, size)
+        snapshot.pop()
+        for kind, cx, cy, r in marks:
+            if kind == "star":
+                self._draw_star(snapshot, cx, cy, r)
+            else:
+                dot = Gsk.RoundedRect()
+                dot.init_from_rect(Graphene.Rect().init(cx - r, cy - r, 2 * r, 2 * r), r)
+                snapshot.push_rounded_clip(dot)
+                snapshot.append_color(Adw.StyleManager.get_default().get_accent_color_rgba(),
+                                      dot.bounds)
+                snapshot.pop()
+
+    @staticmethod
+    def _draw_star(snapshot: Gtk.Snapshot, cx: float, cy: float, r: float) -> None:
+        builder = Gsk.PathBuilder.new()
+        for point in range(10):
+            reach = r if point % 2 == 0 else r * 0.45
+            angle = -math.pi / 2 + point * math.pi / 5
+            px, py = cx + reach * math.cos(angle), cy + reach * math.sin(angle)
+            if point == 0:
+                builder.move_to(px, py)
+            else:
+                builder.line_to(px, py)
+        builder.close()
+        dark = Adw.StyleManager.get_default().get_dark()
+        # The Grok Bot's star yellow (#f59312), a shade deeper on light backgrounds.
+        colour = _rgba(0.96, 0.58, 0.07) if dark else _rgba(0.85, 0.51, 0.05)
+        snapshot.append_fill(builder.to_path(), Gsk.FillRule.WINDING, colour)
+
+    def _draw_pet(self, snapshot: Gtk.Snapshot, x: float, y: float, size: float) -> None:
         pet = pets.get(self._pet) or pets.DEFAULT
         dark = Adw.StyleManager.get_default().get_dark()
         t = self._phase()

@@ -14,7 +14,8 @@ gi.require_version("Gst", "1.0")
 from gi.repository import Adw, Gdk, Gio, GLib, Gst, Gtk  # noqa: E402
 
 from . import config  # noqa: E402
-from .core import dotprefs, monitor, portals, secrets, server, store, tray, voice  # noqa: E402
+from .core import (dotprefs, monitor, notices, portals, secrets, server, store,  # noqa: E402
+                   tray, voice)
 from .i18n import _, ngettext  # noqa: E402
 
 log = logging.getLogger("dotdeck")
@@ -53,6 +54,7 @@ class DotdeckApplication(Adw.Application):
         self.profiles: store.ProfileStore | None = None
         self.tokens = secrets.TokenStore()
         self.monitors: dict[str, monitor.ServerMonitor] = {}
+        self.dot_notices = notices.DotNotices()
         self.window = None
         self.tray: tray.TrayIcon | None = None
         self.portal: portals.Portal | None = None
@@ -165,6 +167,18 @@ class DotdeckApplication(Adw.Application):
         provider.load_from_path(str(config.PKG_DIR / "ui" / "style.css"))
         Gtk.StyleContext.add_provider_for_display(display, provider,
                                                   Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        if hasattr(provider.props, "prefers_color_scheme"):
+            # The dark half of style.css (@media prefers-color-scheme) follows Dotdeck's own
+            # scheme (Settings › Appearance), which can differ from the desktop's.
+            manager = Adw.StyleManager.get_default()
+
+            def follow(*_args) -> None:
+                provider.props.prefers_color_scheme = (
+                    Gtk.InterfaceColorScheme.DARK if manager.get_dark()
+                    else Gtk.InterfaceColorScheme.LIGHT)
+
+            manager.connect("notify::dark", follow)
+            follow()
         theme = Gtk.IconTheme.get_for_display(display)
         source = config.source_data_dir()
         if source:
@@ -209,6 +223,7 @@ class DotdeckApplication(Adw.Application):
             "win.go-back": ["<Alt>Left"],
             "win.search": ["<Control>k"],
             "win.toggle-sidebar": ["F9"],
+            "win.toggle-rail": ["<Control>b"],
             "win.call": ["<Control><Shift>l"],
             "win.previous-dot": ["<Alt>Up"],
             "win.next-dot": ["<Alt>Down"],
@@ -306,11 +321,13 @@ class DotdeckApplication(Adw.Application):
             (_("Dots"), [(_("Search Dots and Spaces"), "<Control>k"),
                          (_("Open Dot 1–9"), "<Control>1"),
                          (_("Previous Dot"), "<Alt>Up"), (_("Next Dot"), "<Alt>Down"),
+                         (_("Switch Dots (Hold Ctrl)"), "<Control>Tab"),
                          (_("New Chat"), "<Control>n"), (_("New Dot"), "<Control><Shift>n"),
                          (_("Talk to the Chief"), "<Control><Shift>c"),
                          (_("Activity"), "<Control><Shift>a"),
                          (_("Memories"), "<Control><Shift>y")]),
             (_("Workspace"), [(_("Show or Hide the Sidebar"), "F9"),
+                              (_("Compact Sidebar"), "<Control>b"),
                               (_("Reload"), "F5"), (_("Fullscreen"), "F11"),
                               (_("Zoom In"), "<Control>plus"), (_("Zoom Out"), "<Control>minus"),
                               (_("Actual Size"), "<Control>0"), (_("Go Back"), "<Alt>Left"),
@@ -520,6 +537,24 @@ class DotdeckApplication(Adw.Application):
         notification.set_default_action_and_target(
             "app.open-activity", GLib.Variant("s", mon.profile.id))
         self.send_notification(f"task-{mon.profile.id}-{task_id}-{kind}", notification)
+
+    def notify_dot_done(self, profile, dot, title: str = "") -> None:
+        """The Dot open on the page finished replying: tell the owner, unless they are
+        looking at it, that Dot or event is off, or it just did (ADR-029)."""
+        looking = self._window_focused() and self.window is not None and \
+            self.window.showing_dot(dot.id)
+        wanted = self._notify_allowed("notify-dot-done") and \
+            dotprefs.for_profile(profile.id).wants_notifications(dot.id)
+        if not self.dot_notices.allow((profile.id, dot.id, "done"), wanted=wanted,
+                                      looking=looking):
+            return
+        private = self._private()
+        notification = Gio.Notification.new(_("New activity") if private else dot.name)
+        notification.set_body(_("Open Dotdeck to see the details.") if private
+                              else notices.done_body(title))
+        notification.set_default_action_and_target(
+            "app.open-dot", GLib.Variant("s", f"{profile.id}/{dot.id}"))
+        self.send_notification(f"dot-{profile.id}-{dot.id}", notification)
 
     def _on_server_status(self, mon, old: str, new: str) -> None:
         """Tell when a server goes down or comes back (not on the first connection)."""

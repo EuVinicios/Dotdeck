@@ -27,25 +27,32 @@ conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailsca
 
 ## Recursos
 
-- **Barra lateral nativa com todos os Dots**: cada Dot aparece com o seu pet, o nome e a
-  função, no estilo do Grok Bot. Logo abaixo ficam os Espaços, e no rodapé Atividade,
-  Memórias, Configurações e o modelo que os Dots estão usando. Você pode buscar (`Ctrl+K`),
-  fixar e ocultar Dots, e trocar de Dot com `Ctrl+1…9` ou `Alt+↑/↓`. A página do OpenDots
-  aparece limpa, sem a barra dela, e em português quando o Dotdeck está em português.
+- **Barra lateral nativa com todos os Dots**, no estilo do Grok Bot: cada Dot aparece com o
+  seu pet, o nome, há quanto tempo começou a última conversa ("3 min") e uma linha que diz o
+  que está acontecendo (em chamada, trabalhando, uma conversa nova) ou a função dele. Um
+  ponto no pet marca conversa que você ainda não viu, e uma estrela marca o Chefe. Os Dots
+  fixados ficam numa grade de pets no alto; os ocultos, num grupo recolhido no fim. Logo
+  abaixo ficam os Espaços, e no rodapé Atividade, Memórias, Configurações e o modelo que os
+  Dots estão usando. Arraste a borda para mudar a largura, ou use `Ctrl+B` para deixar só os
+  pets. Você pode buscar (`Ctrl+K`) e trocar de Dot com `Ctrl+1…9`, `Alt+↑/↓` ou `Ctrl+Tab`.
+  A página do OpenDots aparece limpa, sem a barra dela, e em português quando o Dotdeck
+  está em português.
 - **12 pets de pelúcia**, um diferente para cada Dot, escolhidos pela função. Dá para trocar
   na galeria, e o mesmo pet aparece na conversa e na chamada.
 - **Configurações avançadas** com seções e busca:
-  - Aparência e densidade
-  - Notificações por evento
+  - Geral, com aparência, densidade, notificações e atalhos numa página só
   - Editor completo de cada Dot: identidade, instruções, permissões, Espaços, Conexões
-    (servidores MCP, com cada ferramenta permitida, "Pedir antes" ou bloqueada) e
+    (servidores MCP, com cada ferramenta em "Sempre permitir", "Perguntar sempre" ou
+    "Nunca permitir") e
     Aprendizado automático
   - Voz e microfone, com teste de nível
   - Modelos de IA: provedor (OpenRouter, Anthropic com chave de API ou compatível com
     OpenAI), uma chave por provedor, custo aproximado, teste do modelo e os três modelos de
     uma chamada de voz
   - Servidores, privacidade e diagnóstico
-- **Ligar para um Dot** com um clique (ou `Ctrl+Shift+L`), com o tempo da chamada na barra.
+- **Ligar para um Dot** com um clique (ou `Ctrl+Shift+L`), com o tempo da chamada na barra e
+  um painel com o pet, as ondas da sua voz e da voz do Dot, o que cada um disse e os botões
+  de mudo e desligar.
 - **Configuração guiada**: digite `localhost:4310`, um IP da rede ou um nome do Tailscale. O
   Dotdeck testa a conexão, tenta `https`/`http` e a porta 4310 sozinho e explica o que falta
   (token, servidor só local, certificado inválido).
@@ -56,8 +63,9 @@ conecte-se ao seu servidor no próprio computador, na rede de casa, pelo Tailsca
 - **Chamadas de voz com os Dots**. O WebKitGTK das distribuições e da Flathub não tem WebRTC,
   então o Dotdeck faz a chamada de forma nativa com o GStreamer (PipeWire/PulseAudio), com
   cancelamento de eco, botão de mudo na barra de título e aperte-para-falar global.
-- **Notificações** quando um Dot conclui ou falha uma tarefa e quando uma tarefa agendada
-  começa, mesmo com a janela fechada.
+- **Notificações** quando um Dot termina de responder (a não ser que você esteja olhando
+  para ele; cada Dot pode desligar as dele), quando um Dot conclui ou falha uma tarefa e
+  quando uma tarefa agendada começa, mesmo com a janela fechada.
 - **Bandeja e segundo plano**: ícone com status (Dots, tarefas rodando, chamada), "Falar com
   o Chefe", troca de servidor. No GNOME sem bandeja, aparece em *Aplicativos em segundo plano*.
 - **Atualizar o servidor com um botão**: o Dotdeck avisa quando sai novidade no OpenDots

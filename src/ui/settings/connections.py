@@ -1,9 +1,10 @@
 """YOUR DOTS › Dots › a Dot › Connections: the MCP servers that give a Dot its tools.
 
 Unlike the rest of the Dot's page, each change here applies on the server at once, as in
-the page's own Connections section: there is nothing to Save. Each tool is Allowed, Ask
-First (the Dot asks in the chat before it runs) or Blocked (off for the Dot). A token goes to the server and is
-never shown again.
+the page's own Connections section: there is nothing to Save. Each tool is Always Allow,
+Ask Every Time (the Dot asks in the chat before it runs) or Never Allow (off for the Dot),
+the words every permission menu of Dotdeck uses (ADR-028). A token goes to the server and
+is never shown again.
 """
 
 from __future__ import annotations
@@ -31,7 +32,7 @@ def tool_choice(tool: ConnectionTool) -> int:
 def choice_patch(choice: int) -> dict:
     """What ``PATCH /api/connections/:id/tools/:name`` sends for ``choice``.
 
-    Blocked keeps "Ask First" as it is, so allowing the tool again restores it.
+    Never Allow keeps "Ask Every Time" as it is, so allowing the tool again restores it.
     """
     if choice == BLOCKED:
         return {"enabled": False}
@@ -208,7 +209,8 @@ class ConnectionsGroup(Adw.PreferencesGroup):
             empty = Adw.ActionRow(title=_("This server offers no tools."))
             empty.add_css_class("dim-label")
             row.add_row(empty)
-        choices = Gtk.StringList.new([_("Allowed"), _("Ask First"), _("Blocked")])
+        choices = Gtk.StringList.new([_("Always Allow"), _("Ask Every Time"),
+                                      _("Never Allow")])
         for tool in connection.tools:
             # "Read-only" leads the subtitle: a badge would push its menu out of line.
             about = " · ".join(([_("Read-only")] if tool.read_only else [])

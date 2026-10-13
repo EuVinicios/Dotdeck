@@ -120,6 +120,48 @@
     },
     {
       "kind": "class",
+      "value": "user",
+      "used_by": "focus.css (the conversation's look, ADR-028)",
+      "breaks": "the conversation keeps the page's own colours and corners (layout only)"
+    },
+    {
+      "kind": "class",
+      "value": "assistant",
+      "used_by": "focus.css (the conversation's look, ADR-028)",
+      "breaks": "the conversation keeps the page's own colours and corners (layout only)"
+    },
+    {
+      "kind": "class",
+      "value": "scheduled",
+      "used_by": "focus.css (the conversation's look, ADR-028)",
+      "breaks": "the conversation keeps the page's own colours and corners (layout only)"
+    },
+    {
+      "kind": "class",
+      "value": "chat-composer",
+      "used_by": "focus.css (the conversation's look, ADR-028)",
+      "breaks": "the conversation keeps the page's own colours and corners (layout only)"
+    },
+    {
+      "kind": "class",
+      "value": "composer",
+      "used_by": "focus.css (the conversation's look, ADR-028)",
+      "breaks": "the conversation keeps the page's own colours and corners (layout only)"
+    },
+    {
+      "kind": "class",
+      "value": "send-button",
+      "used_by": "focus.css (the conversation's look, ADR-028)",
+      "breaks": "the conversation keeps the page's own colours and corners (layout only)"
+    },
+    {
+      "kind": "class",
+      "value": "starter-suggestions",
+      "used_by": "focus.css (the conversation's look, ADR-028)",
+      "breaks": "the conversation keeps the page's own colours and corners (layout only)"
+    },
+    {
+      "kind": "class",
       "value": "new-conversation",
       "used_by": "focus.js (a Dot's empty composer)",
       "breaks": "new chat, selection sync"
@@ -151,8 +193,8 @@
     {
       "kind": "class",
       "value": "chat-bubble",
-      "used_by": "focus.js (the page in Dotdeck's language: what people wrote stays as written)",
-      "breaks": "a message that matches a page word would show translated"
+      "used_by": "focus.js (the page in Dotdeck's language: what people wrote stays as written); focus.css (the conversation's look, ADR-028)",
+      "breaks": "a message that matches a page word would show translated; the conversation keeps the page's own colours and corners (layout only)"
     },
     {
       "kind": "class",
@@ -449,6 +491,13 @@
       "used_by": "focus.js (colour scheme)",
       "breaks": "the page does not follow Dotdeck's colour scheme live",
       "pattern": "data-theme|dataset\\.theme"
+    },
+    {
+      "kind": "attribute",
+      "value": "data-theme=\"dark\"",
+      "used_by": "focus.css (the dark variant of the conversation's look)",
+      "breaks": "in dark the conversation keeps the light colours of ADR-028",
+      "pattern": "data-theme=[\"']?dark|'dark'"
     },
     {
       "kind": "text",

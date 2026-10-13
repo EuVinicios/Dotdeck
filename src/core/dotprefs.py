@@ -1,4 +1,5 @@
-"""What the owner chose for each Dot on one server: its pet, pinned and hidden Dots.
+"""What the owner chose for each Dot on one server: its pet, pinned and hidden Dots,
+what they last saw of it and whether it may notify.
 
 Kept on this computer, in ``~/.config/dotdeck/dots/<profile id>.json`` (mode 0600),
 because OpenDots has no place for it: its Dot schema is strict and the instructions
@@ -37,9 +38,12 @@ class DotPrefs(GObject.Object):
     def _entry(self, dot_id: str) -> dict:
         return self._dots.setdefault(dot_id, {})
 
-    def _save(self) -> None:
+    def _write(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         _write_private(self.path, {"version": VERSION, "dots": self._dots})
+
+    def _save(self) -> None:
+        self._write()
         self.emit("changed")
 
     # -- pets ------------------------------------------------------------------------------
@@ -94,13 +98,37 @@ class DotPrefs(GObject.Object):
         self._entry(dot_id)["hidden"] = bool(hidden)
         self._save()
 
+    def wants_notifications(self, dot_id: str) -> bool:
+        """Whether this Dot's own news reach the desktop (on unless turned off)."""
+        return self._dots.get(dot_id, {}).get("notify", True) is not False
+
+    def set_notifications(self, dot_id: str, on: bool) -> None:
+        self._entry(dot_id)["notify"] = bool(on)
+        self._save()
+
     def last_seen(self, dot_id: str) -> float:
         value = self._dots.get(dot_id, {}).get("seen")
         return float(value) if isinstance(value, (int, float)) else 0.0
 
-    def mark_seen(self, dot_id: str, when: float | None = None) -> None:
+    def mark_seen(self, dot_id: str, when: float | None = None, notify: bool = True) -> None:
+        """The owner looked at the Dot; ``when`` is the latest thing they saw there (in the
+        server's clock when it comes from a conversation). ``notify=False`` saves without
+        the "changed" signal, for callers that are redrawing already."""
         self._entry(dot_id)["seen"] = when if when is not None else time.time()
-        self._save()
+        if notify:
+            self._save()
+        else:
+            self._write()
+
+    def seed_seen(self, values: dict[str, float]) -> None:
+        """A first "seen" for Dots that never had one, so what was there before Dotdeck
+        looked does not count as new. Saved quietly, once."""
+        missing = {dot_id: when for dot_id, when in values.items() if not self.last_seen(dot_id)}
+        if not missing:
+            return
+        for dot_id, when in missing.items():
+            self._entry(dot_id)["seen"] = when
+        self._write()
 
     def ordered(self, dots) -> list:
         """Pinned Dots first, then the server's order; hidden ones last."""

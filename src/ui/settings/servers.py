@@ -187,7 +187,8 @@ class ServersPage(SettingsPage):
 
         mic = Adw.ComboRow(title=_("Microphone Access"),
                            subtitle=_("For voice calls with the Dots on this server"),
-                           model=Gtk.StringList.new([_("Ask"), _("Allow"), _("Don't Allow")]))
+                           model=Gtk.StringList.new([_("Ask Every Time"), _("Always Allow"),
+                                                     _("Never Allow")]))
         mic.set_selected(MIC_CHOICES.index(profile.microphone)
                          if profile.microphone in MIC_CHOICES else 0)
 
