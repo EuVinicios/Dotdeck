@@ -4,6 +4,18 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+<!-- loja: Voice calls cost less: each reply sends only what it needs. -->
+
+### Mudado
+
+- **Ligações mais baratas**: cada resposta do Dot mandava de novo ao modelo de voz as
+  instruções, até 12 mil caracteres da conversa anterior e os resultados das pesquisas. O
+  OpenRouter não usa cache nesse modelo, e esse texto custava seis vezes a própria fala. Agora
+  a ponte manda só o fim da conversa anterior, as últimas mensagens da ligação e o começo das
+  pesquisas já respondidas. O modelo, as vozes e a rapidez continuam os mesmos (ADR-026).
+
 ## [0.5.0] - 2026-10-12
 
 ### Adicionado
