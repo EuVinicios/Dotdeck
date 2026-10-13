@@ -4,9 +4,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
-
-<!-- loja: Voice calls cost less: each reply sends only what it needs. -->
+## [0.5.1] - 2026-10-13
 
 ### Mudado
 
