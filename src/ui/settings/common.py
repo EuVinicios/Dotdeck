@@ -106,6 +106,27 @@ def string_model(labels: Sequence[str]) -> Gtk.StringList:
     return Gtk.StringList.new(list(labels))
 
 
+SAVE_FAILED = "save-failed"
+
+
+def row_failed(row: Adw.ActionRow, error: str) -> None:
+    """The row itself says the change did not save, as the Grok Bot does: in its subtitle
+    until the next try, with the server's words in its tooltip."""
+    if not row.has_css_class(SAVE_FAILED):
+        row._saved_subtitle = row.get_subtitle() or ""
+        row.add_css_class(SAVE_FAILED)
+    row.set_subtitle(escape(_("Couldn't save. Try again.")))
+    row.set_tooltip_text(error or None)
+
+
+def row_saving(row: Adw.ActionRow) -> None:
+    """A new try: the row gets its own subtitle back."""
+    if row.has_css_class(SAVE_FAILED):
+        row.remove_css_class(SAVE_FAILED)
+        row.set_subtitle(getattr(row, "_saved_subtitle", ""))
+        row.set_tooltip_text(None)
+
+
 class SettingsPage:
     """One page of the settings window: an Adw.PreferencesPage plus search entries."""
 
@@ -113,12 +134,19 @@ class SettingsPage:
     title = ""
     icon = ""
     section = ""          # set on the first page of a sidebar section
+    # The page this one is a section of: its groups go there, under its title, and
+    # showing it shows that page at its first group (ADR-029: fewer places to look).
+    host = ""
 
     def __init__(self, win):
         self.win = win
         self.app = win.app
-        self.widget = Adw.PreferencesPage(name=self.name, title=self.title,
-                                          icon_name=self.icon)
+        self.first_group: Adw.PreferencesGroup | None = None
+        if self.host:
+            self.widget = win.pages[self.host].widget
+        else:
+            self.widget = Adw.PreferencesPage(name=self.name, title=self.title,
+                                              icon_name=self.icon)
         self.build()
 
     # -- building ----------------------------------------------------------------------------
@@ -128,6 +156,10 @@ class SettingsPage:
 
     def group(self, title: str = "", description: str = "") -> Adw.PreferencesGroup:
         group = Adw.PreferencesGroup(title=title, description=description)
+        if self.first_group is None:
+            self.first_group = group
+            if self.host and not title:
+                group.set_title(self.title)      # where this section begins in its host
         self.widget.add(group)
         return group
 

@@ -125,8 +125,9 @@ class SettingsWindow(Adw.Window):
 
         self.toasts = Adw.ToastOverlay()
         self.set_content(self.toasts)
-        self.split = Adw.NavigationSplitView(min_sidebar_width=220, max_sidebar_width=280,
-                                             sidebar_width_fraction=0.26)
+        # A narrow list of sections, like the Grok Bot's (198 px there).
+        self.split = Adw.NavigationSplitView(min_sidebar_width=200, max_sidebar_width=240,
+                                             sidebar_width_fraction=0.24)
         self.toasts.set_child(self.split)
 
         # Each page as wide as it needs: a homogeneous stack made every page as wide as the
@@ -175,16 +176,21 @@ class SettingsWindow(Adw.Window):
             (_("Server"), (ServersPage, PrivacyPage)),
             (_("System"), (AdvancedPage, AboutPage)),
         ]
-        for section, kinds in sections:
-            for position, kind in enumerate(kinds):
+        # As in the Grok Bot app, a short flat list: sections are a line, not a title, and
+        # Appearance, Notifications and Shortcuts are sections of General (ADR-029).
+        for _section, kinds in sections:
+            first = True
+            for kind in kinds:
                 page = kind(self)
                 self.pages[page.name] = page
+                self._entries.append((page.name, None, page.widget, ()))
+                if page.host:
+                    continue
                 stack_page = self.stack.add_titled_with_icon(page.widget, page.name, page.title,
                                                              page.icon)
-                if position == 0:
+                if first:
                     stack_page.set_starts_section(True)
-                    stack_page.set_section_title(section)
-                self._entries.append((page.name, None, page.widget, ()))
+                    first = False
 
     def _build_sidebar(self) -> Adw.NavigationPage:
         self.switcher = Adw.ViewSwitcherSidebar(stack=self.stack)
@@ -254,8 +260,13 @@ class SettingsWindow(Adw.Window):
     def show_page(self, name: str) -> None:
         if name not in self.pages:
             name = "general"
+        page = self.pages[name]
         self.pop_to_root()
-        self.stack.set_visible_child_name(name)
+        self.stack.set_visible_child_name(page.host or name)
+        if page.host and page.first_group is not None:
+            # A section of another page: that page, scrolled to where the section begins.
+            GLib.timeout_add(60, lambda: (self.scroll_to(page.first_group, top=True),
+                                          False)[1])
         if self.split.get_collapsed():
             self.split.set_show_content(True)     # narrow: the page asked for, not the list
 
@@ -413,20 +424,28 @@ class SettingsWindow(Adw.Window):
         if entry.target is not None:
             GLib.timeout_add(80, lambda: (self.highlight(entry.target), False)[1])
 
+    def scroll_to(self, widget: Gtk.Widget, top: bool = False) -> None:
+        """Scroll ``widget``'s page so it shows in the middle (or at the top)."""
+        if widget.get_root() is not self:
+            return
+        scrolled = widget.get_ancestor(Gtk.ScrolledWindow)
+        if scrolled is None:
+            return
+        viewport = scrolled.get_child()
+        content = viewport.get_child() if isinstance(viewport, Gtk.Viewport) else viewport
+        found, point = widget.compute_point(content, Graphene.Point().init(0, 0))
+        if found:
+            adjustment = scrolled.get_vadjustment()
+            target = point.y - 12 if top else \
+                point.y - (adjustment.get_page_size() - widget.get_height()) / 2
+            adjustment.set_value(max(adjustment.get_lower(),
+                                     min(target, adjustment.get_upper()
+                                         - adjustment.get_page_size())))
+
     def highlight(self, row: Gtk.Widget) -> None:
         if row.get_root() is not self:
             return
-        scrolled = row.get_ancestor(Gtk.ScrolledWindow)
-        if scrolled is not None:
-            viewport = scrolled.get_child()
-            content = viewport.get_child() if isinstance(viewport, Gtk.Viewport) else viewport
-            found, point = row.compute_point(content, Graphene.Point().init(0, 0))
-            if found:
-                adjustment = scrolled.get_vadjustment()
-                target = point.y - (adjustment.get_page_size() - row.get_height()) / 2
-                adjustment.set_value(max(adjustment.get_lower(),
-                                         min(target, adjustment.get_upper()
-                                             - adjustment.get_page_size())))
+        self.scroll_to(row)
         if row.get_focusable() or isinstance(row, Gtk.ListBoxRow):
             row.grab_focus()
         row.add_css_class("settings-highlight")
@@ -790,7 +809,7 @@ class SettingsWindow(Adw.Window):
             dialog = Adw.AlertDialog(
                 heading=_("Save Changes?"),
                 body=_("Your changes to {names} are not saved yet.").format(names=names))
-            dialog.add_response("cancel", _("Cancel"))
+            dialog.add_response("cancel", _("Keep Editing"))
             dialog.add_response("discard", _("Discard"))
             dialog.add_response("save", _("Save"))
             dialog.set_response_appearance("discard", Adw.ResponseAppearance.DESTRUCTIVE)

@@ -112,6 +112,21 @@ class DotPrefsTests(unittest.TestCase):
         self.assertEqual([d.id for d in prefs.ordered(dots)], ["c", "a"])
         self.assertEqual([d.id for d in prefs.hidden(dots)], ["b"])
 
+    def test_seen_seeds_once_and_quietly(self):
+        path = Path(tmp_path(f"dots-{self.id()}.json"))
+        prefs = dotprefs.DotPrefs("p", path)
+        changes = []
+        prefs.connect("changed", lambda *_: changes.append(1))
+        prefs.seed_seen({"a": 100.0, "b": 200.0})
+        prefs.seed_seen({"a": 999.0})                 # a Dot keeps its first "seen"
+        self.assertEqual((prefs.last_seen("a"), prefs.last_seen("b")), (100.0, 200.0))
+        prefs.mark_seen("a", 300.0, notify=False)
+        self.assertEqual(changes, [])                 # nothing redraws for these
+        prefs.mark_seen("b", 400.0)
+        self.assertEqual(changes, [1])
+        again = dotprefs.DotPrefs("p", path)          # and they are saved
+        self.assertEqual((again.last_seen("a"), again.last_seen("b")), (300.0, 400.0))
+
 
 if __name__ == "__main__":
     unittest.main()

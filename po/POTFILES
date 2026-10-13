@@ -1,10 +1,12 @@
 src/core/api.py
 src/core/costs.py
 src/core/models.py
+src/core/notices.py
 src/core/pets.py
 src/core/server.py
 src/core/voice.py
 src/main.py
+src/ui/call_panel.py
 src/ui/new_dot.py
 src/ui/onboarding.py
 src/ui/pet.py

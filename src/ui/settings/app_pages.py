@@ -143,6 +143,7 @@ class AppearancePage(SettingsPage):
     name = "appearance"
     title = _("Appearance")
     icon = "preferences-desktop-appearance-symbolic"
+    host = "general"
 
     def build(self) -> None:
         style = self.group()
@@ -194,8 +195,10 @@ class NotificationsPage(SettingsPage):
     name = "notifications"
     title = _("Notifications")
     icon = "preferences-system-notifications-symbolic"
+    host = "general"
 
     EVENTS = (
+        ("notify-dot-done", ("reply", "answer", "finished", "dot")),
         ("notify-task-completed", ("done", "finished", "complete")),
         ("notify-task-failed", ("error", "failed", "problem")),
         ("notify-task-started", ("schedule", "recurring", "start")),
@@ -210,6 +213,9 @@ class NotificationsPage(SettingsPage):
                     ("notify", "alert", "banner", "popup"))
 
         titles = {
+            "notify-dot-done": (_("A Dot Finishes Replying"),
+                                _("Unless you are looking at it. Each Dot can turn its own off "
+                                  "in its settings")),
             "notify-task-completed": (_("A Dot Finishes a Task"),
                                       _("With the task's text, so you know which one")),
             "notify-task-failed": (_("A Task Fails"),
@@ -261,6 +267,7 @@ class ShortcutsPage(SettingsPage):
     name = "shortcuts"
     title = _("Shortcuts")
     icon = "preferences-desktop-keyboard-shortcuts-symbolic"
+    host = "general"
 
     def build(self) -> None:
         self._triggers: dict[str, Gtk.Label] = {}

@@ -21,7 +21,7 @@ import gi  # noqa: E402
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gtk  # noqa: E402
+from gi.repository import Adw, Gtk, Pango  # noqa: E402
 
 from src.core import models, monitor, secrets, store  # noqa: E402
 from src.ui.settings import search  # noqa: E402
@@ -498,10 +498,24 @@ class SettingsWindowTests(unittest.TestCase):
         for name in PAGES:
             win = self.open(name)
             self.assertIs(win, first)
-            self.assertEqual(win.visible_page, name)
-            self.assertEqual(win.title_widget.get_title(), win.pages[name].title)
-            self.assertEqual(self.app.settings.get("settings-page"), name)
+            # Appearance, Notifications and Shortcuts are sections of General.
+            shown = win.pages[name].host or name
+            self.assertEqual(win.visible_page, shown)
+            self.assertEqual(win.title_widget.get_title(), win.pages[shown].title)
+            self.assertEqual(self.app.settings.get("settings-page"), shown)
         self.assertEqual(first.get_default_size(), (980, 760))
+
+    def test_a_section_of_general_opens_general_at_that_section(self):
+        win = self.open("general")
+        listed = [page.get_name() for page in win.stack.get_pages()]
+        self.assertEqual(listed, ["general", "dots", "voice", "model", "servers", "privacy",
+                                  "advanced", "about"])
+        win.show_page("notifications")
+        group = win.pages["notifications"].first_group
+        self.assertEqual(group.get_title(), "Notifications")
+        self.assertIs(win.pages["notifications"].widget, win.pages["general"].widget)
+        scrolled = group.get_ancestor(Gtk.ScrolledWindow)
+        self.assertTrue(run_until(lambda: scrolled.get_vadjustment().get_value() > 0, 3))
 
     def test_a_narrow_window_shows_the_page_asked_for(self):
         """Edit Dot, Microphone… or a link to another page: the page, not the list."""
@@ -514,13 +528,18 @@ class SettingsWindowTests(unittest.TestCase):
         self.assertEqual(win.visible_page, "voice")
 
     def test_a_narrow_page_is_only_as_wide_as_itself(self):
-        """At 360 px the pages fit: none takes the width of the widest one (Appearance)."""
+        """At 360 px the pages fit: none takes the width of the widest one (General, with
+        Appearance's side-by-side choices)."""
         win = self.open("general")
         win.set_default_size(360, 720)
         self.assertTrue(run_until(win.split.get_collapsed, 5))
         widest = max(page.widget.measure(Gtk.Orientation.HORIZONTAL, -1)[0]
                      for page in win.pages.values())
-        for name in ("general", "servers"):
+        win.show_page("general")
+        run_until(lambda: False, 0.2)
+        self.assertLessEqual(win.pages["general"].widget.measure(
+            Gtk.Orientation.HORIZONTAL, -1)[0], win.stack.get_width())
+        for name in ("dots", "servers"):
             win.show_page(name)
             run_until(lambda: False, 0.2)
             page_min = win.pages[name].widget.measure(Gtk.Orientation.HORIZONTAL, -1)[0]
@@ -780,12 +799,12 @@ class SettingsWindowTests(unittest.TestCase):
         tools = self.tool_rows(row)
         self.assertEqual({name: r.get_selected() for name, r in tools.items()},
                          {"list_disks": 0, "restart_service": 1, "wipe_disk": 2})
-        tools["wipe_disk"].set_selected(0)                        # Blocked → Allowed
+        tools["wipe_disk"].set_selected(0)                        # Never Allow → Always Allow
         self.assertTrue(run_until(lambda: self.fake.writes("PATCH"), 5))
         self.assertEqual(self.fake.writes("PATCH")[-1][1:], (
             "/api/connections/c1/tools/wipe_disk", {"enabled": True, "requiresApproval": False}))
         self.assertTrue(run_until(lambda: "3 of 3" in row.get_subtitle(), 5))
-        tools["restart_service"].set_selected(2)                  # Ask First → Blocked
+        tools["restart_service"].set_selected(2)                  # Ask Every Time → Never Allow
         self.assertTrue(run_until(lambda: len(self.fake.writes("PATCH")) == 2, 5))
         self.assertEqual(self.fake.writes("PATCH")[-1][2], {"enabled": False})
         group.refresh("c1")
@@ -1042,6 +1061,20 @@ class SettingsWindowTests(unittest.TestCase):
         self.assertIn("21", page.memories_row.get_subtitle())
         page.manage.emit("clicked")
         self.assertIn(("memories",), self.app.window.view.calls)
+
+    def test_a_change_that_did_not_save_says_so_in_its_row(self):
+        from src.ui.settings.common import row_failed, row_saving
+        row = Adw.SwitchRow(title="Web Research", subtitle="Dots can search the web")
+        row_failed(row, "HTTP 500")
+        self.assertEqual(Pango.parse_markup(row.get_subtitle(), -1, "\0")[2],
+                         "Couldn't save. Try again.")
+        self.assertTrue(row.has_css_class("save-failed"))
+        self.assertEqual(row.get_tooltip_text(), "HTTP 500")
+        row_failed(row, "HTTP 502")                 # a second failure keeps the original
+        row_saving(row)
+        self.assertEqual(row.get_subtitle(), "Dots can search the web")
+        self.assertFalse(row.has_css_class("save-failed"))
+        self.assertIsNone(row.get_tooltip_text())
 
     def test_server_page_opens_for_editing(self):
         win = self.open("servers", edit=self.profile.id)

@@ -928,3 +928,167 @@ Dotdeck com outro servidor.
 no catálogo. Os rótulos de acessibilidade também ficam em inglês. Um texto novo do OpenDots
 aparece em inglês até entrar no catálogo; a ferramenta acima mostra quais são. Só há
 português: espanhol pode vir com outro arquivo no mesmo formato.
+
+## ADR-028 — O visual do Grok Bot: superfícies neutras, linha do Dot e conversa (12/10/2026)
+
+**Contexto.** Desde o ADR-012, a referência visual do dono é o Grok Bot. Desta vez lemos o
+próprio pacote, `grok-bot_0.70.2_amd64.deb`: um app Electron com a interface em React e um
+sistema de design chamado "sand". A leitura foi só estática. Extraímos o `.deb` e o `app.asar`
+sem rodar nada e analisamos o renderer com o REA (600 arquivos JavaScript) e lendo o CSS e os
+catálogos de texto. O que o app faz:
+- **Superfícies neutras em degraus**, sem azul nos cinzas. No claro: barra lateral #f5f5f5,
+  moldura #fcfcfc, painel #ffffff. No escuro: #0e0e0e, #121212, #161616 e cartões #1f1f1f, sem
+  sombras (a separação vem dos degraus). O texto é #1c1c1c, e os tons secundários são
+  opacidades dele (68 %, 56 %, 40 %). O azul fica para foco, links e a ação principal.
+- **Linha do agente com 54 px**, padding de 8 px, cantos de 10 px, avatar de 36 px e 8 px até
+  o texto. Nome em 14 px e peso 500, segunda linha em 13 px. Hover e seleção são véus cinza
+  de 6 % e 8 %, nunca a cor de destaque.
+- **Menu de contexto em seções por tipo de ação**, com ocultar e excluir por último.
+- **Conversa**: bolhas com cantos de 18 px e linhas de 22 px. No claro, a sua mensagem é uma
+  bolha sólida #1c1c1c com texto branco; no escuro, um véu claro de 18 %. O compositor é um
+  cartão discreto, e os botões são redondos.
+- **Um vocabulário de permissão**: "Always allow / Ask every time / Never allow".
+- O "Discard changes?" oferece "Keep editing", não "Cancel".
+
+**Pedido do dono:** "use o rea para ler e entender o aplicativo grok-bot_0.70.2_amd64.deb …
+Quero aplicar as soluções de design dele ao nosso projeto".
+
+**Decisão (esta rodada).**
+- **Paleta** (`src/ui/style.css`): as variáveis do Libadwaita (`--window-bg-color`,
+  `--sidebar-bg-color`, `--headerbar-bg-color`, `--card-bg-color` e as outras) recebem os
+  degraus do Grok, em claro e em escuro. O escuro parte do #1b1b1b da página do OpenDots, e
+  não do #161616 do Grok, para o cabeçalho continuar a página sem emenda: janela #171717,
+  barra lateral #131313, cartões e menus #242424. A cor de destaque continua a do sistema.
+- **O escuro do `style.css` segue o Dotdeck**: o provedor de CSS liga a
+  `prefers-color-scheme` dele ao `Adw.StyleManager` (`src/main.py`). Sem isso, o
+  `@media (prefers-color-scheme: dark)` seguia só o desktop, e Configurações › Aparência ›
+  Escuro deixava a parte nativa clara.
+- **Linha do Dot** (`style.css`, `sidebar.py`): 54 px (o `min-height` do GTK é o conteúdo,
+  então 38 px mais 8 px de padding), cantos de 10 px, 8 px entre o pet e o texto, nome em
+  peso 500, função em 0,89 em a 68 % e véus de 6 % e 8 %. Os títulos das seções ficaram
+  menores e mais discretos.
+- **Menu do Dot** (`dot_menu`): Abrir · Nova conversa · Ligar | Fixar · Tornar chefe | Trocar
+  pet · Editar | Ocultar da barra lateral.
+- **Conversa** (`src/web/focus.css`, com variante para o `data-theme` escuro da página):
+  bolhas do Grok, respostas na cor principal do texto, compositores (`.composer`,
+  `.chat-composer`) como cartões de 18 px, envio escuro sólido e sugestões em pílula. As
+  respostas do Dot continuam texto corrido, sem bolha: no Grok elas são curtas, e as do
+  OpenDots têm listas e títulos. As classes novas entraram no `contract.json`.
+- **Permissões**: Conexões (ferramentas), Servidores e Chamadas de voz (microfone) usam
+  "Sempre permitir / Perguntar sempre / Nunca permitir". "Continuar editando" substitui
+  "Cancelar" no aviso de mudanças não salvas.
+- **Não copiamos nada do Grok**: nem a fonte X (proprietária), nem ícones, imagens ou sons.
+  Só medidas, proporções e padrões.
+
+**Fora desta rodada** (propostas, na ordem de valor; todas feitas no ADR-029):
+1. **Segunda linha viva com hora**: "Trabalhando…", "Esperando você: …", "Rascunho: …" e
+   "3 min" à direita. Precisa do horário e da prévia da última mensagem de cada Dot, que o
+   `/api/workspace` não traz.
+2. **Selo no canto do pet** (ponto de trabalhando, atenção ou não lido; estrela no chefe),
+   liberando a coluna da direita.
+3. **Fixados como grade de pets de 60 px** e **Ocultos como grupo dobrável com contador**.
+4. **Barra redimensionável (240 a 400 px) e trilho compacto de 88 px** (Ctrl+B), mais
+   `Ctrl+Tab` com a ordem congelada.
+5. **Notificações por Dot**, como no Grok: só "terminou" e "esperando você"; caladas só
+   quando aquele Dot está aberto e a janela ativa; no máximo uma a cada 5 s por Dot.
+6. **Configurações com menos navegação**: Geral reunindo Aparência, Notificações e Atalhos;
+   erro de salvar na própria linha; confirmação em dois cliques para ações reversíveis.
+7. **Painel da chamada** com o pet, duas ondas de nível e controles redondos de 36 px.
+
+**Prova.**
+- **Capturas antes e depois** com `tools/screenshots.py --demo` sobre o cliente real do
+  OpenDots, em claro e escuro. No escuro: barra lateral #131313, cabeçalho e página #1b1b1b.
+- **Conversa renderizada no WebKitGTK** com o CSS compilado do OpenDots e o `focus.css`, nos
+  dois temas.
+- **Testes**: `tests.test_contract` passa também contra o checkout do OpenDots, e
+  `test_sidebar` confirma que o menu do Dot continua cabendo sem rolagem.
+- **Traduções** conferidas com `msgfmt --check` no runtime GNOME 51.
+
+## ADR-029 — Barra lateral, chamada, avisos e Configurações do Grok Bot (13/10/2026)
+
+**Contexto.** O ADR-028 trouxe o visual do Grok Bot e deixou sete propostas para depois. O dono
+pediu: "quero aplicar todas as melhorias da layout e UX inspiradas no Grok agora sem quebrar o
+nosso app". As medidas e os padrões vêm da mesma leitura do pacote 0.70.2.
+
+**O que o servidor permite.** O OpenDots oficial não informa a hora nem a prévia da última
+mensagem de cada Dot. O `/api/workspace` traz só as conversas (`createdAt`, `title`, `dotId`),
+e as mensagens ficam no runtime do CopilotKit. Por isso a "segunda linha viva" usa o que existe
+de fato:
+- o início da conversa mais recente;
+- as chamadas;
+- o estado que a página informa do Dot aberto (`dot-state`);
+- um "não lido" calculado no Dotdeck.
+
+"Esperando você" também não tem sinal no servidor e ficou de fora.
+
+**Decisão.**
+- **Linha do Dot** (`sidebar.py`):
+  - À direita do nome, a idade compacta da última conversa (`compact_age`: "agora", "3 min",
+    "2 h", "ontem", "4 d", "3 sem", "2 meses", "1 ano"), atualizada a cada minuto.
+  - Embaixo, por prioridade: "Em chamada", "Trabalhando…", "Pausado", "Nova: {título}" ou a
+    função.
+  - Some o spinner da direita: o anel do pet já mostra o trabalho. O telefone virou uma
+    onda pequena da voz do Dot.
+- **Não lido** (`window._dot_activity`, `dotprefs`):
+  - Uma conversa é nova quando começou depois da última vez que o dono olhou aquele Dot. Os
+    tempos ficam no relógio do servidor, como as conversas.
+  - Na primeira vez que o Dotdeck vê um Dot, ele ganha uma marca de "visto" (`seed_seen`),
+    então nada antigo conta como novo, e a primeira conversa de um Dot sem conversas conta.
+  - Com a janela à frente, o Dot aberto marca como visto o que aparece nele. A janela
+    voltar à frente refaz a conta.
+- **Marcas no pet** (`pet.py`): um ponto (não lido) no canto de baixo e uma estrela (Chefe)
+  no de cima, cada um num furo recortado do pet com uma máscara (`Gsk.MaskMode.INVERTED_ALPHA`),
+  como os selos do Grok.
+- **Fixados e ocultos**:
+  - Os fixados saem da lista para uma grade de pets de 52 px (`Gtk.FlowBox`, 3 ou 4 por
+    linha) com o nome embaixo.
+  - Os ocultos vão para um grupo recolhido "Dots ocultos" no fim, com contador. Abrir um
+    oculto continua possível, e o menu dele traz "Mostrar na barra lateral" (`win.dot-unhide`).
+  - Menu de contexto, Shift+F10, busca, foco depois de Fixar/Ocultar e a ordem de Ctrl+1…9
+    valem para a grade, a lista e os ocultos.
+- **Largura e trilho** (`window.py`):
+  - A borda da barra se arrasta de 240 a 400 px, com padrão de 300 px salvo em
+    `sidebar-width`. O clique duplo volta ao padrão.
+  - Abaixo de 210 px ela encaixa no trilho de 88 px, só com os pets e com os nomes nas dicas
+    (`sidebar-rail`, também com `Ctrl+B`).
+  - O `OverlaySplitView` passou a usar pixels e limites iguais para fixar a largura. Na
+    janela estreita, a barra sobreposta volta ao normal.
+- **`Ctrl+Tab`** percorre os Dots na ordem da barra, congelada enquanto o Ctrl está
+  apertado, e abre o escolhido ao soltar. O controlador fica na fase de captura, antes da
+  página.
+- **Avisos por Dot** (`core/notices.py`, `main.notify_dot_done`):
+  - Quando o mesmo Dot passa de "trabalhando" a "parado", chega um aviso com o nome dele e o
+    título da conversa.
+  - O aviso é calado quando o dono olha aquele Dot (janela à frente e Dot aberto), quando o
+    evento ou o Dot estão desligados (nova chave por Dot no editor) ou quando o mesmo Dot já
+    avisou nos últimos 5 s.
+- **Painel da chamada** (`call_panel.py`):
+  - Um popover sem `autohide` sob o título, que não tira o foco da janela (há teste para
+    isso). Abre sozinho quando a chamada começa, até o dono ocultá-lo; clicar no título
+    reabre.
+  - Mostra o pet na fase da chamada, a barra de "Conectando…/Desligando…", duas ondas
+    (`audio-level` "dot" na cor do pet, "you" na cor de destaque), a transcrição pelas
+    legendas da ponte e botões redondos de 36 px.
+  - A tela de chamada da própria página continua igual.
+- **Configurações**:
+  - Aparência, Notificações e Atalhos são seções da Geral (`SettingsPage.host`). Os nomes
+    antigos continuam válidos e rolam até a seção, e a busca também.
+  - A lista tem 8 páginas sem títulos de grupo e 200 a 240 px de largura.
+  - Interruptores de Privacidade que não salvam dizem isso na própria linha (`row_failed`).
+    As linhas de voz são recriadas depois de uma falha e por isso ficam com o aviso
+    flutuante.
+
+**Prova.**
+- **Testes novos:**
+  - grade, ocultos, linha viva e marcas, trilho e busca (`test_sidebar`);
+  - `compact_age`, `dragged_width`, `step_through` e `latest_conversations`;
+  - `seed_seen`/`mark_seen`;
+  - a regra dos avisos (`test_notices`);
+  - o painel da chamada e o foco;
+  - a seção da Geral;
+  - o erro na linha.
+- **Smoke** (`make smoke`): liga e desliga o trilho no app real.
+- **Capturas** com o cliente real do OpenDots, claro e escuro: grade, ocultos, não lido e
+  trilho.
+- **Suíte**: 408 de 409 testes passam. O `test_gateway` não importa nesta máquina (sem
+  GstWebRTC), e a ponte de voz não mudou.

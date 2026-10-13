@@ -18,13 +18,14 @@ gi.require_version("Gtk", "4.0")
 from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango
 
 from .. import config
-from ..core import api, costs, dotprefs, models, monitor, pets, server, voice
+from ..core import api, costs, dotprefs, models, monitor, pets, server, store, voice
 from ..core.call_sounds import CallSounds
 from ..core.store import MIC_ALLOW, MIC_DENY, Profile
 from ..core.workspace import Dot, Workspace
 from ..i18n import N_, _, ngettext
 from ..web.webview import ServerView
 from . import pet as pet_ui
+from .call_panel import CallPanel
 from .onboarding import Onboarding
 from .pet import PetAvatar
 from .sidebar import Sidebar, dot_menu
@@ -75,6 +76,38 @@ def ago(timestamp: float) -> str:
     if delta < 2 * 86400:
         return _("Yesterday")
     return GLib.DateTime.new_from_unix_local(int(timestamp)).format("%x")
+
+
+RAIL_WIDTH = 88               # the sidebar as a rail of pets (Ctrl+B)
+SNAP_TO_RAIL = 210            # dragged narrower than this, it snaps to the rail
+WIDTH_RANGE = (240, 400)      # the widths it can be dragged to
+
+
+def dragged_width(start: float, offset: float, rtl: bool = False) -> tuple[int, bool]:
+    """The sidebar's width, and whether it is the rail, after dragging its edge ``offset``
+    px from ``start`` px (in right-to-left languages the edge is on the left)."""
+    width = start + (-offset if rtl else offset)
+    if width < SNAP_TO_RAIL:
+        return RAIL_WIDTH, True
+    low, high = WIDTH_RANGE
+    return int(max(low, min(high, width))), False
+
+
+def step_through(order: list[str], at: str | None, back: bool = False) -> str:
+    """The next Dot in ``order`` after ``at`` (the previous one with ``back``), round."""
+    position = order.index(at) if at in order else (0 if back else -1)
+    return order[(position + (-1 if back else 1)) % len(order)]
+
+
+def latest_conversations(workspace: Workspace) -> dict[str, tuple[float, str]]:
+    """Each Dot's latest conversation as ``(when, title)``, ``when`` in seconds."""
+    latest: dict[str, tuple[float, str]] = {}
+    for conversation in workspace.conversations:
+        when = conversation.created_at
+        when = when / 1000 if when > 1e12 else when
+        if when > latest.get(conversation.dot_id, (0.0, ""))[0]:
+            latest[conversation.dot_id] = (when, conversation.title)
+    return latest
 
 
 class MainWindow(Adw.ApplicationWindow):
@@ -135,9 +168,20 @@ class MainWindow(Adw.ApplicationWindow):
         self.pages.add_named(self._build_workspace(), "workspace")
 
         self._install_actions()
+        # Ctrl+Tab steps through the Dots in the sidebar's order, frozen while Ctrl is
+        # held; letting go opens the one chosen (ADR-029). Before the page sees the keys.
+        self._switch: dict | None = None
+        keys = Gtk.EventControllerKey(propagation_phase=Gtk.PropagationPhase.CAPTURE)
+        keys.connect("key-pressed", self._on_switch_key)
+        keys.connect("key-released", self._on_switch_release)
+        self.add_controller(keys)
+        self.connect("notify::is-active", lambda *_: self.is_active() or self._end_switch(False))
         self.connect("close-request", self._on_close_request)
+        self.connect("destroy", lambda *_: self.call_panel.unparent())
         self.connect("notify::fullscreened", self._on_fullscreen)
-        self.connect("notify::is-active", lambda *_: (app.refresh_status(), self._sync_fast()))
+        # Back in front: the open Dot's news count as seen (_dot_activity).
+        self.connect("notify::is-active", lambda *_: (app.refresh_status(), self._sync_fast(),
+                                                      self._refresh_workspace()))
         self.connect("notify::visible", lambda *_: self._sync_fast())
         settings.connect("changed", self._on_setting_changed)
         # Ringing while a call connects, a chime when it is live, a tone when it ends (on
@@ -177,6 +221,7 @@ class MainWindow(Adw.ApplicationWindow):
         search = Gtk.Button(icon_name="system-search-symbolic", action_name="win.search",
                             tooltip_text=_("Search (Ctrl+K)"))
         sidebar_header.pack_end(search)
+        self.search_button = search
         self.sidebar = Sidebar()
         self.sidebar.connect("dot-activated", lambda _s, dot_id: self.open_dot(dot_id))
         self.sidebar.connect("space-activated", lambda _s, space_id: self.open_space(space_id))
@@ -185,6 +230,23 @@ class MainWindow(Adw.ApplicationWindow):
         self.sidebar.menu_for_dot = self._menu_for_dot
         sidebar_view = Adw.ToolbarView(content=self.sidebar)
         sidebar_view.add_top_bar(sidebar_header)
+        # Its edge can be dragged (240–400 px), and below 210 px it snaps to the rail of
+        # pets, as the Grok Bot's sidebar does (ADR-029).
+        self.resize_handle = Gtk.Box(width_request=6, halign=Gtk.Align.END,
+                                     cursor=Gdk.Cursor.new_from_name("col-resize"))
+        self.resize_handle.add_css_class("sidebar-resize-handle")
+        self.resize_handle.set_tooltip_text(_("Drag to resize the sidebar (Ctrl+B: pets only)"))
+        drag = Gtk.GestureDrag()
+        drag.connect("drag-begin", self._on_resize_begin)
+        drag.connect("drag-update", self._on_resize_update)
+        drag.connect("drag-end", self._on_resize_end)
+        self.resize_handle.add_controller(drag)
+        twice = Gtk.GestureClick()          # a double click puts the width back
+        twice.connect("pressed", lambda _g, n, *_: n == 2 and self._reset_sidebar_width())
+        self.resize_handle.add_controller(twice)
+        sidebar_overlay = Gtk.Overlay(child=sidebar_view)
+        sidebar_overlay.add_overlay(self.resize_handle)
+        sidebar_overlay.set_clip_overlay(self.resize_handle, False)
 
         # Content: the open Dot in the header, then the page.
         header = Adw.HeaderBar()
@@ -210,6 +272,15 @@ class MainWindow(Adw.ApplicationWindow):
         title_box.append(self.title_avatar)
         title_box.append(self.title)
         header.set_title_widget(title_box)
+        # The call panel floats under the title during a call; a click on the title brings
+        # it back after it was hidden (ADR-029).
+        self.call_panel = CallPanel(on_settings=lambda: self.app.show_preferences("voice"))
+        self.call_panel.set_parent(header)
+        self.call_panel.connect("closed", lambda *_: self._on_call_panel_closed())
+        self._call_panel_hidden = False
+        reopen = Gtk.GestureClick()
+        reopen.connect("released", lambda *_: self._show_call_panel(by_owner=True))
+        title_box.add_controller(reopen)
 
         menu = Gio.Menu()
         section = Gio.Menu()
@@ -299,9 +370,11 @@ class MainWindow(Adw.ApplicationWindow):
 
         # pin_sidebar: un-collapsing must not bring back a sidebar that is off or hidden;
         # _apply_layout decides.
-        self.split = Adw.OverlaySplitView(sidebar=sidebar_view, content=view,
+        self.split = Adw.OverlaySplitView(sidebar=sidebar_overlay, content=view,
                                           min_sidebar_width=264, max_sidebar_width=320,
-                                          sidebar_width_fraction=0.24, pin_sidebar=True)
+                                          sidebar_width_fraction=1.0,
+                                          sidebar_width_unit=Adw.LengthUnit.PX,
+                                          pin_sidebar=True)
         self.split.connect("notify::show-sidebar", lambda *_: self._sync_sidebar_button())
         self.split.connect("notify::collapsed", lambda *_: self._apply_layout())
         breakpoint = Adw.Breakpoint.new(Adw.BreakpointCondition.parse("max-width: 720sp"))
@@ -343,6 +416,7 @@ class MainWindow(Adw.ApplicationWindow):
         add("go-back", lambda *_: self.view and self.view.webview.go_back())
         add("search", lambda *_: self._search())
         add("toggle-sidebar", lambda *_: self._toggle_sidebar())
+        add("toggle-rail", lambda *_: self._toggle_rail())
         add("toggle-computer", lambda *_: self.view and self.view.toggle_computer())
         self._conversations_action = add("conversations", lambda *_: self._show_conversations())
         self._conversations_action.set_enabled(False)
@@ -360,6 +434,8 @@ class MainWindow(Adw.ApplicationWindow):
         add("dot-edit", lambda _a, v: self.app.show_preferences("dots", dot=v.unpack()), text)
         add("dot-pin", lambda _a, v: self._toggle_pin(v.unpack()), text)
         add("dot-hide", lambda _a, v: self._hide_dot(v.unpack()), text)
+        add("dot-unhide", lambda _a, v: self._prefs and self._prefs.set_hidden(v.unpack(), False),
+            text)
         add("dot-chief", lambda _a, v: self._make_chief(v.unpack()), text)
         self._mute_action = Gio.SimpleAction.new_stateful("toggle-mute", None,
                                                           GLib.Variant("b", False))
@@ -441,6 +517,11 @@ class MainWindow(Adw.ApplicationWindow):
                 view.voice.connect("call-error", lambda _v, message: self.toast(message))
             if GObject.signal_lookup("call-cost", type(view.voice)):
                 view.voice.connect("call-cost", self._on_call_cost)
+            if GObject.signal_lookup("audio-level", type(view.voice)):
+                view.voice.connect("audio-level", self._on_audio_level)
+            if GObject.signal_lookup("caption", type(view.voice)):
+                view.voice.connect("caption", lambda _v, role, text, final:
+                                   self.call_panel.add_caption(role, text, final))
             view.connect("state-changed", lambda *_: self.refresh_status())
             if hasattr(view, "set_focus_mode"):
                 view.connect("focus-changed", self._on_focus_changed)
@@ -516,8 +597,94 @@ class MainWindow(Adw.ApplicationWindow):
         self.split.set_enable_hide_gesture(native)
         self.server_button_fallback.set_visible(not native)
         self.reload_button.set_visible(not native)
+        self._apply_sidebar_width()
         self._sync_sidebar_button()
         self._refresh_header()
+
+    def _rail(self) -> bool:
+        """Pets only: the setting, and room for the sidebar beside the page."""
+        return bool(self.app.settings.get("sidebar-rail")) and not self.split.get_collapsed()
+
+    def _apply_sidebar_width(self, width: int | None = None, rail: bool | None = None) -> None:
+        """The sidebar's width: the dragged one (or ``width`` while dragging), the rail's,
+        or, over the page in a narrow window, at most 320 px."""
+        rail = self._rail() if rail is None else rail
+        if rail:
+            width = RAIL_WIDTH
+        else:
+            low, high = WIDTH_RANGE
+            width = max(low, min(high, int(width or self.app.settings.get("sidebar-width"))))
+            if self.split.get_collapsed():
+                width = min(width, 320)
+        # Equal limits pin the width (the fraction is 1.0, so the limits decide).
+        self.split.set_min_sidebar_width(width)
+        self.split.set_max_sidebar_width(width)
+        self.sidebar.set_rail(rail)
+        self.server_button.set_visible(not rail)
+        self.search_button.set_visible(not rail)
+        self.resize_handle.set_visible(not self.split.get_collapsed())
+        if rail and self._native():
+            self.server_button_fallback.set_visible(True)   # the switcher moves to the page
+
+    def _toggle_rail(self) -> None:
+        if not self._native() or self.split.get_collapsed():
+            return
+        self.app.settings.set("sidebar-rail", not self.app.settings.get("sidebar-rail"))
+        self.split.set_show_sidebar(True)
+        self._apply_layout()
+
+    def _reset_sidebar_width(self) -> None:
+        self.app.settings.set("sidebar-width", store.Settings.DEFAULTS["sidebar-width"])
+        self.app.settings.set("sidebar-rail", False)
+        self._apply_layout()
+
+    def _on_resize_begin(self, _gesture, _x, _y) -> None:
+        self._resize_from = RAIL_WIDTH if self._rail() else self.split.get_min_sidebar_width()
+
+    def _dragged_width(self, offset_x: float) -> tuple[int, bool]:
+        return dragged_width(getattr(self, "_resize_from", RAIL_WIDTH), offset_x,
+                             self.get_direction() == Gtk.TextDirection.RTL)
+
+    def _on_resize_update(self, _gesture, offset_x: float, _offset_y: float) -> None:
+        self._apply_sidebar_width(*self._dragged_width(offset_x))
+
+    def _on_resize_end(self, _gesture, offset_x: float, _offset_y: float) -> None:
+        width, rail = self._dragged_width(offset_x)
+        settings = self.app.settings
+        if not rail:
+            settings.set("sidebar-width", width)
+        settings.set("sidebar-rail", rail)
+        self._apply_layout()
+
+    # -- Ctrl+Tab --------------------------------------------------------------------------
+
+    def _on_switch_key(self, _controller, keyval: int, _keycode: int, state) -> bool:
+        if keyval not in (Gdk.KEY_Tab, Gdk.KEY_ISO_Left_Tab, Gdk.KEY_KP_Tab) or \
+                not state & Gdk.ModifierType.CONTROL_MASK or not self._native():
+            return False
+        if self._switch is None:
+            order = self.sidebar.visible_dot_ids()
+            if not order:
+                return False
+            self._switch = {"order": order, "at": self._dot_id}
+        back = keyval == Gdk.KEY_ISO_Left_Tab or bool(state & Gdk.ModifierType.SHIFT_MASK)
+        self._switch["at"] = step_through(self._switch["order"], self._switch["at"], back)
+        self.split.set_show_sidebar(True)
+        self.sidebar.select_dot(self._switch["at"])    # shown, not opened yet
+        return True
+
+    def _on_switch_release(self, _controller, keyval: int, _keycode: int, _state) -> None:
+        if keyval in (Gdk.KEY_Control_L, Gdk.KEY_Control_R):
+            self._end_switch(True)
+
+    def _end_switch(self, open_it: bool) -> None:
+        switch, self._switch = self._switch, None
+        if switch is None:
+            return
+        if open_it and switch["at"] and switch["at"] != self._dot_id:
+            self.open_dot(switch["at"])
+        else:
+            self._select_current()
 
     def _sync_sidebar_button(self) -> None:
         native = self._native()
@@ -552,6 +719,8 @@ class MainWindow(Adw.ApplicationWindow):
     def _on_setting_changed(self, _settings, key: str) -> None:
         if key in ("density", "show-jobs"):
             self._refresh_workspace()
+        elif key in ("sidebar-width", "sidebar-rail"):
+            self._apply_layout()
         elif key == "pet-animations":
             pet_ui.set_animations(self.app.settings.get(key))
             self.queue_draw()
@@ -588,6 +757,8 @@ class MainWindow(Adw.ApplicationWindow):
         if self.view is not None and self.view.voice.in_call and self._call_dot:
             call_dot = workspace.dot(self._call_dot) or call_dot
         status = self._mon.status if self._mon is not None else "unknown"
+        activity, unread = self._dot_activity(workspace)
+        chief = workspace.dot_named(monitor.chief_dot(profile, [d.name for d in workspace.dots]))
         self.sidebar.set_placeholder({
             "unknown": _("Connecting…"), "offline": _("No connection to the server"),
             "token": _("An access token is needed to see the Dots"),
@@ -597,7 +768,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.sidebar.set_dots(workspace, visible, hidden, self._pet_map,
                               density=settings.get("density"), show_job=settings.get("show-jobs"),
                               pinned=pinned, in_call=call_dot.id if call_dot else None,
-                              offline=bool(self._mon and self._mon.status != "online"))
+                              offline=bool(self._mon and self._mon.status != "online"),
+                              chief=chief.id if chief else None, unread=unread,
+                              activity=activity)
         self.sidebar.set_model(models.at_a_glance(
             workspace.active_model, workspace.active_provider,
             getattr(self._mon, "model_config", None)))
@@ -615,6 +788,32 @@ class MainWindow(Adw.ApplicationWindow):
             GLib.idle_add(lambda: (self.open_dot(pending), False)[1])
         self._push_pets()
         self._refresh_header()
+
+    def _dot_activity(self, workspace: Workspace) -> tuple[dict[str, tuple[float, str]],
+                                                             set[str]]:
+        """Each Dot's latest conversation as ``(when, title)``, and the Dots with one the
+        owner has not seen: it began after they last looked at that Dot (ADR-029).
+
+        The open Dot, with the window in front, is being looked at, so what appears there
+        is seen at once. Times stay in the server's clock (conversations' ``createdAt``)."""
+        activity = latest_conversations(workspace)
+        prefs = self._prefs
+        if prefs is None:
+            return activity, set()
+        # What was there before Dotdeck first saw a Dot is not news, and a Dot first seen
+        # without conversations gets its first one as news.
+        now = time.time()
+        prefs.seed_seen({dot.id: activity.get(dot.id, (now, ""))[0] for dot in workspace.dots})
+        looking = self._place == "dot" and self.get_visible() and self.is_active()
+        unread = set()
+        for dot_id, (when, _title) in activity.items():
+            if when <= prefs.last_seen(dot_id):
+                continue
+            if looking and dot_id == self._dot_id:
+                prefs.mark_seen(dot_id, when, notify=False)
+            else:
+                unread.add(dot_id)
+        return activity, unread
 
     def _push_pets(self) -> None:
         if self.view is None or not hasattr(self.view, "set_pets"):
@@ -673,7 +872,11 @@ class MainWindow(Adw.ApplicationWindow):
             self.sidebar.select_dot(dot.id)
             self._close_overlay()
             if self._prefs is not None:
-                self._prefs.mark_seen(dot.id)
+                # In the server's clock, like the conversations it is compared with.
+                latest = self.workspace.latest_conversation(dot.id)
+                when = latest.created_at if latest is not None else 0.0
+                self._prefs.mark_seen(dot.id, max(time.time(),
+                                                  when / 1000 if when > 1e12 else when))
             self._refresh_header()
             if self.view is None:
                 return
@@ -736,8 +939,6 @@ class MainWindow(Adw.ApplicationWindow):
             self.sidebar.select_nav(None)
             self._select_current()
             self.app.show_preferences()
-        elif key == "hidden":
-            self.app.show_preferences("dots")
         elif key == "model":
             self.app.show_preferences("model")
 
@@ -750,8 +951,7 @@ class MainWindow(Adw.ApplicationWindow):
         ids = self.sidebar.visible_dot_ids()
         if not ids:
             return
-        position = ids.index(self._dot_id) if self._dot_id in ids else (-1 if step > 0 else 0)
-        self.open_dot(ids[(position + step) % len(ids)])
+        self.open_dot(step_through(ids, self._dot_id, back=step < 0))
 
     def _on_page_selection(self, _view, dot_name: str, place: str) -> None:
         """The page changed by itself (a link, a notification): follow it."""
@@ -775,8 +975,21 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_dot_state(self, _view, dot_name: str, state: str) -> None:
         dot = self.workspace.dot_named(dot_name)
+        before, self._page_state = getattr(self, "_page_state", None), (dot_name, state)
+        if dot is not None and before == (dot_name, "working") and state == "idle":
+            # The same Dot stopped working: it finished replying (not another Dot opened).
+            conversation = next((c for c in self.workspace.conversations
+                                 if c.id == self._page_thread), None)
+            profile = self.app.profiles.active
+            if profile is not None and hasattr(self.app, "notify_dot_done"):
+                self.app.notify_dot_done(profile, dot, conversation.title if conversation
+                                         else "")
         self.sidebar.set_dot_state(dot.id if dot else None, state)
         self._refresh_workspace()
+
+    def showing_dot(self, dot_id: str) -> bool:
+        """The page shows this Dot (its home or a conversation of it)."""
+        return self._place == "dot" and self._dot_id == dot_id
 
     def new_chat(self, dot_id: str | None = None) -> None:
         dot = self.workspace.dot(dot_id) if dot_id else self.current_dot()
@@ -851,7 +1064,8 @@ class MainWindow(Adw.ApplicationWindow):
             return None
         chief = monitor.chief_dot(profile, [d.name for d in self.workspace.dots])
         return dot_menu(dot, pinned=bool(self._prefs and self._prefs.is_pinned(dot_id)),
-                        chief=chief == dot.name, can_call=self._call_blocker(dot) is None)
+                        chief=chief == dot.name, can_call=self._call_blocker(dot) is None,
+                        hidden=bool(self._prefs and self._prefs.is_hidden(dot_id)))
 
     # -- conversations ---------------------------------------------------------------------
 
@@ -1197,6 +1411,70 @@ class MainWindow(Adw.ApplicationWindow):
             self._call_started = time.monotonic()
         self._refresh_header()
 
+    def _on_audio_level(self, _voice, role: str, level: float) -> None:
+        self.call_panel.set_level(role, level)
+        if role == "dot":
+            self.sidebar.set_call_level(level)
+
+    # -- the call panel --------------------------------------------------------------------
+
+    def _call_panel_dot(self) -> Dot | None:
+        """The Dot of the call in progress, or being set up."""
+        in_call = bool(self.view and self.view.voice.in_call)
+        dot_id = self._call_dot if in_call else self._call_pending
+        return self.workspace.dot(dot_id) if dot_id else None
+
+    def _show_call_panel(self, by_owner: bool = False) -> None:
+        """Under the title, without taking the keyboard. On its own only until the owner
+        hides it during this call."""
+        if self._call_panel_dot() is None or (self._call_panel_hidden and not by_owner):
+            return
+        self._call_panel_hidden = False
+        self._place_call_panel()
+        if not self.call_panel.get_visible():
+            self.call_panel.popup()
+
+    def _place_call_panel(self) -> None:
+        ok, bounds = self.title_box.compute_bounds(self.header)
+        if ok:
+            area = Gdk.Rectangle()
+            area.x, area.y = int(bounds.get_x()), int(bounds.get_y())
+            area.width, area.height = int(bounds.get_width()), int(bounds.get_height())
+            self.call_panel.set_pointing_to(area)
+
+    def _on_call_panel_closed(self) -> None:
+        if self._call_panel_dot() is not None:
+            self._call_panel_hidden = True       # the owner hid it: it stays hidden
+
+    def _refresh_call_panel(self) -> None:
+        dot = self._call_panel_dot()
+        if dot is None:
+            if self.call_panel.get_visible():
+                self.call_panel.popdown()
+            self._call_panel_hidden = False
+            self.call_panel.reset()
+            return
+        in_call = bool(self.view and self.view.voice.in_call)
+        phase = getattr(self, "_call_phase", "") if in_call else "connecting"
+        connected = self._call_connected
+        if phase == "ended":
+            status = _("Hanging up…")
+        elif not in_call or (phase == "connecting" and not connected):
+            status = _("Connecting…")
+        elif phase == "connecting":
+            status = _("Reconnecting…")
+        else:
+            words = _(PHASE_WORDS[phase]) if phase in PHASE_WORDS else _("In a call")
+            status = f"{words} · {self._call_elapsed()}"
+        self.call_panel.update(
+            dot_name=dot.name, pet_id=self._pet_map.get(dot.id, pets.DEFAULT.id), phase=phase,
+            status=status, connecting=not in_call or phase == "connecting",
+            ending=phase == "ended", muted=in_call and not self.view.voice.mic_enabled)
+        if self.call_panel.get_visible():
+            self._place_call_panel()
+        else:
+            self._show_call_panel()
+
     def _on_call_cost(self, _voice, cost: float) -> None:
         self._call_voice_cost = cost
         self._refresh_header()
@@ -1373,6 +1651,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.call_button.set_tooltip_text(reason or _("Call {name} (Ctrl+Shift+L)").format(
                 name=dot.name if dot else ""))
         self.call_pending_label.set_visible(not narrow)
+        self._refresh_call_panel()
         if narrow:  # icon only; the words stay in the tooltip
             self.call_content.set_label("")
             self.call_button.remove_css_class("call-button")

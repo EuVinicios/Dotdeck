@@ -3939,3 +3939,159 @@ msgstr "Gasto en OpenRouter: {spend}"
 #, python-brace-format
 msgid "In a call · {time} · {cost}"
 msgstr "En llamada · {time} · {cost}"
+
+#: src/ui/settings/connections.py:212 src/ui/settings/servers.py:190
+#: src/ui/settings/voice_page.py:130
+msgid "Always Allow"
+msgstr "Permitir siempre"
+
+#: src/ui/settings/connections.py:212 src/ui/settings/servers.py:190
+#: src/ui/settings/voice_page.py:130
+msgid "Ask Every Time"
+msgstr "Preguntar siempre"
+
+#: src/ui/settings/connections.py:213 src/ui/settings/servers.py:191
+#: src/ui/settings/voice_page.py:130
+msgid "Never Allow"
+msgstr "No permitir nunca"
+
+#: src/ui/settings/window.py:793
+msgid "Keep Editing"
+msgstr "Seguir editando"
+
+#: src/core/notices.py:35
+#, python-brace-format
+msgid "Finished replying in “{title}”."
+msgstr "Terminó de responder en “{title}”."
+
+#: src/core/notices.py:36
+msgid "Finished replying."
+msgstr "Terminó de responder."
+
+#: src/main.py:324
+msgid "Switch Dots (Hold Ctrl)"
+msgstr "Cambiar de Dot (mantén Ctrl)"
+
+#: src/main.py:330
+msgid "Compact Sidebar"
+msgstr "Barra lateral compacta"
+
+#: src/ui/call_panel.py:139
+msgid "Hide the Call Panel"
+msgstr "Ocultar el panel de la llamada"
+
+#: src/ui/call_panel.py:156 src/ui/call_panel.py:238
+msgid "You"
+msgstr "Tú"
+
+#: src/ui/call_panel.py:175
+msgid "Voice Settings"
+msgstr "Configuración de voz"
+
+#: src/ui/call_panel.py:181
+msgid "Hang Up (Ctrl+Shift+L)"
+msgstr "Colgar (Ctrl+Mayús+L)"
+
+#: src/ui/call_panel.py:238
+msgid "Dot"
+msgstr "Dot"
+
+#: src/ui/call_panel.py:255
+msgid "Nothing said yet"
+msgstr "Nadie ha hablado todavía"
+
+#: src/ui/settings/app_pages.py:216
+msgid "A Dot Finishes Replying"
+msgstr "Un Dot termina de responder"
+
+#: src/ui/settings/app_pages.py:217
+msgid "Unless you are looking at it. Each Dot can turn its own off in its settings"
+msgstr "Salvo que lo estés mirando. Cada Dot puede desactivar sus propios avisos en su configuración"
+
+#: src/ui/settings/common.py:118
+msgid "Couldn't save. Try again."
+msgstr "No se pudo guardar. Inténtalo de nuevo."
+
+#: src/ui/settings/dots.py:485
+msgid "In the grid of pets at the top of the sidebar"
+msgstr "En la cuadrícula de mascotas, arriba en la barra lateral"
+
+#: src/ui/settings/dots.py:490
+msgid "Folded in Hidden Dots, at the end of the sidebar"
+msgstr "Plegado en Dots ocultos, al final de la barra lateral"
+
+#: src/ui/settings/dots.py:494
+msgid "Tell me when this Dot finishes replying"
+msgstr "Avisarme cuando este Dot termine de responder"
+
+#: src/ui/sidebar.py:50
+msgid "now"
+msgstr "ahora"
+
+#: src/ui/sidebar.py:52
+#, python-brace-format
+msgid "{n} min"
+msgstr "{n} min"
+
+#: src/ui/sidebar.py:60
+#, python-brace-format
+msgid "{n} h"
+msgstr "{n} h"
+
+#: src/ui/sidebar.py:64
+#, python-brace-format
+msgid "{n} d"
+msgstr "{n} d"
+
+#: src/ui/sidebar.py:66
+#, python-brace-format
+msgid "{n} wk"
+msgstr "{n} sem"
+
+#: src/ui/sidebar.py:69
+#, python-brace-format
+msgid "{n} mo"
+msgid_plural "{n} mo"
+msgstr[0] "{n} mes"
+msgstr[1] "{n} meses"
+
+#: src/ui/sidebar.py:71
+#, python-brace-format
+msgid "{n} yr"
+msgid_plural "{n} yr"
+msgstr[0] "{n} año"
+msgstr[1] "{n} años"
+
+#: src/ui/sidebar.py:83
+#, python-brace-format
+msgid "New: {title}"
+msgstr "Nueva: {title}"
+
+#: src/ui/sidebar.py:98
+msgid "new conversation"
+msgstr "conversación nueva"
+
+#: src/ui/sidebar.py:179
+#, python-brace-format
+msgid "Latest conversation: {title}"
+msgstr "Última conversación: {title}"
+
+#: src/ui/sidebar.py:348 src/ui/sidebar.py:355
+msgid "Pinned Dots"
+msgstr "Dots fijados"
+
+#: src/ui/sidebar.py:393 src/ui/sidebar.py:401
+msgid "Hidden Dots"
+msgstr "Dots ocultos"
+
+#: src/ui/sidebar.py:1009
+msgid "Show in Sidebar"
+msgstr "Mostrar en la barra lateral"
+
+#: src/ui/window.py:238
+msgid "Drag to resize the sidebar (Ctrl+B: pets only)"
+msgstr "Arrastra para cambiar el ancho de la barra lateral (Ctrl+B: solo las mascotas)"
+
+#: src/ui/window.py:1461
+msgid "Hanging up…"
+msgstr "Colgando…"
