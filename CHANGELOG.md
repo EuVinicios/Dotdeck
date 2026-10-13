@@ -7,7 +7,6 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 ## [Não lançado]
 
 <!-- loja: The OpenDots page now speaks Portuguese along with Dotdeck. -->
-<!-- loja: Voice calls cost less: each reply sends only what it needs. -->
 
 ### Adicionado
 
@@ -17,6 +16,8 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
   qualquer servidor OpenDots, sem mexer nele. O que você e os Dots escrevem (mensagens,
   memórias, tarefas, páginas, nomes) fica como foi escrito. Os rótulos de acessibilidade da
   página e as mensagens de erro do servidor continuam em inglês (ADR-027).
+
+## [0.5.1] - 2026-10-13
 
 ### Mudado
 
