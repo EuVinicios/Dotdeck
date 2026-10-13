@@ -872,3 +872,59 @@ que vai ao OpenRouter.
 - resultado pendente inteiro e resultado respondido cortado;
 - uma ligação longa que passa a enviar menos de um terço;
 - requisições da ligação limitadas à janela.
+
+## ADR-027 — A página do OpenDots no idioma do Dotdeck (12/10/2026)
+
+**Contexto.** O dono abriu Atividade e viu uma página vazia, em inglês ("A little
+follow-through."), e pediu: "Faz a tradução do app para português". A barra nativa e as
+Configurações já estavam em português; a página do OpenDots, não. O OpenDots não tem
+tradução. O PR oficial de tradução (CopilotKit/OpenDots#121) não foi aceito e troca 14 itens
+do contrato (ADR-021), entre eles os rótulos com que o modo foco acha os botões. Traduzir no
+fork do servidor criaria conflito a cada atualização do oficial e não ajudaria quem usa o
+Dotdeck com outro servidor.
+
+**Decisão.** O Dotdeck traduz a página enquanto ela é desenhada, sem mexer no servidor.
+- **Catálogo.** `src/web/translations/pt_BR.json`: 469 textos da página (o inglês exato,
+  como chave) e o português. `{name}` marca uma parte que varia ("Message {name}…" →
+  "Mensagem para {name}…"). Os termos são os do Dotdeck: Dots, Espaços, Atividade,
+  Memórias. O PR #121 serviu de referência, mas "agente" voltou a ser "Dot".
+- **Escolha.** `webview.page_translations(i18n.language())` carrega o catálogo do idioma do
+  Dotdeck (`pt_BR`, senão `pt`) e o entrega ao `focus.js`. Em inglês, ou sem catálogo, a
+  página fica como é.
+- **Aplicação** (`focus.js`, seção "language"). Só numa página reconhecida como o OpenDots.
+  Um observador troca o valor dos nós de texto e os atributos `placeholder` e `title` que
+  batem inteiros com uma chave. Nós vizinhos contam como um texto só ("3" + " saved runs" →
+  "3 execuções salvas"). A página continua dona dos nós: quando o React muda um texto, a
+  tradução é refeita a partir do novo valor.
+- **O que não se traduz.** O editor de páginas: o ProseMirror tomaria a troca por uma edição
+  e salvaria. Também os campos, as mensagens, as memórias, as tarefas, as instruções e os
+  nomes dos Dots (um Dot chamado "Computer" continua "Computer"). Os rótulos de
+  acessibilidade (`aria-label`) ficam em inglês, porque o `focus.js` e o `webview.py` acham
+  os botões por eles. As perguntas da página (`window.confirm`/`prompt`) já eram diálogos
+  nativos traduzidos.
+- **O modo foco continua lendo inglês.** `text()` lê o que a página escreveu, guardado ao
+  traduzir, e não o que ela mostra. O "Activity" do breadcrumb aparece como "Atividade" e
+  continua sendo reconhecido.
+- **Manutenção.** `node tools/page_strings.cjs <OpenDots>` lista os textos da página que o
+  catálogo ainda não tem, com o compilador TypeScript do checkout. Hoje, contra o fork deste
+  servidor e contra o `main` oficial (`625452e`): 0 faltando.
+
+**Prova.**
+- `tests/test_page_translations.py`: 8 testes. Chaves sem espaços sobrando, as mesmas partes
+  `{…}` na chave e no valor, `pt_PT` caindo em `pt`, catálogo quebrado ignorado com aviso, o
+  idioma vindo do catálogo do gettext e `text()` sem `textContent`.
+- `tests/test_focus.py`: 3 testes novos no WebKit. Na página em português, Atividade,
+  Memórias, abrir Dots e o computador continuam funcionando, com o placeholder traduzido e o
+  rótulo acessível e as instruções intactos. Num React simulado, os textos mudam no lugar
+  ("1 execução salva", "12 execuções salvas") e o atributo `title` também. Mensagens e o
+  editor ficam intactos. Em inglês, nada muda.
+- O contrato ganhou 6 classes da página (`document-prose`, `chat-bubble`,
+  `scheduled-message-label`, `memory-card`, `task-row`, `task-detail-card`). Ele passa
+  contra o fork e contra o oficial.
+- Capturas em pt_BR com o cliente compilado do fork (`tools/demo_server.py`): a tela inicial
+  do Dot, Atividade, Memórias e o computador em português.
+
+**Limites.** As mensagens de erro que vêm do servidor seguem em inglês; só "Not found." está
+no catálogo. Os rótulos de acessibilidade também ficam em inglês. Um texto novo do OpenDots
+aparece em inglês até entrar no catálogo; a ferramenta acima mostra quais são. Só há
+português: espanhol pode vir com outro arquivo no mesmo formato.

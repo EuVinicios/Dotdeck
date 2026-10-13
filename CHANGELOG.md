@@ -4,6 +4,19 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+<!-- loja: The OpenDots page now speaks Portuguese along with Dotdeck. -->
+
+### Adicionado
+
+- **A página do OpenDots em português**: com o Dotdeck em português, a página do servidor
+  também fala português: Atividade ("Nada fica pela metade."), Memórias, a conversa, o
+  computador do Dot, os Espaços e o editor de páginas, os avisos e os diálogos. Funciona com
+  qualquer servidor OpenDots, sem mexer nele. O que você e os Dots escrevem (mensagens,
+  memórias, tarefas, páginas, nomes) fica como foi escrito. Os rótulos de acessibilidade da
+  página e as mensagens de erro do servidor continuam em inglês (ADR-027).
+
 ## [0.5.1] - 2026-10-13
 
 ### Mudado

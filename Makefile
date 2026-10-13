@@ -5,6 +5,8 @@
 #   make smoke          drive the UI once and fail on errors (OPENDOTS_CLIENT=<OpenDots>/dist/client
 #                       uses the real web client instead of the stand-in page)
 #   make contract       check src/web/contract.json against OPENDOTS=<an OpenDots checkout>
+#   make page-strings   texts of the OpenDots page (OPENDOTS=<checkout>) missing from
+#                       src/web/translations
 #   make screenshots    refresh data/screenshots (OPENDOTS_CLIENT=<OpenDots>/dist/client)
 #   make store-assets   the Snap Store icon, banner and slides (data/store)
 #   make site           the website in build/website (build-aux/website.sh)
@@ -33,7 +35,7 @@ FLATPAK_BUILDER ?= $(shell command -v flatpak-builder 2>/dev/null || echo flatpa
 HEADLESS := $(shell command -v dbus-run-session >/dev/null 2>&1 && echo "dbus-run-session --") \
             $(shell command -v xvfb-run >/dev/null 2>&1 && echo "xvfb-run -a -s '-screen 0 1600x1000x24'")
 
-.PHONY: all run test smoke contract screenshots store-assets site icon validate privacy locale install uninstall \
+.PHONY: all run test smoke contract page-strings screenshots store-assets site icon validate privacy locale install uninstall \
 	deb flatpak flatpak-lint snap pot clean version
 
 all: locale
@@ -54,6 +56,10 @@ smoke:
 
 # The classes, labels, words and routes Dotdeck needs, looked up in an OpenDots checkout
 # (build it first for the checks on the bundle: npm ci && npm run build).
+page-strings:
+	@test -d "$(OPENDOTS)/src/client" || { echo "Use: make page-strings OPENDOTS=<OpenDots>"; exit 1; }
+	@for catalog in src/web/translations/*.json; do node tools/page_strings.cjs "$(OPENDOTS)" "$$catalog" || exit 1; done
+
 contract:
 	@test -d "$(OPENDOTS)/src/client" || { echo "Use: make contract OPENDOTS=<OpenDots>"; exit 1; }
 	OPENDOTS_SRC="$(OPENDOTS)" $(PYTHON) -m unittest -v tests.test_contract

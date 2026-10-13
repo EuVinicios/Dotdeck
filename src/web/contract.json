@@ -144,6 +144,42 @@
     },
     {
       "kind": "class",
+      "value": "document-prose",
+      "used_by": "focus.js (the page in Dotdeck's language: what people wrote stays as written)",
+      "breaks": "the page editor (ProseMirror) would save a page word it shows translated"
+    },
+    {
+      "kind": "class",
+      "value": "chat-bubble",
+      "used_by": "focus.js (the page in Dotdeck's language: what people wrote stays as written)",
+      "breaks": "a message that matches a page word would show translated"
+    },
+    {
+      "kind": "class",
+      "value": "scheduled-message-label",
+      "used_by": "focus.js (the page in Dotdeck's language: what people wrote stays as written)",
+      "breaks": "the \"Scheduled\" mark on a scheduled message stays in English"
+    },
+    {
+      "kind": "class",
+      "value": "memory-card",
+      "used_by": "focus.js (the page in Dotdeck's language: what people wrote stays as written)",
+      "breaks": "a memory that matches a page word would show translated"
+    },
+    {
+      "kind": "class",
+      "value": "task-row",
+      "used_by": "focus.js (the page in Dotdeck's language: what people wrote stays as written)",
+      "breaks": "a task that matches a page word would show translated in Activity"
+    },
+    {
+      "kind": "class",
+      "value": "task-detail-card",
+      "used_by": "focus.js (the page in Dotdeck's language: what people wrote stays as written)",
+      "breaks": "a task that matches a page word would show translated in its details"
+    },
+    {
+      "kind": "class",
       "value": "chat-welcome",
       "used_by": "focus.css (shorter instructions)",
       "breaks": "focus mode: layout only (the chat does not fill the window)"
@@ -753,14 +789,19 @@
     "${}\\n${}",
     "${}\\n${}\\n${}",
     "${}px",
+    "(.+?)",
     "(prefers-color-scheme: dark)",
+    ".document-prose, textarea, input, pre, code, script, style, ",
+    "\\\\$&",
     "\\n",
+    "^${}$",
     "__dotdeck",
     "alt",
     "aria-current",
     "aria-label",
     "auto",
     "change",
+    "characterData",
     "chat",
     "class",
     "content",
@@ -780,6 +821,7 @@
     "idle",
     "memories",
     "no-store",
+    "placeholder",
     "probe",
     "scroll",
     "selection",
@@ -788,6 +830,7 @@
     "space",
     "string",
     "tasks",
+    "title",
     "use strict"
   ]
 }
