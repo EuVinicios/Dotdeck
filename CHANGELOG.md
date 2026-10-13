@@ -4,15 +4,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
-
-<!-- loja: A new sidebar and a calmer look, inspired by the Grok Bot desktop app. -->
-<!-- loja: Each Dot shows when its latest conversation began and marks the ones you have not seen. -->
-<!-- loja: Pinned Dots in a grid of pets, hidden ones folded at the end, and a compact rail (Ctrl+B). -->
-<!-- loja: A resizable sidebar, and Ctrl+Tab to switch between Dots. -->
-<!-- loja: A call panel with both voices as waves and what each side said. -->
-<!-- loja: A notification when a Dot finishes replying, which each Dot can turn off. -->
-<!-- loja: Neutral grey surfaces in light and dark, and fewer places to look in Settings. -->
+## [0.7.0] - 2026-10-13
 
 ### Adicionado
 

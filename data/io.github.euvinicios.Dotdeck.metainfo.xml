@@ -159,6 +159,19 @@
   </screenshots>
 
   <releases>
+    <release version="0.7.0" date="2026-10-13">
+      <description>
+        <p>A new sidebar and a calmer look, inspired by the Grok Bot desktop app.</p>
+        <ul>
+          <li>Each Dot shows when its latest conversation began and marks the ones you have not seen.</li>
+          <li>Pinned Dots in a grid of pets, hidden ones folded at the end, and a compact rail (Ctrl+B).</li>
+          <li>A resizable sidebar, and Ctrl+Tab to switch between Dots.</li>
+          <li>A call panel with both voices as waves and what each side said.</li>
+          <li>A notification when a Dot finishes replying, which each Dot can turn off.</li>
+          <li>Neutral grey surfaces in light and dark, and fewer places to look in Settings.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.6.0" date="2026-10-13">
       <description>
         <p>The OpenDots page now speaks Portuguese along with Dotdeck.</p>
