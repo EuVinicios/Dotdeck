@@ -4,6 +4,19 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+<!-- loja: The sidebar no longer shakes while you drag its edge. -->
+<!-- loja: The width you see when you let go is the one that stays. -->
+
+### Corrigido
+
+- **A barra lateral não treme mais ao arrastar a borda**, e a largura que você vê ao soltar
+  é a que fica. A alça de arrasto anda junto com a borda, e o Dotdeck media o arrasto a
+  partir dela: a barra seguia o mouse na metade da velocidade, tremia quando o mouse andava
+  mais rápido que a tela e, ao soltar, podia voltar a uma largura antiga. Agora a conta é
+  feita pela posição do mouse na janela, que não se mexe.
+
 ## [0.7.0] - 2026-10-13
 
 ### Adicionado

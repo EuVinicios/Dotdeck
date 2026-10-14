@@ -15,7 +15,8 @@ from typing import Callable
 import gi
 gi.require_version("Adw", "1")
 gi.require_version("Gtk", "4.0")
-from gi.repository import Adw, Gdk, Gio, GLib, GObject, Gtk, Pango
+gi.require_version("Graphene", "1.0")
+from gi.repository import Adw, Gdk, Gio, GLib, GObject, Graphene, Gtk, Pango
 
 from .. import config
 from ..core import api, costs, dotprefs, models, monitor, pets, server, store, voice
@@ -638,18 +639,28 @@ class MainWindow(Adw.ApplicationWindow):
         self.app.settings.set("sidebar-rail", False)
         self._apply_layout()
 
-    def _on_resize_begin(self, _gesture, _x, _y) -> None:
+    def _on_resize_begin(self, gesture, _x, _y) -> None:
         self._resize_from = RAIL_WIDTH if self._rail() else self.split.get_min_sidebar_width()
+        self._resize_start = self._pointer_x(gesture)
 
-    def _dragged_width(self, offset_x: float) -> tuple[int, bool]:
-        return dragged_width(getattr(self, "_resize_from", RAIL_WIDTH), offset_x,
+    def _pointer_x(self, gesture: Gtk.GestureDrag) -> float:
+        """Where the pointer is across the window. The drag's own offsets are in the
+        handle's coordinates, and the handle moves with the edge: the sidebar followed the
+        pointer at half speed and, with events arriving between frames, shook."""
+        _ok, x, y = gesture.get_point(None)
+        _ok, point = self.resize_handle.compute_point(self, Graphene.Point().init(x, y))
+        return point.x
+
+    def _dragged_width(self, gesture: Gtk.GestureDrag) -> tuple[int, bool]:
+        moved = self._pointer_x(gesture) - getattr(self, "_resize_start", 0.0)
+        return dragged_width(getattr(self, "_resize_from", RAIL_WIDTH), moved,
                              self.get_direction() == Gtk.TextDirection.RTL)
 
-    def _on_resize_update(self, _gesture, offset_x: float, _offset_y: float) -> None:
-        self._apply_sidebar_width(*self._dragged_width(offset_x))
+    def _on_resize_update(self, gesture, _offset_x: float, _offset_y: float) -> None:
+        self._apply_sidebar_width(*self._dragged_width(gesture))
 
-    def _on_resize_end(self, _gesture, offset_x: float, _offset_y: float) -> None:
-        width, rail = self._dragged_width(offset_x)
+    def _on_resize_end(self, gesture, _offset_x: float, _offset_y: float) -> None:
+        width, rail = self._dragged_width(gesture)
         settings = self.app.settings
         if not rail:
             settings.set("sidebar-width", width)
