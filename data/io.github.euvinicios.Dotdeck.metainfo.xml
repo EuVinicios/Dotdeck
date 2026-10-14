@@ -159,6 +159,14 @@
   </screenshots>
 
   <releases>
+    <release version="0.7.1" date="2026-10-13">
+      <description>
+        <p>The sidebar no longer shakes while you drag its edge.</p>
+        <ul>
+          <li>The width you see when you let go is the one that stays.</li>
+        </ul>
+      </description>
+    </release>
     <release version="0.7.0" date="2026-10-13">
       <description>
         <p>A new sidebar and a calmer look, inspired by the Grok Bot desktop app.</p>

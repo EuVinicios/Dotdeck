@@ -4,10 +4,7 @@ Todas as mudanças relevantes do Dotdeck. O formato segue o
 [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e as versões seguem o
 [SemVer](https://semver.org/lang/pt-BR/).
 
-## [Não lançado]
-
-<!-- loja: The sidebar no longer shakes while you drag its edge. -->
-<!-- loja: The width you see when you let go is the one that stays. -->
+## [0.7.1] - 2026-10-13
 
 ### Corrigido
 
